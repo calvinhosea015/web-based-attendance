@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Dashboard - Office Attendance</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Office Attendance</h1>
+      <p>Allow location access to check in at the office.</p>
+    </header>
+
+    <section class="status-panel">
+      <div>
+        <strong>Logged in as:</strong>
+        <span id="session-user">Loading...</span>
+      </div>
+      <div>
+        <strong>Selected office:</strong>
+        <span id="office-name">Loading...</span>
+      </div>
+      <div>
+        <strong>Office location:</strong>
+        <span id="office-location">Loading...</span>
+      </div>
+      <div>
+        <strong>Allowed radius:</strong>
+        <span id="office-radius">Loading...</span>
+      </div>
+      <div>
+        <strong>Location status:</strong>
+        <span id="geo-status">Waiting for permission...</span>
+      </div>
+    </section>
+
+    <form id="checkin-form" class="form-card">
+      <label>
+        Name
+        <input type="text" id="name" name="name" placeholder="Jane Doe" required />
+      </label>
+      <label>
+        Email
+        <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+      </label>
+      <label>
+        Office
+        <select id="office" name="office" required>
+          <option value="">Loading offices...</option>
+        </select>
+      </label>
+      <label>
+        Note
+        <input type="text" id="note" name="note" placeholder="Optional note" />
+      </label>
+      <button type="button" id="update-location">Update location</button>
+      <button type="submit">Check In</button>
+      <input type="hidden" id="latitude" name="latitude" />
+      <input type="hidden" id="longitude" name="longitude" />
+    </form>
+
+    <div id="message" class="message"></div>
+
+    <nav class="links">
+      <a class="button" id="logout-button" href="#">Logout</a>
+      <a class="button" href="admin.html">View attendance records</a>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

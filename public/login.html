@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Attendance</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Login</h1>
+      <p>Sign in with your account to continue.</p>
+    </header>
+
+    <form id="login-form" class="form-card">
+      <label>
+        Username
+        <input type="text" id="username" name="username" placeholder="admin or user" required />
+      </label>
+      <label>
+        Password
+        <input type="password" id="password" name="password" placeholder="Password" required />
+      </label>
+      <button type="submit">Sign In</button>
+      <input type="hidden" id="next-page" value="user.html" />
+    </form>
+
+    <div id="message" class="message"></div>
+
+    <nav class="links">
+      <a href="index.html">Back to home</a>
+    </nav>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const nextPage = params.get('next') || 'user.html';
+    const nextInput = document.getElementById('next-page');
+    const messageEl = document.getElementById('message');
+
+    nextInput.value = nextPage;
+
+    function setMessage(text, type = 'error') {
+      messageEl.textContent = text;
+      messageEl.className = `message ${type}`;
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      setMessage('');
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const next = nextInput.value;
+
+      if (!username || !password) {
+        setMessage('Please enter username and password.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+          window.location.href = next;
+        } else {
+          setMessage(data.error || 'Login failed.');
+        }
+      } catch (error) {
+        setMessage(`Login error: ${error.message}`);
+      }
+    });
+
+    async function checkSession() {
+      try {
+        const response = await fetch('/api/me');
+        const data = await response.json();
+        if (data.ok && data.user) {
+          window.location.href = data.user.role === 'admin' ? '/admin.html' : '/user.html';
+        }
+      } catch (error) {
+        // ignore
+      }
+    }
+
+    checkSession();
+  </script>
+</body>
+</html>

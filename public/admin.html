@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Records</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Attendance Records</h1>
+      <p>Recent check-ins within the office geofence.</p>
+    </header>
+
+    <section class="status-panel">
+      <div>
+        <strong>Logged in as:</strong>
+        <span id="session-user">Loading...</span>
+      </div>
+      <div>
+        <strong>Attendance records:</strong>
+        <span id="record-count">Loading...</span>
+      </div>
+    </section>
+
+    <div id="records"></div>
+    <nav class="links">
+      <a class="button" href="/api/export">Export to Excel</a>
+      <a class="button" id="logout-button" href="#">Logout</a>
+      <a href="index.html">Back to landing page</a>
+    </nav>
+  </div>
+
+  <script>
+    async function fetchCurrentUser() {
+      const response = await fetch('/api/me');
+      const data = await response.json();
+
+      if (!data.ok || !data.user || data.user.role !== 'admin') {
+        window.location.href = '/login.html?next=admin.html';
+        return null;
+      }
+
+      document.getElementById('session-user').textContent = data.user.username;
+      return data.user;
+    }
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    document.getElementById('logout-button').addEventListener('click', async event => {
+      event.preventDefault();
+      await logout();
+    });
+
+    async function loadRecords() {
+      const response = await fetch('/api/attendance');
+      const data = await response.json();
+      const recordsEl = document.getElementById('records');
+      const countEl = document.getElementById('record-count');
+
+      countEl.textContent = data.records.length;
+
+      if (!data.records.length) {
+        recordsEl.innerHTML = '<p class="empty">No attendance records yet.</p>';
+        return;
+      }
+
+      const rows = data.records.map(record => `
+        <article class="record-card">
+          <div><strong>${record.name}</strong> <span>${new Date(record.timestamp).toLocaleString()}</span></div>
+          <div>${record.officeName || 'Unknown office'}</div>
+          <div>${record.email}</div>
+          <div>Distance: ${record.distance} m</div>
+          <div>Location: ${record.latitude.toFixed(5)}, ${record.longitude.toFixed(5)}</div>
+          <div>Note: ${record.note || '—'}</div>
+        </article>
+      `).join('');
+
+      recordsEl.innerHTML = rows;
+    }
+
+    fetchCurrentUser().then(user => {
+      if (!user) return;
+      loadRecords().catch(err => {
+        document.getElementById('records').innerHTML = `<p class="error">Unable to load records: ${err.message}</p>`;
+      });
+    });
+  </script>
+</body>
+</html>
