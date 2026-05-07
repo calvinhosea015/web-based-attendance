@@ -1,41 +1,44 @@
-# Web-Based Attendance with Geolocation
+# Web-Based Attendance System
 
-A simple office attendance system using browser geolocation and Node.js.
+A full-stack web application for office attendance tracking with geolocation verification.
 
 ## Features
 
-- Check in from the browser using GPS coordinates
-- Office geofence validation against a fixed office location
-- Attendance record storage in `attendance.json`
-- Admin page to review recent records
-- Export attendance as Excel-friendly CSV from the admin page
+- User authentication (admin and regular users)
+- Geolocation-based check-in/check-out within 200m radius of office locations
+- Separate dashboards for users and admins
+- Multi-language support (English and Indonesian)
+- Export attendance data to Excel (admin only)
+- SQLite database for data storage
+
+## Offices
+
+- RS Darmo: https://maps.app.goo.gl/x9nEcHGRREfzCiwC9
+
+Admins can add new office locations by entering only the Google Maps location link.
+
+Allowed radius for check-in: 200m
 
 ## Setup
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+1. Clone the repository
+2. Install backend dependencies: `cd backend && npm install`
+3. Install frontend dependencies: `cd frontend && npm install`
+4. Start backend: `cd backend && npm start` (backend now runs on port `5001`)
+5. Start frontend: `cd frontend && npm start`
 
-2. Start the server:
-   ```bash
-   npm start
-   ```
+## Default Admin Account
 
-3. Open the app in your browser:
-   - Landing page: `http://localhost:3000`
-   - Login page: `http://localhost:3000/login.html`
+- Username: admin
+- Password: admin123
 
-## Accounts
+## Usage
 
-- Admin: `admin` / `admin123`
-- User: `user` / `user123`
+- Login with admin credentials to manage users and export data
+- Login with user credentials to check-in/check-out
+- Geolocation permission is required for check-in/check-out
 
-## Customize office location
+## Technologies
 
-Update the `OFFICES` list in `server.js` to add or change selectable office locations. The check-in page automatically loads available offices from the backend.
-
-## Notes
-
-- The app uses browser geolocation, so the user must allow location access.
-- Attendance records are saved to `attendance.json` and should be protected in a production environment.
+- Backend: Node.js, Express, SQLite, JWT
+- Frontend: React, Axios, React Router, i18next
