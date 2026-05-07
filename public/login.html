@@ -36,7 +36,6 @@
           </label>
 
           <button type="submit" data-i18n="loginButton">Sign In</button>
-          <input type="hidden" id="next-page" value="user.html" />
         </form>
 
         <div id="message" class="message"></div>
@@ -51,7 +50,6 @@
     <script>
       const params = new URLSearchParams(window.location.search);
       const nextPage = params.get('next') || 'user.html';
-      const nextInput = document.getElementById('next-page');
       const messageEl = document.getElementById('message');
 
       nextInput.value = nextPage;
@@ -67,7 +65,6 @@
 
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value.trim();
-        const next = nextInput.value;
 
         if (!username || !password) {
           setMessage(i18n.t('pleaseEnterCredentials'));
@@ -83,7 +80,7 @@
 
           const data = await response.json();
           if (data.ok) {
-            window.location.href = next;
+            window.location.href = data.user.role === 'admin' ? '/admin.html' : '/user.html';
           } else {
             setMessage(data.error || i18n.t('loginFailed'));
           }
