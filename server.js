@@ -31,17 +31,56 @@ const OFFICES = [
   }
 ];
 
-const USERS = [
-  { username: 'admin', password: 'admin123', role: 'admin' },
-  { username: 'user', password: 'user123', role: 'user' }
+const USERS_FILE = path.join(__dirname, 'users.json');
+const DEFAULT_USERS = [
+  {
+    username: 'admin',
+    password: 'admin123',
+    role: 'admin',
+    displayName: 'Administrator',
+    email: 'admin@example.com'
+  },
+  {
+    username: 'user',
+    password: 'user123',
+    role: 'user',
+    displayName: 'Regular User',
+    email: 'user@example.com'
+  }
 ];
 
-function getOfficeById(id) {
-  return OFFICES.find(office => office.id === id);
+function loadUsers() {
+  try {
+    const raw = fs.readFileSync(USERS_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    saveUsers(DEFAULT_USERS);
+    return DEFAULT_USERS;
+  }
+}
+
+function saveUsers(users) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
 function findUser(username) {
-  return USERS.find(user => user.username === username);
+  const users = loadUsers();
+  return users.find(user => user.username === username);
+}
+
+function getUserPublic(username) {
+  const user = findUser(username);
+  if (!user) return null;
+  const { password, ...publicData } = user;
+  return publicData;
+}
+
+function getAllUsers() {
+  return loadUsers().map(({ password, ...user }) => user);
+}
+
+function getOfficeById(id) {
+  return OFFICES.find(office => office.id === id);
 }
 
 app.use(express.json());
@@ -121,7 +160,13 @@ app.get('/api/me', (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ ok: false, error: 'Not authenticated.' });
   }
-  res.json({ ok: true, user: req.session.user });
+
+  const user = getUserPublic(req.session.user.username);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'User account not found.' });
+  }
+
+  res.json({ ok: true, user: { ...user, role: req.session.user.role } });
 });
 
 app.get('/user.html', redirectIfNotUser, (req, res) => {
@@ -134,6 +179,86 @@ app.get('/admin.html', redirectIfNotAdmin, (req, res) => {
 
 app.get('/api/offices', requireLogin, (req, res) => {
   res.json({ offices: OFFICES });
+});
+
+app.get(['/', '/index.html'], (req, res) => {
+  res.redirect('/login.html');
+});
+
+app.get('/api/users', requireAdmin, (req, res) => {
+  res.json({ ok: true, users: getAllUsers() });
+});
+
+app.post('/api/users', requireAdmin, (req, res) => {
+  const { username, password, displayName, email, role = 'user' } = req.body;
+  const cleanUsername = String(username || '').trim();
+  const cleanPassword = String(password || '').trim();
+  const cleanRole = role === 'admin' ? 'admin' : 'user';
+
+  if (!cleanUsername || !cleanPassword) {
+    return res.status(400).json({ ok: false, error: 'Username and password are required.' });
+  }
+
+  if (findUser(cleanUsername)) {
+    return res.status(400).json({ ok: false, error: 'A user with that username already exists.' });
+  }
+
+  const users = loadUsers();
+  const newUser = {
+    username: cleanUsername,
+    password: cleanPassword,
+    role: cleanRole,
+    displayName: String(displayName || cleanUsername),
+    email: String(email || '')
+  };
+
+  users.push(newUser);
+  saveUsers(users);
+  res.json({ ok: true, user: getUserPublic(cleanUsername) });
+});
+
+app.delete('/api/users/:username', requireAdmin, (req, res) => {
+  const { username } = req.params;
+
+  if (username === req.session.user.username) {
+    return res.status(400).json({ ok: false, error: 'You cannot delete the signed-in admin account.' });
+  }
+
+  if (username === 'admin') {
+    return res.status(400).json({ ok: false, error: 'The admin account cannot be removed.' });
+  }
+
+  const users = loadUsers();
+  const exists = users.some(user => user.username === username);
+  if (!exists) {
+    return res.status(404).json({ ok: false, error: 'User not found.' });
+  }
+
+  saveUsers(users.filter(user => user.username !== username));
+  res.json({ ok: true });
+});
+
+app.get('/api/status', requireUser, (req, res) => {
+  const records = loadAttendance();
+  const username = req.session.user.username;
+  const lastRecord = records.find(record => record.username === username);
+
+  if (!lastRecord) {
+    return res.json({ ok: true, status: { checkedIn: false } });
+  }
+
+  const type = lastRecord.type || 'checkin';
+  res.json({
+    ok: true,
+    status: {
+      checkedIn: type === 'checkin',
+      action: type,
+      officeId: lastRecord.officeId,
+      officeName: lastRecord.officeName,
+      timestamp: lastRecord.timestamp,
+      note: lastRecord.note || ''
+    }
+  });
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -171,12 +296,29 @@ app.get('/api/attendance', requireAdmin, (req, res) => {
   res.json({ records });
 });
 
-app.post('/api/checkin', requireLogin, (req, res) => {
-  const { name, email, latitude, longitude, note, officeId } = req.body;
+app.post('/api/checkin', requireUser, (req, res) => {
+  const { latitude, longitude, note, officeId, action = 'checkin' } = req.body;
   const office = getOfficeById(officeId);
+  const user = findUser(req.session.user.username);
 
-  if (!name || !email || typeof latitude !== 'number' || typeof longitude !== 'number' || !office) {
-    return res.status(400).json({ ok: false, error: 'Name, email, latitude, longitude, and office selection are required.' });
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'User account not found.' });
+  }
+
+  if (typeof latitude !== 'number' || typeof longitude !== 'number' || !office) {
+    return res.status(400).json({ ok: false, error: 'Latitude, longitude, and valid office selection are required.' });
+  }
+
+  const records = loadAttendance();
+  const lastRecord = records.find(record => record.username === user.username);
+  const lastType = lastRecord ? lastRecord.type || 'checkin' : null;
+
+  if (action === 'checkin' && lastType === 'checkin') {
+    return res.status(400).json({ ok: false, error: 'You are already checked in. Please check out first.' });
+  }
+
+  if (action === 'checkout' && lastType !== 'checkin') {
+    return res.status(400).json({ ok: false, error: 'You are not currently checked in.' });
   }
 
   const distance = getDistanceMeters(latitude, longitude, office.latitude, office.longitude);
@@ -185,37 +327,40 @@ app.post('/api/checkin', requireLogin, (req, res) => {
   if (!withinRange) {
     return res.status(400).json({
       ok: false,
-      error: `You are ${Math.round(distance)} meters away from ${office.name}. You must be within ${office.radiusMeters} meters to check in.`
+      error: `You are ${Math.round(distance)} meters away from ${office.name}. You must be within ${office.radiusMeters} meters to ${action}.`
     });
   }
 
-  const records = loadAttendance();
   const timestamp = new Date().toISOString();
   const record = {
-    name,
-    email,
+    username: user.username,
+    displayName: user.displayName || user.username,
+    email: user.email,
     officeId: office.id,
     officeName: office.name,
     note: note || '',
     latitude,
     longitude,
     distance: Math.round(distance),
-    timestamp
+    timestamp,
+    type: action
   };
 
   records.unshift(record);
   saveAttendance(records);
 
-  res.json({ ok: true, record, message: 'Check-in recorded successfully.' });
+  res.json({ ok: true, record, message: `Successfully recorded ${action}.` });
 });
 
 app.get('/api/export', requireAdmin, (req, res) => {
   const records = loadAttendance();
-  const headers = ['Office', 'Name', 'Email', 'Timestamp', 'Distance (m)', 'Latitude', 'Longitude', 'Note'];
+  const headers = ['Type', 'Username', 'Name', 'Email', 'Office', 'Timestamp', 'Distance (m)', 'Latitude', 'Longitude', 'Note'];
   const rows = records.map(record => [
+    record.type || 'checkin',
+    record.username || '',
+    record.displayName || '',
+    record.email || '',
     record.officeName || '',
-    record.name,
-    record.email,
     record.timestamp,
     record.distance,
     record.latitude,

@@ -1,12 +1,16 @@
 const statusEl = document.getElementById('geo-status');
 const sessionUserEl = document.getElementById('session-user');
+const sessionEmailEl = document.getElementById('session-email');
 const officeNameEl = document.getElementById('office-name');
 const officeLocationEl = document.getElementById('office-location');
 const officeRadiusEl = document.getElementById('office-radius');
+const checkStatusEl = document.getElementById('check-status');
 const messageEl = document.getElementById('message');
 const form = document.getElementById('checkin-form');
 const officeSelect = document.getElementById('office');
 const updateLocationButton = document.getElementById('update-location');
+const checkinButton = document.getElementById('checkin-button');
+const checkoutButton = document.getElementById('checkout-button');
 const logoutButton = document.getElementById('logout-button');
 const latInput = document.getElementById('latitude');
 const lngInput = document.getElementById('longitude');
@@ -23,9 +27,37 @@ function setLocationStatus(text) {
   statusEl.textContent = text;
 }
 
+function setUserName(name) {
+  if (sessionUserEl) {
+    sessionUserEl.textContent = name || i18n.t('unknown');
+  }
+}
+
+function setUserEmail(email) {
+  if (sessionEmailEl) {
+    sessionEmailEl.textContent = email || i18n.t('unknown');
+  }
+}
+
+function updateCheckStatus(status) {
+  if (!checkStatusEl) return;
+  if (!status || status.checkedIn === undefined) {
+    checkStatusEl.textContent = i18n.t('checkedOutLabel');
+    return;
+  }
+  checkStatusEl.textContent = status.checkedIn ? i18n.t('checkedInLabel') : i18n.t('checkedOutLabel');
+}
+
+function updateActionButtons(status) {
+  if (!checkinButton || !checkoutButton) return;
+  const checkedIn = status && status.checkedIn;
+  checkinButton.disabled = checkedIn;
+  checkoutButton.disabled = !checkedIn;
+}
+
 function updateOfficeDetails(office) {
   if (!office) {
-    officeNameEl.textContent = 'None selected';
+    officeNameEl.textContent = i18n.t('officeNoneSelected');
     officeLocationEl.textContent = '-';
     officeRadiusEl.textContent = '-';
     return;
@@ -36,10 +68,22 @@ function updateOfficeDetails(office) {
   officeRadiusEl.textContent = `${office.radiusMeters} meters`;
 }
 
-function setUserName(name) {
-  if (sessionUserEl) {
-    sessionUserEl.textContent = name || 'Unknown';
+async function fetchStatus() {
+  try {
+    const response = await fetch('/api/status');
+    const data = await response.json();
+    if (data.ok) {
+      updateCheckStatus(data.status);
+      updateActionButtons(data.status);
+      return data.status;
+    }
+  } catch (error) {
+    setMessage(`${i18n.t('networkErrorPrefix')} ${error.message}`, 'error');
   }
+
+  updateCheckStatus({ checkedIn: false });
+  updateActionButtons({ checkedIn: false });
+  return { checkedIn: false };
 }
 
 async function fetchCurrentUser() {
@@ -53,7 +97,8 @@ async function fetchCurrentUser() {
     }
 
     currentUser = data.user;
-    setUserName(currentUser.username);
+    setUserName(currentUser.displayName || currentUser.username);
+    setUserEmail(currentUser.email || i18n.t('unknown'));
     return currentUser;
   } catch (error) {
     window.location.href = `/login.html?next=${encodeURIComponent(window.location.pathname.replace('/', ''))}`;
@@ -68,7 +113,7 @@ async function loadOffices() {
     offices = data.offices || [];
 
     if (!offices.length) {
-      officeSelect.innerHTML = '<option value="">No offices available</option>';
+      officeSelect.innerHTML = `<option value="">${i18n.t('noOfficesAvailable')}</option>`;
       updateOfficeDetails(null);
       return;
     }
@@ -80,9 +125,9 @@ async function loadOffices() {
     officeSelect.value = offices[0].id;
     updateOfficeDetails(offices[0]);
   } catch (error) {
-    officeSelect.innerHTML = '<option value="">Unable to load offices</option>';
+    officeSelect.innerHTML = `<option value="">${i18n.t('noOfficesAvailable')}</option>`;
     updateOfficeDetails(null);
-    setMessage(`Unable to load office list: ${error.message}`, 'error');
+    setMessage(`${i18n.t('networkErrorPrefix')} ${error.message}`, 'error');
   }
 }
 
@@ -92,11 +137,11 @@ function getSelectedOffice() {
 
 async function requestLocation() {
   if (!navigator.geolocation) {
-    setLocationStatus('Geolocation is not supported in this browser.');
+    setLocationStatus(i18n.t('locationNotSupported'));
     return;
   }
 
-  setLocationStatus('Requesting location...');
+  setLocationStatus(i18n.t('requestingLocation'));
 
   navigator.geolocation.getCurrentPosition(
     position => {
@@ -109,7 +154,7 @@ async function requestLocation() {
     error => {
       const reason = error.message || 'Unable to access location.';
       setLocationStatus(reason);
-      setMessage('Please enable location access to check in from the office.', 'error');
+      setMessage(i18n.t('enableLocationAccess'), 'error');
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
   );
@@ -132,19 +177,16 @@ if (logoutButton) {
   });
 }
 
-form.addEventListener('submit', async event => {
-  event.preventDefault();
+async function submitAction(action) {
   messageEl.textContent = '';
 
-  const name = document.getElementById('name').value.trim();
-  const email = document.getElementById('email').value.trim();
   const note = document.getElementById('note').value.trim();
   const latitude = parseFloat(latInput.value);
   const longitude = parseFloat(lngInput.value);
   const officeId = officeSelect.value;
 
-  if (!name || !email || !officeId || Number.isNaN(latitude) || Number.isNaN(longitude)) {
-    setMessage('Complete the form, choose an office, and allow geolocation before checking in.', 'error');
+  if (!officeId || Number.isNaN(latitude) || Number.isNaN(longitude)) {
+    setMessage(i18n.t('completeFormMessage'), 'error');
     return;
   }
 
@@ -152,28 +194,34 @@ form.addEventListener('submit', async event => {
     const response = await fetch('/api/checkin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, note, latitude, longitude, officeId })
+      body: JSON.stringify({ action, note, latitude, longitude, officeId })
     });
 
     const result = await response.json();
     if (result.ok) {
       setMessage(result.message, 'success');
-      form.reset();
-      officeSelect.value = offices[0]?.id || '';
-      updateOfficeDetails(getSelectedOffice());
-      requestLocation();
+      setTimeout(() => fetchStatus(), 250);
     } else {
-      setMessage(result.error || 'Check-in failed.', 'error');
+      setMessage(result.error || i18n.t('checkInFailed'), 'error');
     }
   } catch (error) {
-    setMessage(`Network error: ${error.message}`, 'error');
+    setMessage(`${i18n.t('networkErrorPrefix')} ${error.message}`, 'error');
   }
-});
+}
+
+if (checkinButton) {
+  checkinButton.addEventListener('click', () => submitAction('checkin'));
+}
+
+if (checkoutButton) {
+  checkoutButton.addEventListener('click', () => submitAction('checkout'));
+}
 
 fetchCurrentUser().then(user => {
   if (!user) return;
   loadOffices().then(() => {
     requestLocation();
+    fetchStatus();
     setInterval(requestLocation, 30000);
   });
 });

@@ -3,96 +3,87 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard</title>
+  <title data-i18n-title="adminTitle">Admin Dashboard</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Admin Dashboard</h1>
-      <p>View all attendance records and export them to Excel.</p>
+      <h1 data-i18n="adminHeader">Admin Dashboard</h1>
+      <p data-i18n="adminSubtext">View all attendance records and export them to Excel.</p>
+      <div class="lang-switcher">
+        <label>
+          <span data-i18n="languageLabel">Language</span>
+          <select id="locale-select">
+            <option value="en">English</option>
+            <option value="id">Bahasa Indonesia</option>
+          </select>
+        </label>
+      </div>
     </header>
 
     <div class="card">
       <div class="status-panel">
         <div class="info-box">
-          <strong>Logged in as</strong>
+          <strong data-i18n="loggedInAsLabel">Logged in as</strong>
           <span id="session-user">Loading...</span>
         </div>
         <div class="info-box">
-          <strong>Records found</strong>
+          <strong data-i18n="recordsFoundLabel">Records found</strong>
           <span id="record-count">Loading...</span>
         </div>
       </div>
 
+      <section class="management-panel">
+        <h2 data-i18n="userAccountsHeader">User Accounts</h2>
+        <div id="user-list" class="user-list">Loading accounts...</div>
+
+        <form id="add-user-form" class="form-card">
+          <h3 data-i18n="addUserHeader">Add new account</h3>
+
+          <label>
+            <span data-i18n="usernameLabel">Username</span>
+            <input type="text" id="new-username" placeholder="Enter username" required />
+          </label>
+
+          <label>
+            <span data-i18n="passwordLabel">Password</span>
+            <input type="password" id="new-password" placeholder="Enter password" required />
+          </label>
+
+          <label>
+            <span data-i18n="displayNameLabel">Display name</span>
+            <input type="text" id="new-displayname" placeholder="Full name" />
+          </label>
+
+          <label>
+            <span data-i18n="accountEmailLabel">Account email</span>
+            <input type="email" id="new-email" placeholder="user@example.com" />
+          </label>
+
+          <label>
+            <span data-i18n="roleLabel">Role</span>
+            <select id="new-role">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+
+          <button type="submit" data-i18n="createUserButton">Create account</button>
+        </form>
+      </section>
+
       <div id="records"></div>
 
       <div class="links">
-        <a class="button" href="/api/export">Export to Excel</a>
-        <a class="button secondary" id="logout-button" href="#">Logout</a>
-        <a class="button secondary" href="index.html">Back to home</a>
+        <a class="button" href="/api/export" data-i18n="exportButton">Export to Excel</a>
+        <a class="button secondary" id="logout-button" href="#" data-i18n="logoutButton">Logout</a>
+        <a class="button secondary" href="index.html" data-i18n="backToHomeButton">Back to home</a>
       </div>
     </div>
   </div>
 
-  <script>
-    async function fetchCurrentUser() {
-      const response = await fetch('/api/me');
-      const data = await response.json();
-
-      if (!data.ok || !data.user || data.user.role !== 'admin') {
-        window.location.href = '/login.html?next=admin.html';
-        return null;
-      }
-
-      document.getElementById('session-user').textContent = data.user.username;
-      return data.user;
-    }
-
-    async function logout() {
-      await fetch('/api/logout', { method: 'POST' });
-      window.location.href = '/login.html';
-    }
-
-    document.getElementById('logout-button').addEventListener('click', async event => {
-      event.preventDefault();
-      await logout();
-    });
-
-    async function loadRecords() {
-      const response = await fetch('/api/attendance');
-      const data = await response.json();
-      const recordsEl = document.getElementById('records');
-      const countEl = document.getElementById('record-count');
-
-      countEl.textContent = data.records.length;
-
-      if (!data.records.length) {
-        recordsEl.innerHTML = '<p class="empty">No attendance records yet.</p>';
-        return;
-      }
-
-      const rows = data.records.map(record => `
-        <article class="record-card">
-          <div><strong>${record.name}</strong></div>
-          <div>Office: ${record.officeName || 'Unknown'}</div>
-          <div>Email: ${record.email}</div>
-          <div>When: ${new Date(record.timestamp).toLocaleString()}</div>
-          <div>Distance: ${record.distance} m</div>
-          <div>Location: ${record.latitude.toFixed(5)}, ${record.longitude.toFixed(5)}</div>
-          <div>Note: ${record.note || 'None'}</div>
-        </article>
-      `).join('');
-
-      recordsEl.innerHTML = rows;
-    }
-
-    fetchCurrentUser().then(user => {
-      if (!user) return;
-      loadRecords().catch(err => {
-        document.getElementById('records').innerHTML = `<p class="error">Unable to load records: ${err.message}</p>`;
-      });
-    });
-  </script>
+  <script src="i18n.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>
