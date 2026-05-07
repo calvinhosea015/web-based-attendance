@@ -9,64 +9,70 @@
 <body>
   <div class="container">
     <header>
-      <h1>Office Attendance</h1>
-      <p>Allow location access to check in at the office.</p>
+      <h1>Check In</h1>
+      <p>1) Pick your office. 2) Update your location. 3) Tap Check In.</p>
     </header>
 
-    <section class="status-panel">
-      <div>
-        <strong>Logged in as:</strong>
-        <span id="session-user">Loading...</span>
+    <div class="card">
+      <div class="status-panel">
+        <div class="info-box">
+          <strong>Logged in as</strong>
+          <span id="session-user">Loading...</span>
+        </div>
+        <div class="info-box">
+          <strong>Selected office</strong>
+          <span id="office-name">Loading...</span>
+        </div>
+        <div class="info-box">
+          <strong>Office location</strong>
+          <span id="office-location">Loading...</span>
+        </div>
+        <div class="info-box">
+          <strong>Allowed radius</strong>
+          <span id="office-radius">Loading...</span>
+        </div>
+        <div class="info-box">
+          <strong>Location status</strong>
+          <span id="geo-status">Waiting for permission...</span>
+        </div>
       </div>
-      <div>
-        <strong>Selected office:</strong>
-        <span id="office-name">Loading...</span>
-      </div>
-      <div>
-        <strong>Office location:</strong>
-        <span id="office-location">Loading...</span>
-      </div>
-      <div>
-        <strong>Allowed radius:</strong>
-        <span id="office-radius">Loading...</span>
-      </div>
-      <div>
-        <strong>Location status:</strong>
-        <span id="geo-status">Waiting for permission...</span>
-      </div>
-    </section>
 
-    <form id="checkin-form" class="form-card">
-      <label>
-        Name
-        <input type="text" id="name" name="name" placeholder="Jane Doe" required />
-      </label>
-      <label>
-        Email
-        <input type="email" id="email" name="email" placeholder="jane@example.com" required />
-      </label>
-      <label>
-        Office
-        <select id="office" name="office" required>
-          <option value="">Loading offices...</option>
-        </select>
-      </label>
-      <label>
-        Note
-        <input type="text" id="note" name="note" placeholder="Optional note" />
-      </label>
-      <button type="button" id="update-location">Update location</button>
-      <button type="submit">Check In</button>
-      <input type="hidden" id="latitude" name="latitude" />
-      <input type="hidden" id="longitude" name="longitude" />
-    </form>
+      <form id="checkin-form" class="form-card">
+        <label>
+          Your name
+          <input type="text" id="name" name="name" placeholder="Jane Doe" required />
+        </label>
 
-    <div id="message" class="message"></div>
+        <label>
+          Your email
+          <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+        </label>
 
-    <nav class="links">
-      <a class="button" id="logout-button" href="#">Logout</a>
-      <a class="button" href="admin.html">View attendance records</a>
-    </nav>
+        <label>
+          Choose office
+          <select id="office" name="office" required>
+            <option value="">Loading offices...</option>
+          </select>
+        </label>
+
+        <label>
+          Note
+          <input type="text" id="note" name="note" placeholder="Optional note" />
+        </label>
+
+        <button type="button" id="update-location" class="secondary">Update location</button>
+        <button type="submit">Check In</button>
+        <input type="hidden" id="latitude" name="latitude" />
+        <input type="hidden" id="longitude" name="longitude" />
+      </form>
+
+      <div id="message" class="message"></div>
+
+      <div class="links">
+        <a class="button secondary" id="logout-button" href="#">Logout</a>
+        <a class="button" href="admin.html">Admin Dashboard</a>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

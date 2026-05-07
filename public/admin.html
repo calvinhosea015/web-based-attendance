@@ -3,33 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attendance Records</title>
+  <title>Admin Dashboard</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Attendance Records</h1>
-      <p>Recent check-ins within the office geofence.</p>
+      <h1>Admin Dashboard</h1>
+      <p>View all attendance records and export them to Excel.</p>
     </header>
 
-    <section class="status-panel">
-      <div>
-        <strong>Logged in as:</strong>
-        <span id="session-user">Loading...</span>
+    <div class="card">
+      <div class="status-panel">
+        <div class="info-box">
+          <strong>Logged in as</strong>
+          <span id="session-user">Loading...</span>
+        </div>
+        <div class="info-box">
+          <strong>Records found</strong>
+          <span id="record-count">Loading...</span>
+        </div>
       </div>
-      <div>
-        <strong>Attendance records:</strong>
-        <span id="record-count">Loading...</span>
-      </div>
-    </section>
 
-    <div id="records"></div>
-    <nav class="links">
-      <a class="button" href="/api/export">Export to Excel</a>
-      <a class="button" id="logout-button" href="#">Logout</a>
-      <a href="index.html">Back to landing page</a>
-    </nav>
+      <div id="records"></div>
+
+      <div class="links">
+        <a class="button" href="/api/export">Export to Excel</a>
+        <a class="button secondary" id="logout-button" href="#">Logout</a>
+        <a class="button secondary" href="index.html">Back to home</a>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -71,12 +74,13 @@
 
       const rows = data.records.map(record => `
         <article class="record-card">
-          <div><strong>${record.name}</strong> <span>${new Date(record.timestamp).toLocaleString()}</span></div>
-          <div>${record.officeName || 'Unknown office'}</div>
-          <div>${record.email}</div>
+          <div><strong>${record.name}</strong></div>
+          <div>Office: ${record.officeName || 'Unknown'}</div>
+          <div>Email: ${record.email}</div>
+          <div>When: ${new Date(record.timestamp).toLocaleString()}</div>
           <div>Distance: ${record.distance} m</div>
           <div>Location: ${record.latitude.toFixed(5)}, ${record.longitude.toFixed(5)}</div>
-          <div>Note: ${record.note || '—'}</div>
+          <div>Note: ${record.note || 'None'}</div>
         </article>
       `).join('');
 
