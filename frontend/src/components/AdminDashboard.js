@@ -12,6 +12,8 @@ const AdminDashboard = () => {
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user', office_id: '' });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
   const [message, setMessage] = useState('');
+  const [changingPasswordFor, setChangingPasswordFor] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -110,6 +112,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`http://127.0.0.1:5001/users/${changingPasswordFor}/password`, { password: newPassword }, {
+        headers: { Authorization: localStorage.getItem('token') }
+      });
+      setMessage(t('passwordChanged'));
+      setChangingPasswordFor(null);
+      setNewPassword('');
+    } catch (err) {
+      setMessage(err.response?.data?.message || err.message);
+    }
+  };
+
   const handleExport = async () => {
     try {
       const res = await axios.post('http://127.0.0.1:5001/export', {}, {
@@ -197,7 +213,22 @@ const AdminDashboard = () => {
       <ul>
         {users.map(user => (
           <li key={user.id}>
-            {user.username} ({user.role}) <button onClick={() => handleDeleteUser(user.id)}>{t('delete')}</button>
+            {user.username} ({user.role}) 
+            <button onClick={() => setChangingPasswordFor(user.id)}>{t('changePassword')}</button>
+            <button onClick={() => handleDeleteUser(user.id)}>{t('delete')}</button>
+            {changingPasswordFor === user.id && (
+              <form onSubmit={handleChangePassword} style={{ display: 'inline', marginLeft: '10px' }}>
+                <input
+                  type="password"
+                  placeholder={t('newPassword')}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+                <button type="submit">{t('change')}</button>
+                <button type="button" onClick={() => { setChangingPasswordFor(null); setNewPassword(''); }}>{t('cancel')}</button>
+              </form>
+            )}
           </li>
         ))}
       </ul>

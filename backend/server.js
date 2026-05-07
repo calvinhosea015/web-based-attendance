@@ -290,6 +290,17 @@ app.delete('/users/:id', verifyToken, (req, res) => {
   });
 });
 
+app.put('/users/:id/password', verifyToken, (req, res) => {
+  if (req.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ message: 'Password is required' });
+  const hashedPassword = bcrypt.hashSync(password, 8);
+  db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Password updated' });
+  });
+});
+
 // Haversine formula for distance
 function getDistance(lat1, lng1, lat2, lng2) {
   const R = 6371e3; // metres

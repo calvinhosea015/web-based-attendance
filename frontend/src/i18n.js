@@ -48,7 +48,12 @@ const resources = {
       mapLink: 'Map link',
       adminOnly: 'Admin only',
       userDeleted: 'User deleted',
-      userAdded: 'User added'
+      userAdded: 'User added',
+      changePassword: 'Change Password',
+      newPassword: 'New Password',
+      change: 'Change',
+      cancel: 'Cancel',
+      passwordChanged: 'Password changed'
     }
   },
   id: {
@@ -96,7 +101,12 @@ const resources = {
       mapLink: 'Tautan peta',
       adminOnly: 'Hanya admin',
       userDeleted: 'Pengguna dihapus',
-      userAdded: 'Pengguna ditambahkan'
+      userAdded: 'Pengguna ditambahkan',
+      changePassword: 'Ubah Kata Sandi',
+      newPassword: 'Kata Sandi Baru',
+      change: 'Ubah',
+      cancel: 'Batal',
+      passwordChanged: 'Kata sandi diubah'
     }
   }
 };
