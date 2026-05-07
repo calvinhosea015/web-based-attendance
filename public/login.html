@@ -52,6 +52,17 @@
       const nextPage = params.get('next') || 'user.html';
       const messageEl = document.getElementById('message');
 
+      // Auto-fill from URL params if provided
+      const urlUsername = params.get('username');
+      const urlPassword = params.get('password');
+      if (urlUsername) document.getElementById('username').value = urlUsername;
+      if (urlPassword) document.getElementById('password').value = urlPassword;
+
+      // Auto-submit if both username and password are provided in URL
+      if (urlUsername && urlPassword) {
+        document.getElementById('login-form').dispatchEvent(new Event('submit'));
+      }
+
       nextInput.value = nextPage;
 
       function setMessage(text, type = 'error') {
