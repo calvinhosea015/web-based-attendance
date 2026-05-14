@@ -184,6 +184,24 @@ async function migrateEnterpriseColumns() {
   await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES users(id)`);
   await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ`);
   await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS rejection_reason TEXT`);
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS remote_work_allowed BOOLEAN NOT NULL DEFAULT true`
+  );
+}
+
+async function syncEmployeeCodeSequence() {
+  await query(`CREATE SEQUENCE IF NOT EXISTS employee_code_seq`);
+  await query(`
+    SELECT setval(
+      'employee_code_seq',
+      COALESCE((
+        SELECT MAX((regexp_match(employee_id, '^EMP([0-9]+)$'))[1]::bigint)
+        FROM employees
+        WHERE employee_id ~ '^EMP[0-9]+$'
+      ), 0)::bigint,
+      true
+    )
+  `);
 }
 
 async function seed() {
@@ -201,14 +219,6 @@ async function seed() {
   const departmentId = dept.rows[0].id;
   const positionId = pos.rows[0].id;
 
-  const shiftCount = await query(`SELECT COUNT(*)::int AS c FROM shifts`);
-  if (shiftCount.rows[0].c === 0) {
-    await query(
-      `INSERT INTO shifts (shift_name, start_time, end_time, break_duration)
-       VALUES ('Standard', '09:00', '17:00', 60)`
-    );
-  }
-
   const off = await query(`SELECT id FROM offices WHERE name = 'rs darmo' LIMIT 1`);
   if (off.rows.length === 0) {
     await query(
@@ -216,8 +226,6 @@ async function seed() {
        ('rs darmo', -7.287414, 112.73766, 'https://maps.app.goo.gl/x9nEcHGRREfzCiwC9')`
     );
   }
-
-  const shiftRow = await query(`SELECT id FROM shifts ORDER BY id LIMIT 1`);
 
   await query(
     `INSERT INTO users (username, password_hash, role)
@@ -236,17 +244,6 @@ async function seed() {
       [departmentId, positionId]
     );
     employeeId = ins.rows[0].id;
-    await query(
-      `INSERT INTO employee_shifts (employee_id, shift_id, effective_from) VALUES ($1, $2, CURRENT_DATE)
-       ON CONFLICT (employee_id, effective_from) DO NOTHING`,
-      [employeeId, shiftRow.rows[0].id]
-    );
-    await query(
-      `INSERT INTO leave_balances (employee_id, leave_type, balance_days) VALUES
-       ($1, 'annual', 12), ($1, 'sick', 10)
-       ON CONFLICT (employee_id, leave_type) DO NOTHING`,
-      [employeeId]
-    );
     const userHash = bcrypt.hashSync('Employee123!Secure', 12);
     await query(
       `INSERT INTO users (username, password_hash, role, employee_id, office_id)
@@ -263,6 +260,7 @@ async function migrate() {
   }
   await migrateEnterpriseColumns();
   await seed();
+  await syncEmployeeCodeSequence();
 }
 
 module.exports = { migrate };

@@ -31,24 +31,6 @@ function makeAdminEnterpriseController(enterpriseAdminService, auditLogRepositor
         .catch(() => {});
       res.status(201).json(row);
     }),
-    listPendingLeaves: asyncHandler(async (req, res) => {
-      res.json(await enterpriseAdminService.leaveRepository.listPendingAdmin());
-    }),
-    decideLeave: asyncHandler(async (req, res) => {
-      const row = await enterpriseAdminService.decideLeave(req.params.id, req.auth, req.body);
-      await auditLogRepository
-        .logSecurity({
-          actorUserId: req.auth.userId,
-          action: 'leave_decision',
-          resourceType: 'leave_request',
-          resourceId: String(req.params.id),
-          details: { status: req.body.status },
-          ip: req.clientMeta?.ip,
-          userAgent: req.clientMeta?.userAgent,
-        })
-        .catch(() => {});
-      res.json(row);
-    }),
     listPendingOvertime: asyncHandler(async (req, res) => {
       res.json(await enterpriseAdminService.overtimeRequestRepository.listPending());
     }),

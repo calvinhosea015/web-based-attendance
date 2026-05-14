@@ -2,27 +2,52 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
+import i18n from '../i18n.js';
 
 function readPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'));
+      reject(Object.assign(new Error('unsupported'), { code: 0 }));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 20000 });
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 0,
+    });
   });
+}
+
+function formatApiError(err) {
+  if (!err.response && (err.message === 'Network Error' || err.code === 'ERR_NETWORK')) {
+    return i18n.t('apiUnreachable');
+  }
+  const data = err.response?.data;
+  let msg = data?.message || err.message || String(err);
+  if (Array.isArray(data?.errors) && data.errors.length) {
+    const details = data.errors.map((e) => e.msg || `${e.path || ''} ${e.msg || ''}`.trim()).join(' · ');
+    if (details) msg = `${msg} (${details})`;
+  }
+  return msg;
+}
+
+function geoMessage(err) {
+  if (!err) return i18n.t('geoUnavailable');
+  if (err.code === 0) return i18n.t('geoUnsupported');
+  if (err.code === 1) return i18n.t('geoPermissionDenied');
+  if (err.code === 2) return i18n.t('geoUnavailable');
+  if (err.code === 3) return i18n.t('geoTimeout');
+  return err.message || i18n.t('geoUnavailable');
 }
 
 export default function EmployeeDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
-  const [offices, setOffices] = useState([]);
-  const [selectedOffice, setSelectedOffice] = useState('');
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
-  const [leaves, setLeaves] = useState([]);
   const [remoteWork, setRemoteWork] = useState(false);
+  const [clockPending, setClockPending] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -30,78 +55,116 @@ export default function EmployeeDashboard() {
     const load = async () => {
       try {
         await ensureCsrf();
-        const [o, s, h, l] = await Promise.all([
-          api.get(paths.offices),
+      } catch (e) {
+        setMessage(formatApiError(e));
+        return;
+      }
+      try {
+        const [s, h] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
-          api.get(paths.employeeLeaves),
         ]);
-        setOffices(o.data);
-        if (o.data.length) setSelectedOffice(String(o.data[0].id));
         setSummary(s.data);
         setHistory(h.data);
-        setLeaves(l.data);
       } catch (e) {
         console.error(e);
+        setMessage((prev) => (prev ? `${prev} ${i18n.t('dashboardLoadFailed')}` : formatApiError(e)));
+        if (e.response?.status === 401) navigate('/login');
       }
     };
     load();
   }, [navigate]);
 
+  useEffect(() => {
+    if (summary && summary.remote_work_allowed === false) {
+      setRemoteWork(false);
+    }
+  }, [summary]);
+
   const refreshEmployee = async () => {
-    const [s, h, l] = await Promise.all([
-      api.get(paths.employeeSummary),
-      api.get(paths.employeeAttendance),
-      api.get(paths.employeeLeaves),
-    ]);
-    setSummary(s.data);
-    setHistory(h.data);
-    setLeaves(l.data);
+    try {
+      const [s, h] = await Promise.all([
+        api.get(paths.employeeSummary),
+        api.get(paths.employeeAttendance),
+      ]);
+      setSummary(s.data);
+      setHistory(h.data);
+    } catch (e) {
+      console.error(e);
+      setMessage(formatApiError(e));
+    }
   };
 
   const handleCheckIn = async () => {
-    if (!selectedOffice) {
-      setMessage(t('selectOffice'));
+    if (!summary?.assigned_office?.id) {
+      setMessage(t('noOfficeAssigned'));
       return;
     }
     setMessage('');
+    setClockPending(true);
     try {
       await ensureCsrf();
-      const pos = await readPosition();
+      let pos;
+      try {
+        pos = await readPosition();
+      } catch (geoErr) {
+        setMessage(geoMessage(geoErr));
+        return;
+      }
       const { latitude, longitude, accuracy } = pos.coords;
-      const client_ts_ms = pos.timestamp;
+      if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        setMessage(i18n.t('geoUnavailable'));
+        return;
+      }
+      const client_ts_ms =
+        typeof pos.timestamp === 'number' && pos.timestamp > 0 ? pos.timestamp : Date.now();
       await api.post(paths.checkIn, {
         lat: latitude,
         lng: longitude,
-        office_id: Number(selectedOffice),
-        accuracy_m: accuracy || 25,
+        accuracy_m: accuracy && accuracy > 0 ? accuracy : 25,
         client_ts_ms: client_ts_ms,
-        remote_work: remoteWork,
+        remote_work: canRemote && remoteWork,
       });
       setMessage(t('checkedIn'));
       await refreshEmployee();
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message || String(err));
+      setMessage(formatApiError(err));
+    } finally {
+      setClockPending(false);
     }
   };
 
   const handleCheckOut = async () => {
     setMessage('');
+    setClockPending(true);
     try {
       await ensureCsrf();
-      const pos = await readPosition();
+      let pos;
+      try {
+        pos = await readPosition();
+      } catch (geoErr) {
+        setMessage(geoMessage(geoErr));
+        return;
+      }
       const { latitude, longitude, accuracy } = pos.coords;
-      const client_ts_ms = pos.timestamp;
+      if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        setMessage(i18n.t('geoUnavailable'));
+        return;
+      }
+      const client_ts_ms =
+        typeof pos.timestamp === 'number' && pos.timestamp > 0 ? pos.timestamp : Date.now();
       await api.post(paths.checkOut, {
         lat: latitude,
         lng: longitude,
-        accuracy_m: accuracy || 25,
+        accuracy_m: accuracy && accuracy > 0 ? accuracy : 25,
         client_ts_ms: client_ts_ms,
       });
       setMessage(t('checkedOut'));
       await refreshEmployee();
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message || String(err));
+      setMessage(formatApiError(err));
+    } finally {
+      setClockPending(false);
     }
   };
 
@@ -122,7 +185,9 @@ export default function EmployeeDashboard() {
   };
 
   const today = summary?.today;
-  const shift = summary?.shift;
+  const assignedOffice = summary?.assigned_office;
+  const canRemote = summary?.remote_work_allowed !== false;
+  const canClockIn = Boolean(assignedOffice?.id);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -166,96 +231,41 @@ export default function EmployeeDashboard() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('shiftSchedule')}</h2>
-        {shift ? (
-          <ul className="mt-3 space-y-1 text-sm text-slate-700">
-            <li>
-              <span className="font-medium">{shift.shift_name}</span>
-            </li>
-            <li>
-              {t('shiftHours')}: {shift.start_time} – {shift.end_time}
-            </li>
-            <li>
-              {t('break')}: {shift.break_duration} {t('minutes')}
-            </li>
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-slate-600">{t('noShift')}</p>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('leaveBalance')}</h2>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {(summary?.leaveBalances || []).map((b) => (
-            <li key={b.leave_type} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
-              <div className="font-medium capitalize text-slate-900">{b.leave_type}</div>
-              <div className="text-slate-600">
-                {b.balance_days} {t('days')}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('leaveRequests')}</h2>
-        {leaves.length ? (
-          <ul className="mt-3 space-y-2 text-sm">
-            {leaves.map((lv) => (
-              <li key={lv.id} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
-                <span className="font-medium capitalize">{lv.leave_type}</span>
-                <span className="text-slate-600">
-                  {' '}
-                  · {lv.start_date} → {lv.end_date} · {lv.approval_status}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-slate-600">{t('noLeaveRequests')}</p>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">{t('clockActions')}</h2>
         <div className="mt-4 space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-              {t('office')}
+              {t('assignedOffice')}
             </label>
-            {offices.length ? (
-              <select
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={selectedOffice}
-                onChange={(e) => setSelectedOffice(e.target.value)}
-              >
-                {offices.map((office) => (
-                  <option key={office.id} value={office.id}>
-                    {office.name}
-                  </option>
-                ))}
-              </select>
+            {assignedOffice?.id ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                {assignedOffice.name || `ID ${assignedOffice.id}`}
+              </div>
             ) : (
-              <div className="text-sm text-slate-600">{t('noOfficesAvailable')}</div>
+              <div className="text-sm text-amber-800">{t('noOfficeAssigned')}</div>
             )}
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={remoteWork} onChange={(e) => setRemoteWork(e.target.checked)} />
-            {t('remoteWorkDay')}
-          </label>
+          {canRemote ? (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={remoteWork} onChange={(e) => setRemoteWork(e.target.checked)} />
+              {t('remoteWorkDay')}
+            </label>
+          ) : (
+            <p className="text-xs text-slate-500">{t('remoteWorkDisabledByAdmin')}</p>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={!offices.length}
+              disabled={!canClockIn || clockPending}
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={handleCheckIn}
             >
-              {t('checkIn')}
+              {clockPending ? t('locating') : t('checkIn')}
             </button>
             <button
               type="button"
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              disabled={clockPending}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={handleCheckOut}
             >
               {t('checkOut')}

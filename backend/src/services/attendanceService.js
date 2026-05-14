@@ -4,6 +4,12 @@ const { AppError } = require('../utils/errors');
 const { ATTENDANCE_STATUSES } = require('../constants/attendance');
 const config = require('../config/env');
 
+function resolveClientTimestampMs(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return Date.now();
+  return n;
+}
+
 function parseShiftTimeOnDate(baseDate, timeStr) {
   const d = new Date(baseDate);
   const parts = String(timeStr).split(':');
@@ -49,25 +55,39 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
 }
 
 class AttendanceService {
-  constructor(attendanceRepository, officeRepository, employeeRepository) {
+  constructor(attendanceRepository, officeRepository, employeeRepository, userRepository) {
     this.attendanceRepository = attendanceRepository;
     this.officeRepository = officeRepository;
     this.employeeRepository = employeeRepository;
+    this.userRepository = userRepository;
   }
 
   async checkIn(auth, body, reqMeta) {
     if (auth.role !== 'employee' || !auth.employeeId) {
       throw new AppError('Only linked employees can clock in.', 403, 'NOT_EMPLOYEE');
     }
+    const userRow = await this.userRepository.findById(auth.userId);
+    if (!userRow || !userRow.office_id) {
+      throw new AppError(
+        'No office is assigned to your account. Ask an admin to assign an office before clocking in.',
+        400,
+        'NO_OFFICE'
+      );
+    }
+    const remoteWorkAllowed = userRow.remote_work_allowed !== false;
+
     const {
       lat,
       lng,
-      office_id: officeId,
       accuracy_m: accuracyMeters,
-      client_ts_ms: clientTimestampMs,
+      client_ts_ms: clientTimestampMsRaw,
       remote_work: remoteWorkRaw,
     } = body;
     const remoteWork = remoteWorkRaw === true || remoteWorkRaw === 'true';
+    if (remoteWork && !remoteWorkAllowed) {
+      throw new AppError('Remote check-in is not enabled for your account.', 403, 'REMOTE_NOT_ALLOWED');
+    }
+    const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
 
     const dayStr = new Date().toISOString().slice(0, 10);
     const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
@@ -89,20 +109,34 @@ class AttendanceService {
       config
     );
 
+    const officeId = userRow.office_id;
     const office = await this.officeRepository.findById(officeId);
     if (!office) throw new AppError('Selected office not found.', 400, 'OFFICE_NOT_FOUND');
-
-    if (!isRemote) {
-      const dist = haversineMeters(Number(lat), Number(lng), office.lat, office.lng);
-      if (dist > config.officeRadiusMeters) {
-        throw new AppError('You are not within the allowed radius of the selected office.', 400, 'RADIUS');
+    if (office.lat == null || office.lng == null || Number.isNaN(Number(office.lat)) || Number.isNaN(Number(office.lng))) {
+      throw new AppError(
+        'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.',
+        400,
+        'OFFICE_COORDS'
+      );
+    }
+    if (!remoteWork) {
+      const dist = haversineMeters(Number(lat), Number(lng), Number(office.lat), Number(office.lng));
+      const acc = Math.max(0, Number(accuracyMeters) || 0);
+      const accBuffer = Math.min(acc, config.officeRadiusGpsBufferCapMeters);
+      const allowed = config.officeRadiusMeters + accBuffer;
+      if (dist > allowed) {
+        throw new AppError(
+          'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.',
+          400,
+          'RADIUS'
+        );
       }
     }
 
     const shift = await this.employeeRepository.getCurrentShift(auth.employeeId);
     const checkInTime = new Date();
     const { lateMinutes, status: baseStatus } = computeLateAndStatus(checkInTime.toISOString(), shift);
-    const attendanceStatus = isRemote ? ATTENDANCE_STATUSES.REMOTE_WORK : baseStatus;
+    const attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : baseStatus;
 
     const row = await this.attendanceRepository.insertCheckIn({
       employeeId: auth.employeeId,
@@ -118,7 +152,7 @@ class AttendanceService {
       validationFlags: {
         geo_flags: geo.flags,
         fake_gps_hints: geo.fakeGpsHints,
-        remote_work: isRemote,
+        remote_work: remoteWork,
       },
     });
 
@@ -135,7 +169,8 @@ class AttendanceService {
       throw new AppError('No check-in found for today.', 400, 'NO_OPEN');
     }
 
-    const { lat, lng, accuracy_m: accuracyMeters, client_ts_ms: clientTimestampMs } = body;
+    const { lat, lng, accuracy_m: accuracyMeters, client_ts_ms: clientTimestampMsRaw } = body;
+    const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
     const last = {
       lat: open.lat_in,
       lng: open.lng_in,
@@ -156,8 +191,9 @@ class AttendanceService {
 
     const shift = await this.employeeRepository.getCurrentShift(auth.employeeId);
     const nowIso = new Date().toISOString();
+    const checkInIso = new Date(open.check_in).toISOString();
     const { workHours, overtimeHours, status } = computeWorkAndCheckoutStatus(
-      open.check_in.toISOString(),
+      checkInIso,
       nowIso,
       shift,
       open.attendance_status

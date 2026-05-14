@@ -14,13 +14,15 @@ const clockValidators = [
   body('lat').isFloat({ min: -90, max: 90 }).withMessage('lat invalid'),
   body('lng').isFloat({ min: -180, max: 180 }).withMessage('lng invalid'),
   body('accuracy_m').isFloat({ gt: 0 }).withMessage('accuracy_m required'),
-  body('client_ts_ms').isInt({ min: 1 }).withMessage('client_ts_ms required'),
+  body('client_ts_ms')
+    .optional({ nullable: true })
+    .isInt({ min: 0 })
+    .withMessage('client_ts_ms invalid'),
 ];
 
 const checkInValidators = [
   ...clockValidators,
-  body('office_id').isInt({ min: 1 }).withMessage('office_id required'),
-  body('remote_work').optional().isBoolean(),
+  body('remote_work').optional().isBoolean({ strict: true }),
 ];
 
 const checkOutValidators = [...clockValidators];
@@ -40,15 +42,38 @@ const createUserValidators = [
   body('username').trim().notEmpty(),
   passwordPolicyValidator(),
   body('role').isIn(['admin', 'employee']),
-  body('office_id').optional().isInt({ min: 1 }),
-  body('employee_id').optional().isString(),
-  body('full_name').optional().isString(),
-  body('salary_type').optional().isString(),
-  body('basic_salary').optional().isNumeric(),
-  body('join_date').optional().isString(),
+  body('office_id')
+    .optional({ nullable: true })
+    .custom((value, { req }) => {
+      if (req.body.role === 'employee') {
+        if (value === undefined || value === null || value === '') {
+          throw new Error('office_id is required for employees');
+        }
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office_id');
+      } else if (value != null && value !== '') {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office_id');
+      }
+      return true;
+    }),
+  body('employee_id').optional({ values: 'null' }).isString(),
+  body('full_name').optional({ values: 'null' }).isString(),
+  body('remote_work_allowed').optional().isBoolean({ strict: true }),
+  body('salary_type').optional({ values: 'null' }).isString(),
+  body('basic_salary').optional({ values: 'null' }).isNumeric(),
+  body('join_date').optional({ values: 'null' }).isString(),
 ];
 
 const changePasswordValidators = [passwordPolicyValidator()];
+
+const updateUserValidators = [
+  body('username').optional().trim().notEmpty(),
+  body('role').optional().isIn(['admin', 'employee']),
+  body('office_id').optional({ values: 'null' }),
+  body('full_name').optional({ values: 'null' }).isString(),
+  body('remote_work_allowed').optional().isBoolean({ strict: true }),
+];
 
 const idParamValidator = [param('id').isInt({ min: 1 })];
 
@@ -59,16 +84,12 @@ const officeCreateValidators = [
 
 const departmentCreateValidators = [body('name').trim().notEmpty()];
 
-const approvalDecisionValidators = [
-  body('status').isIn(['approved', 'rejected']).withMessage('status must be approved or rejected'),
-  body('rejectionReason').optional().isString(),
-];
-
 const employeeUpdateValidators = [
   body('photo_url').optional().isString().isLength({ max: 2048 }),
   body('contract_status').optional().isString().isLength({ max: 64 }),
   body('department_id').optional().isInt({ min: 1 }),
   body('position_id').optional().isInt({ min: 1 }),
+  body('remote_work_allowed').optional().isBoolean({ strict: true }),
 ];
 
 module.exports = {
@@ -80,9 +101,9 @@ module.exports = {
   checkOutValidators,
   createUserValidators,
   changePasswordValidators,
+  updateUserValidators,
   idParamValidator,
   officeCreateValidators,
   departmentCreateValidators,
-  approvalDecisionValidators,
   employeeUpdateValidators,
 };

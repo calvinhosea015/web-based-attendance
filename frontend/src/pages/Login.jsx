@@ -24,8 +24,8 @@ export default function Login() {
       localStorage.setItem('role', res.data.role);
       if (res.data.role === 'admin') navigate('/admin');
       else navigate('/employee');
-    } catch {
-      setMessage(t('invalidCredentials'));
+    } catch (err) {
+      setMessage(err.response?.data?.message || err.message || t('invalidCredentials'));
     }
   };
 

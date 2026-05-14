@@ -77,5 +77,4 @@ export const paths = {
   employeeSummary: '/v1/employee/me/summary',
   employeeAttendance: '/v1/employee/me/attendance',
   employeePayroll: '/v1/employee/me/payroll',
-  employeeLeaves: '/v1/employee/me/leaves',
 };

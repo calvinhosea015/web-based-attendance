@@ -13,10 +13,11 @@ class AuthService {
   }
 
   issueAccessToken(user) {
+    const empId = user.employee_id != null ? Number(user.employee_id) : null;
     const payload = {
       sub: String(user.id),
       role: user.role,
-      employeeId: user.employee_id || null,
+      employeeId: Number.isFinite(empId) && empId > 0 ? empId : null,
     };
     return jwt.sign(payload, config.jwtSecret, { expiresIn: config.accessTokenTtlSec });
   }

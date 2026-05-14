@@ -8,10 +8,10 @@ const {
   checkOutValidators,
   createUserValidators,
   changePasswordValidators,
+  updateUserValidators,
   idParamValidator,
   officeCreateValidators,
   departmentCreateValidators,
-  approvalDecisionValidators,
   employeeUpdateValidators,
 } = require('../../validators/commonValidators');
 const { body } = require('express-validator');
@@ -69,6 +69,14 @@ function buildProtectedRoutes(deps) {
 
   r.get('/users', requireRole('admin'), userController.list);
   r.post('/users', requireRole('admin'), createUserValidators, validateRequest, userController.create);
+  r.put(
+    '/users/:id',
+    requireRole('admin'),
+    idParamValidator,
+    updateUserValidators,
+    validateRequest,
+    userController.update
+  );
   r.delete('/users/:id', requireRole('admin'), idParamValidator, validateRequest, userController.remove);
   r.put(
     '/users/:id/password',
@@ -98,15 +106,6 @@ function buildProtectedRoutes(deps) {
     departmentCreateValidators,
     validateRequest,
     adminEnterpriseController.createDepartment
-  );
-  r.get('/admin/leave-requests/pending', requireRole('admin'), adminEnterpriseController.listPendingLeaves);
-  r.put(
-    '/admin/leave-requests/:id',
-    requireRole('admin'),
-    idParamValidator,
-    approvalDecisionValidators,
-    validateRequest,
-    adminEnterpriseController.decideLeave
   );
   r.get('/admin/overtime-requests/pending', requireRole('admin'), adminEnterpriseController.listPendingOvertime);
   r.put(
@@ -147,7 +146,6 @@ function buildProtectedRoutes(deps) {
   r.get('/employee/me/summary', requireRole('employee'), dashboardController.employeeSummary);
   r.get('/employee/me/attendance', requireRole('employee'), dashboardController.employeeHistory);
   r.get('/employee/me/payroll', requireRole('employee'), dashboardController.employeePayroll);
-  r.get('/employee/me/leaves', requireRole('employee'), dashboardController.employeeLeaves);
 
   return r;
 }

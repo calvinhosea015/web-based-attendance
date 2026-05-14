@@ -23,6 +23,11 @@ function makeUserController(userService, auditLogRepository) {
       await audit(req, 'user_create', 'user', String(row.id), { username: row.username });
       res.status(201).json(row);
     }),
+    update: asyncHandler(async (req, res) => {
+      const row = await userService.updateUser(req.params.id, req.body);
+      await audit(req, 'user_update', 'user', String(req.params.id), { username: row.username });
+      res.json(row);
+    }),
     remove: asyncHandler(async (req, res) => {
       await userService.deleteUser(req.params.id);
       await audit(req, 'user_delete', 'user', String(req.params.id), {});

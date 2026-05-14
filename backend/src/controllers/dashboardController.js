@@ -14,9 +14,6 @@ function makeDashboardController(dashboardService, employeePortalService) {
     employeePayroll: asyncHandler(async (req, res) => {
       res.json(await employeePortalService.mePayroll(req.auth));
     }),
-    employeeLeaves: asyncHandler(async (req, res) => {
-      res.json(await employeePortalService.meLeaves(req.auth));
-    }),
   };
 }
 

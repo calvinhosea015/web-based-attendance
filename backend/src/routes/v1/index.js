@@ -3,7 +3,6 @@ const { UserRepository } = require('../../repositories/userRepository');
 const { EmployeeRepository } = require('../../repositories/employeeRepository');
 const { OfficeRepository } = require('../../repositories/officeRepository');
 const { AttendanceRepository } = require('../../repositories/attendanceRepository');
-const { LeaveRepository } = require('../../repositories/leaveRepository');
 const { PayrollRepository } = require('../../repositories/payrollRepository');
 const { RefreshTokenRepository } = require('../../repositories/refreshTokenRepository');
 const { AuditLogRepository } = require('../../repositories/auditLogRepository');
@@ -35,7 +34,6 @@ function buildV1Router() {
   const employeeRepository = new EmployeeRepository();
   const officeRepository = new OfficeRepository();
   const attendanceRepository = new AttendanceRepository();
-  const leaveRepository = new LeaveRepository();
   const payrollRepository = new PayrollRepository();
   const refreshTokenRepository = new RefreshTokenRepository();
   const auditLogRepository = new AuditLogRepository();
@@ -50,7 +48,8 @@ function buildV1Router() {
   const attendanceService = new AttendanceService(
     attendanceRepository,
     officeRepository,
-    employeeRepository
+    employeeRepository,
+    userRepository
   );
   const userService = new UserService(userRepository, employeeRepository);
   const dashboardService = new DashboardService(
@@ -59,13 +58,12 @@ function buildV1Router() {
     payrollRepository
   );
   const employeePortalService = new EmployeePortalService(
+    userRepository,
     attendanceRepository,
     employeeRepository,
-    leaveRepository,
     payrollRepository
   );
   const enterpriseAdminService = new EnterpriseAdminService(
-    leaveRepository,
     notificationRepository,
     departmentRepository,
     employeeRepository,

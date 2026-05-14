@@ -1,19 +1,23 @@
 const { query } = require('../db/pool');
 
 class EmployeeRepository {
-  async create({
-    employeeId,
-    fullName,
-    departmentId,
-    positionId,
-    salaryType,
-    basicSalary,
-    joinDate,
-    status,
-  }) {
-    const r = await query(
-      `INSERT INTO employees (employee_id, full_name, department_id, position_id, salary_type, basic_salary, join_date, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  async create(
+    {
+      employeeId,
+      fullName,
+      departmentId,
+      positionId,
+      salaryType,
+      basicSalary,
+      joinDate,
+      status,
+      remoteWorkAllowed,
+    },
+    exec = query
+  ) {
+    const r = await exec(
+      `INSERT INTO employees (employee_id, full_name, department_id, position_id, salary_type, basic_salary, join_date, status, remote_work_allowed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, true))
        RETURNING *`,
       [
         employeeId,
@@ -24,9 +28,26 @@ class EmployeeRepository {
         basicSalary ?? 0,
         joinDate || new Date().toISOString().slice(0, 10),
         status || 'active',
+        remoteWorkAllowed !== undefined ? Boolean(remoteWorkAllowed) : null,
       ]
     );
     return r.rows[0];
+  }
+
+  async updateFullName(employeePk, fullName, exec = query) {
+    const r = await exec(`UPDATE employees SET full_name = $1 WHERE id = $2 RETURNING id`, [
+      fullName,
+      employeePk,
+    ]);
+    return r.rowCount > 0;
+  }
+
+  /** Next business employee id: EMP + 6-digit zero-padded sequence (EMP000001, …). */
+  async nextEmployeeCode() {
+    const r = await query(
+      `SELECT 'EMP' || LPAD(nextval('employee_code_seq')::text, 6, '0') AS code`
+    );
+    return r.rows[0].code;
   }
 
   async countActive() {
@@ -46,15 +67,6 @@ class EmployeeRepository {
     return r.rows[0] || null;
   }
 
-  async assignShift(employeeId, shiftId, effectiveFrom) {
-    await query(
-      `INSERT INTO employee_shifts (employee_id, shift_id, effective_from)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (employee_id, effective_from) DO UPDATE SET shift_id = EXCLUDED.shift_id`,
-      [employeeId, shiftId, effectiveFrom]
-    );
-  }
-
   async getCurrentShift(employeeId) {
     const r = await query(
       `SELECT s.* FROM shifts s
@@ -67,16 +79,7 @@ class EmployeeRepository {
     return r.rows[0] || null;
   }
 
-  async seedDefaultLeaveBalances(employeeId) {
-    await query(
-      `INSERT INTO leave_balances (employee_id, leave_type, balance_days) VALUES
-       ($1, 'annual', 12), ($1, 'sick', 10)
-       ON CONFLICT (employee_id, leave_type) DO NOTHING`,
-      [employeeId]
-    );
-  }
-
-  async updateEnterpriseFields(id, { photo_url, contract_status, department_id, position_id }) {
+  async updateEnterpriseFields(id, { photo_url, contract_status, department_id, position_id, remote_work_allowed }) {
     const sets = [];
     const vals = [];
     let i = 1;
@@ -95,6 +98,10 @@ class EmployeeRepository {
     if (position_id !== undefined) {
       sets.push(`position_id = $${i++}`);
       vals.push(position_id);
+    }
+    if (remote_work_allowed !== undefined) {
+      sets.push(`remote_work_allowed = $${i++}`);
+      vals.push(Boolean(remote_work_allowed));
     }
     if (!sets.length) return this.findById(id);
     vals.push(id);

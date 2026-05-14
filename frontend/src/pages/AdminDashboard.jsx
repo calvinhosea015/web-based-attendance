@@ -12,6 +12,16 @@ import {
 } from 'recharts';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 
+function formatUserApiError(err) {
+  const data = err.response?.data;
+  let msg = data?.message || err.message || String(err);
+  if (Array.isArray(data?.errors) && data.errors.length) {
+    const details = data.errors.map((e) => e.msg || `${e.path || ''} ${e.msg || ''}`.trim()).join(' · ');
+    if (details && !msg.includes(details)) msg = `${msg} (${details})`;
+  }
+  return msg;
+}
+
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -24,13 +34,14 @@ export default function AdminDashboard() {
     password: '',
     role: 'employee',
     office_id: '',
-    employee_id: '',
     full_name: '',
+    remote_work_allowed: true,
   });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
   const [message, setMessage] = useState('');
   const [changingPasswordFor, setChangingPasswordFor] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [editingUser, setEditingUser] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -83,28 +94,41 @@ export default function AdminDashboard() {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+    const parsedOffice =
+      newUser.office_id !== '' && newUser.office_id != null
+        ? Number(newUser.office_id)
+        : NaN;
+    const officeOk = Number.isFinite(parsedOffice) && parsedOffice >= 1;
+    if (newUser.role === 'employee' && !officeOk) {
+      setMessage(t('officeRequiredEmployee'));
+      return;
+    }
     try {
       const payload = {
-        username: newUser.username,
+        username: newUser.username.trim(),
         password: newUser.password,
         role: newUser.role,
-        office_id: newUser.office_id ? Number(newUser.office_id) : undefined,
-        employee_id: newUser.employee_id || undefined,
-        full_name: newUser.full_name || undefined,
+        full_name: newUser.full_name?.trim() || undefined,
       };
-      await api.post(paths.users, payload);
-      setMessage(t('userAdded'));
+      if (officeOk) payload.office_id = parsedOffice;
+      if (newUser.role === 'employee') {
+        payload.office_id = parsedOffice;
+        payload.remote_work_allowed = Boolean(newUser.remote_work_allowed);
+      }
+      const res = await api.post(paths.users, payload);
+      const ec = res.data?.employee_code;
+      setMessage(ec ? `${t('userAdded')} — ${t('employeeCode')}: ${ec}` : t('userAdded'));
       refresh();
       setNewUser({
         username: '',
         password: '',
         role: 'employee',
         office_id: offices.length ? String(offices[0].id) : '',
-        employee_id: '',
         full_name: '',
+        remote_work_allowed: true,
       });
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message);
+      setMessage(formatUserApiError(err));
     }
   };
 
@@ -112,9 +136,55 @@ export default function AdminDashboard() {
     try {
       await api.delete(`${paths.users}/${id}`);
       setMessage(t('userDeleted'));
+      setEditingUser((cur) => (cur && cur.id === id ? null : cur));
       refresh();
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message);
+      setMessage(formatUserApiError(err));
+    }
+  };
+
+  const openEditUser = (user) => {
+    setChangingPasswordFor(null);
+    setEditingUser({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      office_id: user.office_id != null ? String(user.office_id) : '',
+      full_name: user.full_name || '',
+      remote_work_allowed: user.remote_work_allowed !== false,
+    });
+  };
+
+  const handleSaveUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      const body = {
+        username: editingUser.username.trim(),
+        role: editingUser.role,
+      };
+      if (editingUser.role === 'employee') {
+        const fn = editingUser.full_name.trim();
+        if (!fn) {
+          setMessage(t('fullNameRequired'));
+          return;
+        }
+        if (!editingUser.office_id) {
+          setMessage(t('officeRequiredEmployee'));
+          return;
+        }
+        body.full_name = fn;
+        body.office_id = Number(editingUser.office_id);
+        body.remote_work_allowed = Boolean(editingUser.remote_work_allowed);
+      } else if (editingUser.office_id) {
+        body.office_id = Number(editingUser.office_id);
+      }
+      await api.put(`${paths.users}/${editingUser.id}`, body);
+      setMessage(t('userUpdated'));
+      setEditingUser(null);
+      refresh();
+    } catch (err) {
+      setMessage(formatUserApiError(err));
     }
   };
 
@@ -287,22 +357,23 @@ export default function AdminDashboard() {
               <option value="admin">{t('roleAdmin')}</option>
             </select>
             {newUser.role === 'employee' && (
-              <>
+              <input
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder={t('fullName')}
+                value={newUser.full_name}
+                onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                required
+              />
+            )}
+            {newUser.role === 'employee' && (
+              <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder={t('employeeCode')}
-                  value={newUser.employee_id}
-                  onChange={(e) => setNewUser({ ...newUser, employee_id: e.target.value })}
-                  required
+                  type="checkbox"
+                  checked={newUser.remote_work_allowed}
+                  onChange={(e) => setNewUser({ ...newUser, remote_work_allowed: e.target.checked })}
                 />
-                <input
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder={t('fullName')}
-                  value={newUser.full_name}
-                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                  required
-                />
-              </>
+                {t('allowRemoteWork')}
+              </label>
             )}
             <select
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -343,7 +414,17 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
-                    onClick={() => setChangingPasswordFor(user.id)}
+                    onClick={() => openEditUser(user)}
+                  >
+                    {t('editUser')}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                    onClick={() => {
+                      setEditingUser(null);
+                      setChangingPasswordFor(user.id);
+                    }}
                   >
                     {t('changePassword')}
                   </button>
@@ -355,6 +436,79 @@ export default function AdminDashboard() {
                     {t('delete')}
                   </button>
                 </div>
+                {editingUser?.id === user.id && (
+                  <form className="mt-2 w-full space-y-2 rounded-lg border border-slate-200 bg-white p-3" onSubmit={handleSaveUser}>
+                    <input
+                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      placeholder={t('username')}
+                      value={editingUser.username}
+                      onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                      required
+                    />
+                    <select
+                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      value={editingUser.role}
+                      onChange={(e) => {
+                        const role = e.target.value;
+                        setEditingUser((prev) => ({
+                          ...prev,
+                          role,
+                          ...(role === 'employee' && prev.role !== 'employee'
+                            ? { remote_work_allowed: true }
+                            : {}),
+                        }));
+                      }}
+                    >
+                      <option value="employee">{t('roleEmployee')}</option>
+                      <option value="admin">{t('roleAdmin')}</option>
+                    </select>
+                    <select
+                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      value={editingUser.office_id}
+                      onChange={(e) => setEditingUser({ ...editingUser, office_id: e.target.value })}
+                    >
+                      <option value="">{offices.length ? t('selectOffice') : t('noOfficesAvailable')}</option>
+                      {offices.map((office) => (
+                        <option key={office.id} value={office.id}>
+                          {office.name}
+                        </option>
+                      ))}
+                    </select>
+                    {editingUser.role === 'employee' && (
+                      <label className="flex items-center gap-2 text-xs text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={editingUser.remote_work_allowed}
+                          onChange={(e) =>
+                            setEditingUser({ ...editingUser, remote_work_allowed: e.target.checked })
+                          }
+                        />
+                        {t('allowRemoteWork')}
+                      </label>
+                    )}
+                    {editingUser.role === 'employee' && (
+                      <input
+                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                        placeholder={t('fullName')}
+                        value={editingUser.full_name}
+                        onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
+                        required
+                      />
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button type="submit" className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white">
+                        {t('saveUser')}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-slate-200 px-3 py-1 text-xs"
+                        onClick={() => setEditingUser(null)}
+                      >
+                        {t('cancel')}
+                      </button>
+                    </div>
+                  </form>
+                )}
                 {changingPasswordFor === user.id && (
                   <form className="mt-2 flex w-full flex-col gap-2 sm:flex-row" onSubmit={handleChangePassword}>
                     <input

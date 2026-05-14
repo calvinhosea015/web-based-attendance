@@ -7,11 +7,6 @@ class MetaRepository {
     return { departmentId: d.rows[0].id, positionId: p.rows[0].id };
   }
 
-  async firstShiftId() {
-    const r = await query(`SELECT id FROM shifts ORDER BY id LIMIT 1`);
-    return r.rows[0]?.id || null;
-  }
-
   async firstOfficeId() {
     const r = await query(`SELECT id FROM offices ORDER BY id LIMIT 1`);
     return r.rows[0]?.id || null;

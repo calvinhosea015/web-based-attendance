@@ -1,6 +1,21 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 
+function authFromPayload(payload) {
+  let employeeId = payload.employeeId ?? null;
+  if (employeeId != null && employeeId !== '') {
+    const n = Number(employeeId);
+    employeeId = Number.isFinite(n) && n > 0 ? n : null;
+  } else {
+    employeeId = null;
+  }
+  return {
+    userId: payload.sub,
+    role: payload.role,
+    employeeId,
+  };
+}
+
 function extractBearer(req) {
   const h = req.headers.authorization;
   if (!h) return null;
@@ -15,11 +30,7 @@ function authenticate(req, res, next) {
   }
   try {
     const payload = jwt.verify(token, config.jwtSecret);
-    req.auth = {
-      userId: payload.sub,
-      role: payload.role,
-      employeeId: payload.employeeId || null,
-    };
+    req.auth = authFromPayload(payload);
     return next();
   } catch (e) {
     if (e.name === 'TokenExpiredError') {
@@ -37,11 +48,7 @@ function optionalAuthenticate(req, res, next) {
   if (!token) return next();
   try {
     const payload = jwt.verify(token, config.jwtSecret);
-    req.auth = {
-      userId: payload.sub,
-      role: payload.role,
-      employeeId: payload.employeeId || null,
-    };
+    req.auth = authFromPayload(payload);
   } catch {
     /* ignore invalid token for optional auth */
   }

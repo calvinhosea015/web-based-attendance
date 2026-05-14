@@ -1,10 +1,10 @@
 const { AppError } = require('../utils/errors');
 
 class EmployeePortalService {
-  constructor(attendanceRepository, employeeRepository, leaveRepository, payrollRepository) {
+  constructor(userRepository, attendanceRepository, employeeRepository, payrollRepository) {
+    this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
     this.employeeRepository = employeeRepository;
-    this.leaveRepository = leaveRepository;
     this.payrollRepository = payrollRepository;
   }
 
@@ -12,16 +12,23 @@ class EmployeePortalService {
     if (!auth.employeeId) {
       throw new AppError('Account is not linked to an employee profile.', 400, 'NO_EMPLOYEE');
     }
+    const userRow = await this.userRepository.findById(auth.userId);
     const dayStr = new Date().toISOString().slice(0, 10);
     const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
     const todayRow = open || (await this.attendanceRepository.findAnyToday(auth.employeeId, dayStr));
-    const shift = await this.employeeRepository.getCurrentShift(auth.employeeId);
-    const leaveBalances = await this.leaveRepository.balances(auth.employeeId);
     const weekHours = await this.attendanceRepository.sumWorkHoursThisWeek(auth.employeeId);
     const employee = await this.employeeRepository.findById(auth.employeeId);
 
+    const assignedOffice =
+      userRow && userRow.office_id != null
+        ? { id: userRow.office_id, name: userRow.assigned_office_name || '' }
+        : null;
+    const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
+
     return {
       employee,
+      assigned_office: assignedOffice,
+      remote_work_allowed: remoteWorkAllowed,
       today: todayRow
         ? {
             status: todayRow.attendance_status,
@@ -30,8 +37,6 @@ class EmployeePortalService {
             work_hours: todayRow.work_hours,
           }
         : { status: null, check_in: null, check_out: null, work_hours: null },
-      shift,
-      leaveBalances,
       weekWorkHours: Number(weekHours),
     };
   }
@@ -44,11 +49,6 @@ class EmployeePortalService {
   async mePayroll(auth) {
     if (!auth.employeeId) return [];
     return this.payrollRepository.listForEmployee(auth.employeeId);
-  }
-
-  async meLeaves(auth) {
-    if (!auth.employeeId) return [];
-    return this.leaveRepository.listForEmployee(auth.employeeId);
   }
 }
 
