@@ -2,6 +2,9 @@
 
 This document is the **operator and user manual** for the Web-Based Attendance System: what it does, how to install and configure it, and how to use the web application day to day.
 
+Main User:
+admin pass admin123
+
 ---
 
 ## 1. What this system is
