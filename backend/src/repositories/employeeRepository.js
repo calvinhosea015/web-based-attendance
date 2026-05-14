@@ -12,12 +12,22 @@ class EmployeeRepository {
       joinDate,
       status,
       remoteWorkAllowed,
+      dailySegments,
+      segment1_start,
+      segment1_end,
+      segment2_start,
+      segment2_end,
     },
     exec = query
   ) {
+    const ds = dailySegments === 2 ? 2 : 1;
     const r = await exec(
-      `INSERT INTO employees (employee_id, full_name, department_id, position_id, salary_type, basic_salary, join_date, status, remote_work_allowed)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, true))
+      `INSERT INTO employees (
+        employee_id, full_name, department_id, position_id, salary_type, basic_salary, join_date, status,
+        remote_work_allowed, daily_segments,
+        segment1_start, segment1_end, segment2_start, segment2_end
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, true), $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         employeeId,
@@ -29,6 +39,11 @@ class EmployeeRepository {
         joinDate || new Date().toISOString().slice(0, 10),
         status || 'active',
         remoteWorkAllowed !== undefined ? Boolean(remoteWorkAllowed) : null,
+        ds,
+        ds === 2 ? segment1_start : null,
+        ds === 2 ? segment1_end : null,
+        ds === 2 ? segment2_start : null,
+        ds === 2 ? segment2_end : null,
       ]
     );
     return r.rows[0];
@@ -67,6 +82,27 @@ class EmployeeRepository {
     return r.rows[0] || null;
   }
 
+  async assignDefaultShiftIfMissing(employeePk, exec = query) {
+    await exec(
+      `INSERT INTO employee_shifts (employee_id, shift_id, effective_from)
+       SELECT $1, s.id, DATE '1970-01-01'
+       FROM (SELECT id FROM shifts WHERE shift_name = 'Standard 7–4' LIMIT 1) s
+       WHERE NOT EXISTS (SELECT 1 FROM employee_shifts es WHERE es.employee_id = $1)`,
+      [employeePk]
+    );
+  }
+
+  /** Two-clock employees always use Standard 7–4 in employee_shifts (for display / consistency). */
+  async enforceStandardShift(employeePk, exec = query) {
+    await this.assignDefaultShiftIfMissing(employeePk, exec);
+    await exec(
+      `UPDATE employee_shifts es
+       SET shift_id = (SELECT id FROM shifts WHERE shift_name = 'Standard 7–4' LIMIT 1)
+       WHERE es.employee_id = $1`,
+      [employeePk]
+    );
+  }
+
   async getCurrentShift(employeeId) {
     const r = await query(
       `SELECT s.* FROM shifts s
@@ -79,7 +115,18 @@ class EmployeeRepository {
     return r.rows[0] || null;
   }
 
-  async updateEnterpriseFields(id, { photo_url, contract_status, department_id, position_id, remote_work_allowed }) {
+  async updateEnterpriseFields(id, {
+    photo_url,
+    contract_status,
+    department_id,
+    position_id,
+    remote_work_allowed,
+    daily_segments,
+    segment1_start,
+    segment1_end,
+    segment2_start,
+    segment2_end,
+  }) {
     const sets = [];
     const vals = [];
     let i = 1;
@@ -102,6 +149,27 @@ class EmployeeRepository {
     if (remote_work_allowed !== undefined) {
       sets.push(`remote_work_allowed = $${i++}`);
       vals.push(Boolean(remote_work_allowed));
+    }
+    if (daily_segments !== undefined) {
+      const ds = Number(daily_segments) === 2 ? 2 : 1;
+      sets.push(`daily_segments = $${i++}`);
+      vals.push(ds);
+    }
+    if (segment1_start !== undefined) {
+      sets.push(`segment1_start = $${i++}`);
+      vals.push(segment1_start);
+    }
+    if (segment1_end !== undefined) {
+      sets.push(`segment1_end = $${i++}`);
+      vals.push(segment1_end);
+    }
+    if (segment2_start !== undefined) {
+      sets.push(`segment2_start = $${i++}`);
+      vals.push(segment2_start);
+    }
+    if (segment2_end !== undefined) {
+      sets.push(`segment2_end = $${i++}`);
+      vals.push(segment2_end);
     }
     if (!sets.length) return this.findById(id);
     vals.push(id);

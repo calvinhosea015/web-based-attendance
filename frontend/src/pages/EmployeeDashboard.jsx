@@ -40,6 +40,12 @@ function geoMessage(err) {
   return err.message || i18n.t('geoUnavailable');
 }
 
+function formatTimePart(t) {
+  if (t == null) return '';
+  const s = String(t);
+  return s.length >= 5 ? s.slice(0, 5) : s;
+}
+
 export default function EmployeeDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -95,6 +101,30 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const captureLocation = async () => {
+    await ensureCsrf();
+    let pos;
+    try {
+      pos = await readPosition();
+    } catch (geoErr) {
+      setMessage(geoMessage(geoErr));
+      return null;
+    }
+    const { latitude, longitude, accuracy } = pos.coords;
+    if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      setMessage(i18n.t('geoUnavailable'));
+      return null;
+    }
+    const client_ts_ms =
+      typeof pos.timestamp === 'number' && pos.timestamp > 0 ? pos.timestamp : Date.now();
+    return {
+      lat: latitude,
+      lng: longitude,
+      accuracy_m: accuracy && accuracy > 0 ? accuracy : 25,
+      client_ts_ms,
+    };
+  };
+
   const handleCheckIn = async () => {
     if (!summary?.assigned_office?.id) {
       setMessage(t('noOfficeAssigned'));
@@ -103,27 +133,11 @@ export default function EmployeeDashboard() {
     setMessage('');
     setClockPending(true);
     try {
-      await ensureCsrf();
-      let pos;
-      try {
-        pos = await readPosition();
-      } catch (geoErr) {
-        setMessage(geoMessage(geoErr));
-        return;
-      }
-      const { latitude, longitude, accuracy } = pos.coords;
-      if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
-        setMessage(i18n.t('geoUnavailable'));
-        return;
-      }
-      const client_ts_ms =
-        typeof pos.timestamp === 'number' && pos.timestamp > 0 ? pos.timestamp : Date.now();
+      const loc = await captureLocation();
+      if (!loc) return;
       await api.post(paths.checkIn, {
-        lat: latitude,
-        lng: longitude,
-        accuracy_m: accuracy && accuracy > 0 ? accuracy : 25,
-        client_ts_ms: client_ts_ms,
-        remote_work: canRemote && remoteWork,
+        ...loc,
+        remote_work: summary?.remote_work_allowed !== false && remoteWork,
       });
       setMessage(t('checkedIn'));
       await refreshEmployee();
@@ -138,27 +152,9 @@ export default function EmployeeDashboard() {
     setMessage('');
     setClockPending(true);
     try {
-      await ensureCsrf();
-      let pos;
-      try {
-        pos = await readPosition();
-      } catch (geoErr) {
-        setMessage(geoMessage(geoErr));
-        return;
-      }
-      const { latitude, longitude, accuracy } = pos.coords;
-      if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
-        setMessage(i18n.t('geoUnavailable'));
-        return;
-      }
-      const client_ts_ms =
-        typeof pos.timestamp === 'number' && pos.timestamp > 0 ? pos.timestamp : Date.now();
-      await api.post(paths.checkOut, {
-        lat: latitude,
-        lng: longitude,
-        accuracy_m: accuracy && accuracy > 0 ? accuracy : 25,
-        client_ts_ms: client_ts_ms,
-      });
+      const loc = await captureLocation();
+      if (!loc) return;
+      await api.post(paths.checkOut, loc);
       setMessage(t('checkedOut'));
       await refreshEmployee();
     } catch (err) {
@@ -166,6 +162,12 @@ export default function EmployeeDashboard() {
     } finally {
       setClockPending(false);
     }
+  };
+
+  const handleClock = async () => {
+    const action = summary?.next_clock_action ?? 'check_in';
+    if (action === 'check_out') await handleCheckOut();
+    else if (action === 'check_in') await handleCheckIn();
   };
 
   const handleLogout = async () => {
@@ -188,6 +190,31 @@ export default function EmployeeDashboard() {
   const assignedOffice = summary?.assigned_office;
   const canRemote = summary?.remote_work_allowed !== false;
   const canClockIn = Boolean(assignedOffice?.id);
+  const nextAction = summary?.next_clock_action ?? 'check_in';
+  const eventsDone = summary?.clock_events_done ?? 0;
+  const eventsTarget = summary?.clock_events_target ?? 2;
+  const split = summary?.split_shift;
+  const shiftLabel = (() => {
+    if (
+      split &&
+      split.segment1_start &&
+      split.segment1_end &&
+      split.segment2_start &&
+      split.segment2_end
+    ) {
+      return `${formatTimePart(split.segment1_start)}–${formatTimePart(split.segment1_end)} · ${formatTimePart(split.segment2_start)}–${formatTimePart(split.segment2_end)}`;
+    }
+    const shift = summary?.shift;
+    if (shift && shift.start_time && shift.end_time) {
+      return `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`;
+    }
+    return '07:00 – 16:00';
+  })();
+  const clockDisabled =
+    summary == null || !canClockIn || clockPending || nextAction === 'done';
+
+  const primaryClockLabel =
+    nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -212,16 +239,42 @@ export default function EmployeeDashboard() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('todayStatus')}</h2>
           <div className="mt-2 text-2xl font-semibold text-slate-900">{today?.status || t('notCheckedIn')}</div>
-          <div className="mt-2 space-y-1 text-sm text-slate-600">
-            <div>
-              {t('checkIn')}: {today?.check_in ? new Date(today.check_in).toLocaleString() : '—'}
-            </div>
-            <div>
-              {t('checkOut')}: {today?.check_out ? new Date(today.check_out).toLocaleString() : '—'}
-            </div>
-            <div>
-              {t('workHours')}: {today?.work_hours != null ? today.work_hours : '—'}
-            </div>
+          <p className="mt-1 text-xs text-slate-500">
+            {t('expectedShift')}: {shiftLabel}
+            {summary?.shift?.shift_name && !summary?.split_shift ? ` · ${summary.shift.shift_name}` : ''}
+          </p>
+          <p className="mt-1 text-xs font-medium text-slate-600">
+            {t('clockProgress', { done: eventsDone, target: eventsTarget })}
+          </p>
+          <div className="mt-3 space-y-2 text-sm text-slate-600">
+            {today?.sessions_today?.length ? (
+              today.sessions_today.map((seg, idx) => (
+                <div key={seg.id || idx} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
+                  <div className="font-medium text-slate-800">{t('sessionN', { n: idx + 1 })}</div>
+                  <div>
+                    {t('checkIn')}: {seg.check_in ? new Date(seg.check_in).toLocaleString() : '—'}
+                  </div>
+                  <div>
+                    {t('checkOut')}: {seg.check_out ? new Date(seg.check_out).toLocaleString() : '—'}
+                  </div>
+                  <div>
+                    {t('workHours')}: {seg.work_hours != null ? seg.work_hours : '—'}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div>
+                  {t('checkIn')}: {today?.check_in ? new Date(today.check_in).toLocaleString() : '—'}
+                </div>
+                <div>
+                  {t('checkOut')}: {today?.check_out ? new Date(today.check_out).toLocaleString() : '—'}
+                </div>
+                <div>
+                  {t('workHours')}: {today?.work_hours != null ? today.work_hours : '—'}
+                </div>
+              </>
+            )}
           </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -245,32 +298,22 @@ export default function EmployeeDashboard() {
               <div className="text-sm text-amber-800">{t('noOfficeAssigned')}</div>
             )}
           </div>
-          {canRemote ? (
+          {nextAction === 'check_in' && canRemote ? (
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" checked={remoteWork} onChange={(e) => setRemoteWork(e.target.checked)} />
               {t('remoteWorkDay')}
             </label>
-          ) : (
+          ) : nextAction === 'check_in' ? (
             <p className="text-xs text-slate-500">{t('remoteWorkDisabledByAdmin')}</p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!canClockIn || clockPending}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={handleCheckIn}
-            >
-              {clockPending ? t('locating') : t('checkIn')}
-            </button>
-            <button
-              type="button"
-              disabled={clockPending}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={handleCheckOut}
-            >
-              {t('checkOut')}
-            </button>
-          </div>
+          ) : null}
+          <button
+            type="button"
+            disabled={clockDisabled}
+            className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleClock}
+          >
+            {clockPending ? t('locating') : primaryClockLabel}
+          </button>
           {message && <p className="text-sm text-slate-800">{message}</p>}
         </div>
       </section>

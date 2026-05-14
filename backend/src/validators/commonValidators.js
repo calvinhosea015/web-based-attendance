@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
 
 const loginValidators = [
@@ -60,6 +60,11 @@ const createUserValidators = [
   body('employee_id').optional({ values: 'null' }).isString(),
   body('full_name').optional({ values: 'null' }).isString(),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
+  body('daily_segments').optional().isInt({ min: 1, max: 2 }),
+  body('segment1_start').optional().trim().isString(),
+  body('segment1_end').optional().trim().isString(),
+  body('segment2_start').optional().trim().isString(),
+  body('segment2_end').optional().trim().isString(),
   body('salary_type').optional({ values: 'null' }).isString(),
   body('basic_salary').optional({ values: 'null' }).isNumeric(),
   body('join_date').optional({ values: 'null' }).isString(),
@@ -73,9 +78,16 @@ const updateUserValidators = [
   body('office_id').optional({ values: 'null' }),
   body('full_name').optional({ values: 'null' }).isString(),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
+  body('daily_segments').optional().isInt({ min: 1, max: 2 }),
+  body('segment1_start').optional().trim().isString(),
+  body('segment1_end').optional().trim().isString(),
+  body('segment2_start').optional().trim().isString(),
+  body('segment2_end').optional().trim().isString(),
 ];
 
 const idParamValidator = [param('id').isInt({ min: 1 })];
+
+const userAttendanceQueryValidators = [query('limit').optional().isInt({ min: 1, max: 500 })];
 
 const officeCreateValidators = [
   body('name').trim().notEmpty(),
@@ -90,6 +102,11 @@ const employeeUpdateValidators = [
   body('department_id').optional().isInt({ min: 1 }),
   body('position_id').optional().isInt({ min: 1 }),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
+  body('daily_segments').optional().isInt({ min: 1, max: 2 }),
+  body('segment1_start').optional().trim().isString(),
+  body('segment1_end').optional().trim().isString(),
+  body('segment2_start').optional().trim().isString(),
+  body('segment2_end').optional().trim().isString(),
 ];
 
 module.exports = {
@@ -103,6 +120,7 @@ module.exports = {
   changePasswordValidators,
   updateUserValidators,
   idParamValidator,
+  userAttendanceQueryValidators,
   officeCreateValidators,
   departmentCreateValidators,
   employeeUpdateValidators,

@@ -3,12 +3,70 @@ const { pool } = require('../db/pool');
 const { AppError } = require('../utils/errors');
 const { MetaRepository } = require('../repositories/metaRepository');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
+const { normalizeTimeForDb, segmentsCompleteInDb } = require('../utils/timeOfDay');
 const config = require('../config/env');
 
 function stripUserSecrets(row) {
   if (!row) return null;
   const { password_hash: _p, ...rest } = row;
   return rest;
+}
+
+async function applyShiftSegmentRules(userRepository, employeeRepository, userId, payload, has) {
+  const fresh = await userRepository.findById(userId);
+  if (!fresh?.employee_id || fresh.role !== 'employee') return;
+
+  const empRow = await employeeRepository.findById(fresh.employee_id);
+  if (!empRow) return;
+
+  if (has('daily_segments')) {
+    if (Number(payload.daily_segments) !== 2) {
+      await employeeRepository.enforceStandardShift(fresh.employee_id);
+      await employeeRepository.updateEnterpriseFields(fresh.employee_id, {
+        segment1_start: null,
+        segment1_end: null,
+        segment2_start: null,
+        segment2_end: null,
+      });
+      return;
+    }
+    const existingOk = segmentsCompleteInDb(empRow);
+    const payloadHasAll = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'].every((k) =>
+      has(k)
+    );
+    if (!existingOk && !payloadHasAll) {
+      throw new AppError(
+        'Four shift times (segment1_start, segment1_end, segment2_start, segment2_end) are required for four clocks per day.',
+        400,
+        'SPLIT_SHIFT_TIMES'
+      );
+    }
+    if (payloadHasAll) {
+      await employeeRepository.updateEnterpriseFields(fresh.employee_id, {
+        segment1_start: normalizeTimeForDb(payload.segment1_start),
+        segment1_end: normalizeTimeForDb(payload.segment1_end),
+        segment2_start: normalizeTimeForDb(payload.segment2_start),
+        segment2_end: normalizeTimeForDb(payload.segment2_end),
+      });
+    }
+    return;
+  }
+
+  const ds = Number(empRow.daily_segments) === 2 ? 2 : 1;
+  if (ds !== 2) return;
+
+  const keys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
+  if (keys.some((k) => has(k)) && !keys.every((k) => has(k))) {
+    throw new AppError('Send all four segment times together.', 400, 'SPLIT_SHIFT_TIMES');
+  }
+  if (keys.every((k) => has(k))) {
+    await employeeRepository.updateEnterpriseFields(fresh.employee_id, {
+      segment1_start: normalizeTimeForDb(payload.segment1_start),
+      segment1_end: normalizeTimeForDb(payload.segment1_end),
+      segment2_start: normalizeTimeForDb(payload.segment2_start),
+      segment2_end: normalizeTimeForDb(payload.segment2_end),
+    });
+  }
 }
 
 class UserService {
@@ -45,6 +103,25 @@ class UserService {
 
     const has = (k) => Object.prototype.hasOwnProperty.call(payload, k);
     const remoteWorkAllowed = has('remote_work_allowed') ? Boolean(payload.remote_work_allowed) : true;
+    const dailySegments = has('daily_segments') ? (Number(payload.daily_segments) === 2 ? 2 : 1) : 1;
+
+    const segmentKeys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
+    let segmentTimes = {};
+    if (dailySegments === 2) {
+      if (!segmentKeys.every((k) => has(k))) {
+        throw new AppError(
+          'Four shift times (segment1_start, segment1_end, segment2_start, segment2_end) are required for four clocks per day.',
+          400,
+          'SPLIT_SHIFT_TIMES'
+        );
+      }
+      segmentTimes = {
+        segment1_start: normalizeTimeForDb(payload.segment1_start),
+        segment1_end: normalizeTimeForDb(payload.segment1_end),
+        segment2_start: normalizeTimeForDb(payload.segment2_start),
+        segment2_end: normalizeTimeForDb(payload.segment2_end),
+      };
+    }
 
     let employeeId = null;
     let createdEmployee = null;
@@ -63,6 +140,8 @@ class UserService {
         joinDate: payload.join_date,
         status: 'active',
         remoteWorkAllowed,
+        dailySegments,
+        ...segmentTimes,
       };
       let emp;
       if (trimmedCode) {
@@ -86,6 +165,7 @@ class UserService {
       }
       employeeId = emp.id;
       createdEmployee = emp;
+      await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
     }
 
     const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
@@ -131,22 +211,34 @@ class UserService {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'NOT_FOUND');
 
-    const allowedKeys = ['username', 'role', 'office_id', 'full_name', 'remote_work_allowed'];
+    const allowedKeys = [
+      'username',
+      'role',
+      'office_id',
+      'full_name',
+      'remote_work_allowed',
+      'daily_segments',
+      'segment1_start',
+      'segment1_end',
+      'segment2_start',
+      'segment2_end',
+    ];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
-        'At least one of username, role, office_id, full_name, remote_work_allowed is required.',
+        'At least one of username, role, office_id, full_name, remote_work_allowed, daily_segments, or segment times is required.',
         400,
         'NO_FIELDS'
       );
     }
 
-    const syncRemoteWorkAllowed = async () => {
-      if (!has('remote_work_allowed')) return;
+    const syncEmployeePolicies = async () => {
       const latest = await this.userRepository.findById(userId);
-      if (latest?.employee_id) {
-        await this.employeeRepository.updateEnterpriseFields(latest.employee_id, {
-          remote_work_allowed: Boolean(payload.remote_work_allowed),
-        });
+      if (!latest?.employee_id) return;
+      const epatch = {};
+      if (has('remote_work_allowed')) epatch.remote_work_allowed = Boolean(payload.remote_work_allowed);
+      if (has('daily_segments')) epatch.daily_segments = Number(payload.daily_segments) === 2 ? 2 : 1;
+      if (Object.keys(epatch).length) {
+        await this.employeeRepository.updateEnterpriseFields(latest.employee_id, epatch);
       }
     };
 
@@ -213,6 +305,24 @@ class UserService {
       if (newFullNameRaw === undefined) {
         throw new AppError('full_name is required when changing role to employee.', 400, 'EMPLOYEE_FIELDS');
       }
+      const dailySeg = has('daily_segments') ? (Number(payload.daily_segments) === 2 ? 2 : 1) : 1;
+      const segmentKeys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
+      let segmentTimes = {};
+      if (dailySeg === 2) {
+        if (!segmentKeys.every((k) => has(k))) {
+          throw new AppError(
+            'Four shift times are required when using four clocks per day.',
+            400,
+            'SPLIT_SHIFT_TIMES'
+          );
+        }
+        segmentTimes = {
+          segment1_start: normalizeTimeForDb(payload.segment1_start),
+          segment1_end: normalizeTimeForDb(payload.segment1_end),
+          segment2_start: normalizeTimeForDb(payload.segment2_start),
+          segment2_end: normalizeTimeForDb(payload.segment2_end),
+        };
+      }
       const { departmentId, positionId } = await this.metaRepository.defaultDepartmentAndPosition();
       let emp;
       const client = await pool.connect();
@@ -235,6 +345,8 @@ class UserService {
                 joinDate: new Date().toISOString().slice(0, 10),
                 status: 'active',
                 remoteWorkAllowed: has('remote_work_allowed') ? Boolean(payload.remote_work_allowed) : true,
+                dailySegments: dailySeg,
+                ...segmentTimes,
               },
               exec
             );
@@ -263,7 +375,9 @@ class UserService {
         client.release();
       }
 
-      await syncRemoteWorkAllowed();
+      await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
+      await syncEmployeePolicies();
+      await applyShiftSegmentRules(this.userRepository, this.employeeRepository, userId, payload, has);
       const updated = stripUserSecrets(await this.userRepository.findById(userId));
       return { ...updated, employee_code: emp.employee_id };
     }
@@ -290,7 +404,8 @@ class UserService {
       }
     }
 
-    await syncRemoteWorkAllowed();
+    await syncEmployeePolicies();
+    await applyShiftSegmentRules(this.userRepository, this.employeeRepository, userId, payload, has);
     return stripUserSecrets(await this.userRepository.findById(userId));
   }
 }

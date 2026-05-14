@@ -4,6 +4,14 @@ const { AppError } = require('../utils/errors');
 const { ATTENDANCE_STATUSES } = require('../constants/attendance');
 const config = require('../config/env');
 
+/** Two clocks per day: fixed 07:00–16:00 with 60 min break (used for late / hours math, not DB-dependent). */
+const STANDARD_TWO_CLOCK_SHIFT = {
+  shift_name: 'Standard 7–4',
+  start_time: '07:00:00',
+  end_time: '16:00:00',
+  break_duration: 60,
+};
+
 function resolveClientTimestampMs(raw) {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return Date.now();
@@ -36,11 +44,56 @@ function computeLateAndStatus(checkInIso, shift) {
   };
 }
 
-function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousStatus) {
+function formatTimeForShift(t) {
+  if (t == null) return null;
+  const s = String(t);
+  if (s.length >= 8) return s.slice(0, 8);
+  if (s.length >= 5) return `${s.slice(0, 5)}:00`;
+  return s;
+}
+
+/** Four clocks: morning / afternoon bounds from employee row (defaults if unset). */
+function splitSegmentBounds(emp) {
+  return {
+    seg0: {
+      start: formatTimeForShift(emp.segment1_start) || '07:00:00',
+      end: formatTimeForShift(emp.segment1_end) || '12:00:00',
+    },
+    seg1: {
+      start: formatTimeForShift(emp.segment2_start) || '13:00:00',
+      end: formatTimeForShift(emp.segment2_end) || '16:00:00',
+    },
+  };
+}
+
+function computeSegmentCheckout(checkInIso, checkOutIso, segmentStartTime, segmentEndTime, previousStatus) {
   const ci = new Date(checkInIso);
   const co = new Date(checkOutIso);
   const rawHours = (co.getTime() - ci.getTime()) / 3600000;
-  const breakH = shift ? shift.break_duration / 60 : 1;
+  const workHours = Math.max(0, rawHours);
+  let status = previousStatus || ATTENDANCE_STATUSES.PRESENT;
+  const end = parseShiftTimeOnDate(co, segmentEndTime);
+  if (co.getTime() < end.getTime() - 60 * 1000) {
+    status = ATTENDANCE_STATUSES.EARLY_LEAVE;
+  }
+  const scheduledMs =
+    parseShiftTimeOnDate(ci, segmentEndTime).getTime() -
+    parseShiftTimeOnDate(ci, segmentStartTime).getTime();
+  const scheduledHours = Math.max(0.25, scheduledMs / 3600000);
+  const overtimeHours = Math.max(0, workHours - scheduledHours);
+  return {
+    workHours: Number(workHours.toFixed(2)),
+    overtimeHours: Number(overtimeHours.toFixed(2)),
+    status,
+  };
+}
+
+function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousStatus, opts = {}) {
+  const ci = new Date(checkInIso);
+  const co = new Date(checkOutIso);
+  const rawHours = (co.getTime() - ci.getTime()) / 3600000;
+  const lunchH = shift ? shift.break_duration / 60 : 0;
+  const breakH = opts.skipBreakDeduction ? 0 : shift ? lunchH : 1;
   const workHours = Math.max(0, rawHours - breakH);
   let status = previousStatus || ATTENDANCE_STATUSES.PRESENT;
   if (shift) {
@@ -49,7 +102,15 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
       status = ATTENDANCE_STATUSES.EARLY_LEAVE;
     }
   }
-  const scheduledHours = shift ? (parseShiftTimeOnDate(ci, shift.end_time).getTime() - parseShiftTimeOnDate(ci, shift.start_time).getTime()) / 3600000 - breakH : 8;
+  const fullSpanH = shift
+    ? (parseShiftTimeOnDate(ci, shift.end_time).getTime() - parseShiftTimeOnDate(ci, shift.start_time).getTime()) /
+      3600000
+    : 9;
+  const scheduledHours = opts.skipBreakDeduction
+    ? Math.max(0.25, (fullSpanH - lunchH) / 2)
+    : shift
+      ? fullSpanH - lunchH
+      : 8;
   const overtimeHours = Math.max(0, workHours - Math.max(scheduledHours, 0));
   return { workHours: Number(workHours.toFixed(2)), overtimeHours: Number(overtimeHours.toFixed(2)), status };
 }
@@ -92,7 +153,14 @@ class AttendanceService {
     const dayStr = new Date().toISOString().slice(0, 10);
     const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
     if (open) {
-      throw new AppError('Already checked in today.', 400, 'ALREADY_IN');
+      throw new AppError('You still have an open session. Clock out before starting another.', 400, 'ALREADY_IN');
+    }
+
+    const emp = await this.employeeRepository.findById(auth.employeeId);
+    const dailySegments = emp && Number(emp.daily_segments) === 2 ? 2 : 1;
+    const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
+    if (segCount >= dailySegments) {
+      throw new AppError('All clock sessions for today are already complete.', 400, 'DAY_COMPLETE');
     }
 
     const last = await this.attendanceRepository.lastCompletedLocation(auth.employeeId);
@@ -133,9 +201,18 @@ class AttendanceService {
       }
     }
 
-    const shift = await this.employeeRepository.getCurrentShift(auth.employeeId);
     const checkInTime = new Date();
-    const { lateMinutes, status: baseStatus } = computeLateAndStatus(checkInTime.toISOString(), shift);
+    const segmentIndex = segCount;
+    let lateShift;
+    if (dailySegments === 1) {
+      lateShift = STANDARD_TWO_CLOCK_SHIFT;
+    } else {
+      const b = splitSegmentBounds(emp);
+      lateShift = { start_time: segmentIndex === 0 ? b.seg0.start : b.seg1.start };
+    }
+    const late = computeLateAndStatus(checkInTime.toISOString(), lateShift);
+    const lateMinutes = late.lateMinutes;
+    let baseStatus = late.status;
     const attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : baseStatus;
 
     const row = await this.attendanceRepository.insertCheckIn({
@@ -189,15 +266,40 @@ class AttendanceService {
       config
     );
 
-    const shift = await this.employeeRepository.getCurrentShift(auth.employeeId);
+    const emp = await this.employeeRepository.findById(auth.employeeId);
+    const dailySegments = emp && Number(emp.daily_segments) === 2 ? 2 : 1;
+
     const nowIso = new Date().toISOString();
     const checkInIso = new Date(open.check_in).toISOString();
-    const { workHours, overtimeHours, status } = computeWorkAndCheckoutStatus(
-      checkInIso,
-      nowIso,
-      shift,
-      open.attendance_status
-    );
+    let workHours;
+    let overtimeHours;
+    let status;
+    if (dailySegments === 1) {
+      const w = computeWorkAndCheckoutStatus(
+        checkInIso,
+        nowIso,
+        STANDARD_TWO_CLOCK_SHIFT,
+        open.attendance_status,
+        { skipBreakDeduction: false }
+      );
+      ({ workHours, overtimeHours, status } = w);
+    } else {
+      const sessions = await this.attendanceRepository.listTodaySegments(auth.employeeId, dayStr);
+      const segIdx = Math.max(
+        0,
+        sessions.findIndex((s) => s.id === open.id)
+      );
+      const b = splitSegmentBounds(emp);
+      const seg = segIdx === 0 ? b.seg0 : b.seg1;
+      const w = computeSegmentCheckout(
+        checkInIso,
+        nowIso,
+        seg.start,
+        seg.end,
+        open.attendance_status
+      );
+      ({ workHours, overtimeHours, status } = w);
+    }
 
     const updated = await this.attendanceRepository.checkoutRow(open.id, {
       latOut: lat,
@@ -229,12 +331,54 @@ class AttendanceService {
     return this.attendanceRepository.listAllWithJoins();
   }
 
+  /**
+   * Admin: attendance rows for the employee linked to a user account.
+   * @param {number} userId
+   * @param {number} [limit]
+   */
+  async listAttendanceForUser(userId, limit = 120) {
+    const cap = Math.min(Math.max(Number(limit) || 120, 1), 500);
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+    if (!user.employee_id) {
+      return {
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          employee_id: null,
+          full_name: user.full_name || null,
+          employee_code: user.employee_code || null,
+        },
+        attendance: [],
+      };
+    }
+    const rows = await this.attendanceRepository.listForEmployeeWithJoins(user.employee_id, cap);
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        employee_id: user.employee_id,
+        full_name: user.full_name || null,
+        employee_code: user.employee_code || null,
+      },
+      attendance: rows,
+    };
+  }
+
   async exportRows() {
     return this.attendanceRepository.listAllWithJoins();
   }
 
   async professionalReportRows(dateFrom, dateTo) {
     return this.attendanceRepository.professionalReport(dateFrom, dateTo);
+  }
+
+  async absenHjsSummaryRows(dateFrom, dateTo) {
+    return this.attendanceRepository.absenHjsSummary(dateFrom, dateTo);
   }
 }
 

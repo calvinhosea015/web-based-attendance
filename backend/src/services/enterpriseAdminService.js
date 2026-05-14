@@ -1,5 +1,6 @@
 const { AppError } = require('../utils/errors');
 const { query } = require('../db/pool');
+const { normalizeTimeForDb } = require('../utils/timeOfDay');
 
 class EnterpriseAdminService {
   constructor(
@@ -35,7 +36,7 @@ class EnterpriseAdminService {
       `SELECT COUNT(*)::int AS c FROM attendance a
        WHERE a.check_in::date = CURRENT_DATE
          AND a.check_out IS NULL
-         AND LOCALTIME > TIME '17:00'`
+         AND LOCALTIME > TIME '16:05'`
     );
     const miss = missingOut.rows[0].c;
     if (miss > 0) {
@@ -75,7 +76,36 @@ class EnterpriseAdminService {
   }
 
   async updateEmployee(id, payload) {
-    return this.employeeRepository.updateEnterpriseFields(id, payload);
+    const has = (k) => Object.prototype.hasOwnProperty.call(payload, k);
+    const segKeys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
+    if (segKeys.some((k) => has(k)) && !segKeys.every((k) => has(k))) {
+      throw new AppError('Send all four segment times together.', 400, 'SPLIT_SHIFT_TIMES');
+    }
+    const patch = {};
+    if (has('photo_url')) patch.photo_url = payload.photo_url;
+    if (has('contract_status')) patch.contract_status = payload.contract_status;
+    if (has('department_id')) patch.department_id = payload.department_id;
+    if (has('position_id')) patch.position_id = payload.position_id;
+    if (has('remote_work_allowed')) patch.remote_work_allowed = payload.remote_work_allowed;
+    if (has('daily_segments')) patch.daily_segments = Number(payload.daily_segments) === 2 ? 2 : 1;
+    if (segKeys.every((k) => has(k))) {
+      patch.segment1_start = normalizeTimeForDb(payload.segment1_start);
+      patch.segment1_end = normalizeTimeForDb(payload.segment1_end);
+      patch.segment2_start = normalizeTimeForDb(payload.segment2_start);
+      patch.segment2_end = normalizeTimeForDb(payload.segment2_end);
+    }
+    const row = await this.employeeRepository.updateEnterpriseFields(Number(id), patch);
+    if (!row) return null;
+    if (has('daily_segments') && Number(payload.daily_segments) !== 2) {
+      await this.employeeRepository.enforceStandardShift(Number(id));
+      return this.employeeRepository.updateEnterpriseFields(Number(id), {
+        segment1_start: null,
+        segment1_end: null,
+        segment2_start: null,
+        segment2_end: null,
+      });
+    }
+    return row;
   }
 
   async listAdminNotifications() {

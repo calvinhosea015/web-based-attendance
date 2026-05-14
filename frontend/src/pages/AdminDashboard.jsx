@@ -12,6 +12,18 @@ import {
 } from 'recharts';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 
+function toTimeInputValue(v) {
+  if (v == null || v === '') return '';
+  const s = String(v);
+  const iso = s.match(/T(\d{1,2}):(\d{2})(?::(\d{2}))?/i);
+  if (iso) {
+    const h = String(parseInt(iso[1], 10)).padStart(2, '0');
+    const mm = String(parseInt(iso[2], 10)).padStart(2, '0');
+    return `${h}:${mm}`;
+  }
+  return /^\d{1,2}:\d{2}/.test(s) ? s.slice(0, 5) : '';
+}
+
 function formatUserApiError(err) {
   const data = err.response?.data;
   let msg = data?.message || err.message || String(err);
@@ -27,6 +39,9 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [perUserSelectedId, setPerUserSelectedId] = useState('');
+  const [perUserAttendance, setPerUserAttendance] = useState(null);
+  const [perUserLoading, setPerUserLoading] = useState(false);
   const [offices, setOffices] = useState([]);
   const [overview, setOverview] = useState(null);
   const [newUser, setNewUser] = useState({
@@ -36,6 +51,11 @@ export default function AdminDashboard() {
     office_id: '',
     full_name: '',
     remote_work_allowed: true,
+    daily_segments: 1,
+    segment1_start: '07:00',
+    segment1_end: '12:00',
+    segment2_start: '13:00',
+    segment2_end: '16:00',
   });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
   const [message, setMessage] = useState('');
@@ -62,6 +82,15 @@ export default function AdminDashboard() {
       setAttendance(a.data);
       setOffices(o.data);
       setOverview(dash.data);
+      if (perUserSelectedId) {
+        try {
+          const ur = await api.get(paths.userAttendance(perUserSelectedId), { params: { limit: 200 } });
+          setPerUserAttendance(ur.data);
+        } catch (err) {
+          console.error(err);
+          setPerUserAttendance(null);
+        }
+      }
       if (!newUser.office_id && o.data.length) {
         setNewUser((prev) => ({ ...prev, office_id: String(o.data[0].id) }));
       }
@@ -114,6 +143,13 @@ export default function AdminDashboard() {
       if (newUser.role === 'employee') {
         payload.office_id = parsedOffice;
         payload.remote_work_allowed = Boolean(newUser.remote_work_allowed);
+        payload.daily_segments = Number(newUser.daily_segments) === 2 ? 2 : 1;
+        if (payload.daily_segments === 2) {
+          payload.segment1_start = newUser.segment1_start;
+          payload.segment1_end = newUser.segment1_end;
+          payload.segment2_start = newUser.segment2_start;
+          payload.segment2_end = newUser.segment2_end;
+        }
       }
       const res = await api.post(paths.users, payload);
       const ec = res.data?.employee_code;
@@ -126,6 +162,11 @@ export default function AdminDashboard() {
         office_id: offices.length ? String(offices[0].id) : '',
         full_name: '',
         remote_work_allowed: true,
+        daily_segments: 1,
+        segment1_start: '07:00',
+        segment1_end: '12:00',
+        segment2_start: '13:00',
+        segment2_end: '16:00',
       });
     } catch (err) {
       setMessage(formatUserApiError(err));
@@ -136,7 +177,7 @@ export default function AdminDashboard() {
     try {
       await api.delete(`${paths.users}/${id}`);
       setMessage(t('userDeleted'));
-      setEditingUser((cur) => (cur && cur.id === id ? null : cur));
+      setEditingUser((cur) => (cur && Number(cur.id) === Number(id) ? null : cur));
       refresh();
     } catch (err) {
       setMessage(formatUserApiError(err));
@@ -152,6 +193,11 @@ export default function AdminDashboard() {
       office_id: user.office_id != null ? String(user.office_id) : '',
       full_name: user.full_name || '',
       remote_work_allowed: user.remote_work_allowed !== false,
+      daily_segments: user.daily_segments === 2 ? 2 : 1,
+      segment1_start: toTimeInputValue(user.segment1_start) || '07:00',
+      segment1_end: toTimeInputValue(user.segment1_end) || '12:00',
+      segment2_start: toTimeInputValue(user.segment2_start) || '13:00',
+      segment2_end: toTimeInputValue(user.segment2_end) || '16:00',
     });
   };
 
@@ -176,6 +222,13 @@ export default function AdminDashboard() {
         body.full_name = fn;
         body.office_id = Number(editingUser.office_id);
         body.remote_work_allowed = Boolean(editingUser.remote_work_allowed);
+        body.daily_segments = Number(editingUser.daily_segments) === 2 ? 2 : 1;
+        if (body.daily_segments === 2) {
+          body.segment1_start = editingUser.segment1_start;
+          body.segment1_end = editingUser.segment1_end;
+          body.segment2_start = editingUser.segment2_start;
+          body.segment2_end = editingUser.segment2_end;
+        }
       } else if (editingUser.office_id) {
         body.office_id = Number(editingUser.office_id);
       }
@@ -222,7 +275,7 @@ export default function AdminDashboard() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'attendance_professional_report.xlsx');
+      link.setAttribute('download', 'absen_hjs.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -375,6 +428,62 @@ export default function AdminDashboard() {
                 {t('allowRemoteWork')}
               </label>
             )}
+            {newUser.role === 'employee' && (
+              <select
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={String(newUser.daily_segments)}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, daily_segments: Number(e.target.value) })
+                }
+              >
+                <option value="1">{t('clockModeTwo')}</option>
+                <option value="2">{t('clockModeFour')}</option>
+              </select>
+            )}
+            {newUser.role === 'employee' && Number(newUser.daily_segments) === 1 && (
+              <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
+            )}
+            {newUser.role === 'employee' && Number(newUser.daily_segments) === 2 && (
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
+                <label className="col-span-2 text-xs font-medium text-slate-600">{t('splitShiftTimes')}</label>
+                <label className="text-xs text-slate-600">
+                  {t('segment1Start')}
+                  <input
+                    type="time"
+                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
+                    value={newUser.segment1_start}
+                    onChange={(e) => setNewUser({ ...newUser, segment1_start: e.target.value })}
+                  />
+                </label>
+                <label className="text-xs text-slate-600">
+                  {t('segment1End')}
+                  <input
+                    type="time"
+                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
+                    value={newUser.segment1_end}
+                    onChange={(e) => setNewUser({ ...newUser, segment1_end: e.target.value })}
+                  />
+                </label>
+                <label className="text-xs text-slate-600">
+                  {t('segment2Start')}
+                  <input
+                    type="time"
+                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
+                    value={newUser.segment2_start}
+                    onChange={(e) => setNewUser({ ...newUser, segment2_start: e.target.value })}
+                  />
+                </label>
+                <label className="text-xs text-slate-600">
+                  {t('segment2End')}
+                  <input
+                    type="time"
+                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
+                    value={newUser.segment2_end}
+                    onChange={(e) => setNewUser({ ...newUser, segment2_end: e.target.value })}
+                  />
+                </label>
+              </div>
+            )}
             <select
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={newUser.office_id}
@@ -436,7 +545,7 @@ export default function AdminDashboard() {
                     {t('delete')}
                   </button>
                 </div>
-                {editingUser?.id === user.id && (
+                {editingUser != null && Number(editingUser.id) === Number(user.id) && (
                   <form className="mt-2 w-full space-y-2 rounded-lg border border-slate-200 bg-white p-3" onSubmit={handleSaveUser}>
                     <input
                       className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
@@ -454,7 +563,14 @@ export default function AdminDashboard() {
                           ...prev,
                           role,
                           ...(role === 'employee' && prev.role !== 'employee'
-                            ? { remote_work_allowed: true }
+                            ? {
+                                remote_work_allowed: true,
+                                daily_segments: 1,
+                                segment1_start: '07:00',
+                                segment1_end: '12:00',
+                                segment2_start: '13:00',
+                                segment2_end: '16:00',
+                              }
                             : {}),
                         }));
                       }}
@@ -487,6 +603,72 @@ export default function AdminDashboard() {
                       </label>
                     )}
                     {editingUser.role === 'employee' && (
+                      <select
+                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                        value={String(editingUser.daily_segments)}
+                        onChange={(e) =>
+                          setEditingUser({ ...editingUser, daily_segments: Number(e.target.value) })
+                        }
+                      >
+                        <option value="1">{t('clockModeTwo')}</option>
+                        <option value="2">{t('clockModeFour')}</option>
+                      </select>
+                    )}
+                    {editingUser.role === 'employee' && Number(editingUser.daily_segments) === 1 && (
+                      <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
+                    )}
+                    {editingUser.role === 'employee' && Number(editingUser.daily_segments) === 2 && (
+                      <div className="grid grid-cols-2 gap-2 rounded-md border border-slate-100 bg-slate-50/80 p-2">
+                        <span className="col-span-2 text-xs font-medium text-slate-600">
+                          {t('splitShiftTimes')}
+                        </span>
+                        <label className="text-xs text-slate-600">
+                          {t('segment1Start')}
+                          <input
+                            type="time"
+                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
+                            value={editingUser.segment1_start}
+                            onChange={(e) =>
+                              setEditingUser({ ...editingUser, segment1_start: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-slate-600">
+                          {t('segment1End')}
+                          <input
+                            type="time"
+                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
+                            value={editingUser.segment1_end}
+                            onChange={(e) =>
+                              setEditingUser({ ...editingUser, segment1_end: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-slate-600">
+                          {t('segment2Start')}
+                          <input
+                            type="time"
+                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
+                            value={editingUser.segment2_start}
+                            onChange={(e) =>
+                              setEditingUser({ ...editingUser, segment2_start: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-slate-600">
+                          {t('segment2End')}
+                          <input
+                            type="time"
+                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
+                            value={editingUser.segment2_end}
+                            onChange={(e) =>
+                              setEditingUser({ ...editingUser, segment2_end: e.target.value })
+                            }
+                          />
+                        </label>
+                      </div>
+                    )}
+                    {editingUser.role === 'employee' && (
                       <input
                         className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
                         placeholder={t('fullName')}
@@ -509,7 +691,7 @@ export default function AdminDashboard() {
                     </div>
                   </form>
                 )}
-                {changingPasswordFor === user.id && (
+                {changingPasswordFor != null && Number(changingPasswordFor) === Number(user.id) && (
                   <form className="mt-2 flex w-full flex-col gap-2 sm:flex-row" onSubmit={handleChangePassword}>
                     <input
                       type="password"
@@ -592,6 +774,48 @@ export default function AdminDashboard() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">{t('attendance')}</h2>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <label className="flex min-w-[12rem] flex-1 flex-col text-sm text-slate-600">
+            <span className="mb-1 font-medium text-slate-800">{t('attendanceByUser')}</span>
+            <select
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900"
+              value={perUserSelectedId}
+              onChange={async (e) => {
+                const v = e.target.value;
+                setPerUserSelectedId(v);
+                if (!v) {
+                  setPerUserAttendance(null);
+                  return;
+                }
+                setPerUserLoading(true);
+                try {
+                  const res = await api.get(paths.userAttendance(v), { params: { limit: 200 } });
+                  setPerUserAttendance(res.data);
+                } catch (err) {
+                  setMessage(err.response?.data?.message || err.message);
+                  setPerUserAttendance(null);
+                } finally {
+                  setPerUserLoading(false);
+                }
+              }}
+            >
+              <option value="">{t('allRecords')}</option>
+              {users.map((user) => (
+                <option key={user.id} value={String(user.id)}>
+                  {user.username}
+                  {user.full_name ? ` — ${user.full_name}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {perUserLoading ? <span className="text-xs text-slate-500">{t('loading')}</span> : null}
+        </div>
+        {perUserSelectedId &&
+        perUserAttendance &&
+        perUserAttendance.user &&
+        !perUserAttendance.user.employee_id ? (
+          <p className="mt-2 text-sm text-slate-600">{t('noEmployeeLinkedAttendance')}</p>
+        ) : null}
         <div className="mt-3 max-h-96 overflow-auto text-sm">
           <table className="min-w-full border-collapse text-left">
             <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
@@ -604,7 +828,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {attendance.map((row) => (
+              {(perUserSelectedId ? perUserAttendance?.attendance ?? [] : attendance).map((row) => (
                 <tr key={row.id} className="border-b border-slate-100">
                   <td className="px-2 py-2">{row.full_name || row.employee_code}</td>
                   <td className="px-2 py-2">{row.office_name}</td>

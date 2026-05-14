@@ -21,6 +21,25 @@ class AttendanceRepository {
     return r.rows[0] || null;
   }
 
+  async countTodaySegments(employeeId, dayStr) {
+    const r = await query(
+      `SELECT COUNT(*)::int AS c FROM attendance
+       WHERE employee_id = $1 AND check_in::date = $2::date`,
+      [employeeId, dayStr]
+    );
+    return r.rows[0].c;
+  }
+
+  async listTodaySegments(employeeId, dayStr) {
+    const r = await query(
+      `SELECT * FROM attendance
+       WHERE employee_id = $1 AND check_in::date = $2::date
+       ORDER BY check_in ASC`,
+      [employeeId, dayStr]
+    );
+    return r.rows;
+  }
+
   async insertCheckIn(row) {
     const r = await query(
       `INSERT INTO attendance (
@@ -104,6 +123,21 @@ class AttendanceRepository {
     return r.rows;
   }
 
+  /** Same columns as listAllWithJoins, scoped to one employee (admin / reporting). */
+  async listForEmployeeWithJoins(employeeId, limit = 120) {
+    const r = await query(
+      `SELECT a.*, e.full_name, e.employee_id AS employee_code, o.name AS office_name
+       FROM attendance a
+       JOIN employees e ON e.id = a.employee_id
+       JOIN offices o ON o.id = a.office_id
+       WHERE a.employee_id = $1
+       ORDER BY a.check_in DESC
+       LIMIT $2`,
+      [employeeId, limit]
+    );
+    return r.rows;
+  }
+
   async lastCompletedLocation(employeeId) {
     const r = await query(
       `SELECT lat_out AS lat, lng_out AS lng, client_ts_out AS ts, check_out
@@ -162,6 +196,28 @@ class AttendanceRepository {
       [employeeId]
     );
     return r.rows[0].total;
+  }
+
+  /**
+   * Monthly-style summary: each active employee with count of distinct calendar days
+   * they have at least one attendance row in [dateFrom, dateTo].
+   */
+  async absenHjsSummary(dateFrom, dateTo) {
+    const r = await query(
+      `SELECT e.full_name AS full_name,
+        COALESCE(cnt.days_n, 0)::int AS hari_kerja
+       FROM employees e
+       LEFT JOIN (
+         SELECT employee_id, COUNT(DISTINCT check_in::date)::int AS days_n
+         FROM attendance
+         WHERE check_in::date >= $1::date AND check_in::date <= $2::date
+         GROUP BY employee_id
+       ) cnt ON cnt.employee_id = e.id
+       WHERE e.status = 'active'
+       ORDER BY e.full_name ASC`,
+      [dateFrom, dateTo]
+    );
+    return r.rows;
   }
 
   /** Enterprise professional report — all queries parameterized (SQL injection safe). */

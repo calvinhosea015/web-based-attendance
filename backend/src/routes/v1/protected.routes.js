@@ -10,6 +10,7 @@ const {
   changePasswordValidators,
   updateUserValidators,
   idParamValidator,
+  userAttendanceQueryValidators,
   officeCreateValidators,
   departmentCreateValidators,
   employeeUpdateValidators,
@@ -68,6 +69,14 @@ function buildProtectedRoutes(deps) {
   );
 
   r.get('/users', requireRole('admin'), userController.list);
+  r.get(
+    '/users/:id/attendance',
+    requireRole('admin'),
+    ...idParamValidator,
+    ...userAttendanceQueryValidators,
+    validateRequest,
+    attendanceController.listForUser
+  );
   r.post('/users', requireRole('admin'), createUserValidators, validateRequest, userController.create);
   r.put(
     '/users/:id',

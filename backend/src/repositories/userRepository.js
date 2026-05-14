@@ -1,4 +1,4 @@
-const { query } = require('../db/pool');
+const { pool, query } = require('../db/pool');
 
 class UserRepository {
   async existsUsernameExcept(username, excludeUserId) {
@@ -11,7 +11,8 @@ class UserRepository {
 
   async findByUsername(username) {
     const r = await query(
-      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed,
+      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
+              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
               o.name AS assigned_office_name
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
@@ -24,7 +25,8 @@ class UserRepository {
 
   async findById(id) {
     const r = await query(
-      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed,
+      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
+              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
               o.name AS assigned_office_name
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
@@ -38,7 +40,8 @@ class UserRepository {
   async listSummary() {
     const r = await query(
       `SELECT u.id, u.username, u.role, u.office_id, u.employee_id, e.employee_id AS employee_code, e.full_name,
-              e.remote_work_allowed
+              e.remote_work_allowed, e.daily_segments,
+              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
        ORDER BY u.id`
@@ -56,7 +59,29 @@ class UserRepository {
   }
 
   async delete(id) {
-    await query(`DELETE FROM users WHERE id = $1`, [id]);
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId) || numericId < 1) {
+      throw new Error('Invalid user id');
+    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`UPDATE activity_logs SET user_id = NULL WHERE user_id = $1`, [numericId]);
+      await client.query(`UPDATE audit_logs SET actor_user_id = NULL WHERE actor_user_id = $1`, [numericId]);
+      await client.query(`UPDATE overtime_requests SET decided_by = NULL WHERE decided_by = $1`, [numericId]);
+      await client.query(
+        `UPDATE attendance_correction_requests SET decided_by = NULL WHERE decided_by = $1`,
+        [numericId]
+      );
+      await client.query(`UPDATE leave_requests SET approved_by = NULL WHERE approved_by = $1`, [numericId]);
+      await client.query(`DELETE FROM users WHERE id = $1`, [numericId]);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async updatePassword(id, passwordHash) {

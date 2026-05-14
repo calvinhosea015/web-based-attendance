@@ -70,6 +70,8 @@ export const paths = {
   checkOut: '/v1/attendance/check-out',
   attendanceMe: '/v1/attendance/me',
   attendanceAll: '/v1/attendance',
+  /** @param {string|number} userId */
+  userAttendance: (userId) => `/v1/users/${userId}/attendance`,
   attendanceExport: '/v1/attendance/export',
   attendanceReportProfessional: '/v1/attendance/report/professional',
   users: '/v1/users',

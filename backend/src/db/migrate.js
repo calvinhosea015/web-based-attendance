@@ -187,6 +187,39 @@ async function migrateEnterpriseColumns() {
   await query(
     `ALTER TABLE employees ADD COLUMN IF NOT EXISTS remote_work_allowed BOOLEAN NOT NULL DEFAULT true`
   );
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS daily_segments INTEGER NOT NULL DEFAULT 1`
+  );
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment1_start TIME`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment1_end TIME`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment2_start TIME`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment2_end TIME`);
+}
+
+/** Default shift 07:00–16:00 and assign to employees who have no shift row yet. */
+async function ensureDefaultShift() {
+  let r = await query(`SELECT id FROM shifts WHERE shift_name = 'Standard 7–4' LIMIT 1`);
+  let shiftId;
+  if (r.rows.length === 0) {
+    const ins = await query(
+      `INSERT INTO shifts (shift_name, start_time, end_time, break_duration)
+       VALUES ('Standard 7–4', TIME '07:00', TIME '16:00', 60)
+       RETURNING id`
+    );
+    shiftId = ins.rows[0].id;
+  } else {
+    shiftId = r.rows[0].id;
+    await query(
+      `UPDATE shifts SET start_time = TIME '07:00', end_time = TIME '16:00', break_duration = 60 WHERE id = $1`,
+      [shiftId]
+    );
+  }
+  await query(
+    `INSERT INTO employee_shifts (employee_id, shift_id, effective_from)
+     SELECT e.id, $1, DATE '1970-01-01' FROM employees e
+     WHERE NOT EXISTS (SELECT 1 FROM employee_shifts es WHERE es.employee_id = e.id)`,
+    [shiftId]
+  );
 }
 
 async function syncEmployeeCodeSequence() {
@@ -261,6 +294,7 @@ async function migrate() {
   await migrateEnterpriseColumns();
   await seed();
   await syncEmployeeCodeSequence();
+  await ensureDefaultShift();
 }
 
 module.exports = { migrate };
