@@ -8,6 +8,9 @@ import i18n from '../i18n.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
 import { isAttendanceRole } from '../roles.js';
 
+/** Must match backend FIELD_OFFICER_CHECKOUT_MIN_LENGTH */
+const FIELD_CHECKOUT_MIN_LEN = 42;
+
 function readPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -44,6 +47,19 @@ function formatTimePart(t) {
   return s.length >= 5 ? s.slice(0, 5) : s;
 }
 
+function formatIdr(n) {
+  return Number(n || 0).toLocaleString('id-ID');
+}
+
+function payrollPeriodLabel(period) {
+  const [y, m] = String(period || '').split('-').map(Number);
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return m >= 1 && m <= 12 ? `${months[m - 1]} ${y}` : period;
+}
+
 export default function EmployeeDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -53,7 +69,10 @@ export default function EmployeeDashboard() {
   const [remoteWork, setRemoteWork] = useState(false);
   const [clockPending, setClockPending] = useState(false);
   const [checkoutCode, setCheckoutCode] = useState('');
+  const [fieldCodeDraft, setFieldCodeDraft] = useState('');
+  const [fieldCodeSubmitting, setFieldCodeSubmitting] = useState(false);
   const [loans, setLoans] = useState([]);
+  const [payroll, setPayroll] = useState([]);
   const [loanForm, setLoanForm] = useState({
     loan_amount: '',
     monthly_deduction: '',
@@ -84,14 +103,16 @@ export default function EmployeeDashboard() {
         return;
       }
       try {
-        const [s, h, ln] = await Promise.all([
+        const [s, h, ln, pr] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
           api.get(paths.employeeLoans).catch(() => ({ data: [] })),
+          api.get(paths.employeePayroll).catch(() => ({ data: [] })),
         ]);
         setSummary(s.data);
         setHistory(h.data);
         setLoans(ln.data || []);
+        setPayroll(pr.data || []);
       } catch (e) {
         console.error(e);
         setMessage((prev) => (prev ? `${prev} ${i18n.t('dashboardLoadFailed')}` : formatApiError(e)));
@@ -169,10 +190,39 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleSubmitFieldCode = async () => {
+    const code = fieldCodeDraft.trim();
+    if (!code) {
+      setMessage(t('checkoutCodeRequired'));
+      return;
+    }
+    if (code.length < FIELD_CHECKOUT_MIN_LEN) {
+      setMessage(t('checkoutCodeTooShort', { min: FIELD_CHECKOUT_MIN_LEN }));
+      return;
+    }
+    setMessage('');
+    setFieldCodeSubmitting(true);
+    try {
+      await ensureCsrf();
+      await api.post(paths.employeeFieldCode, { code });
+      setMessage(t('fieldCodeAccepted'));
+      setFieldCodeDraft('');
+      await refreshEmployee();
+    } catch (err) {
+      setMessage(formatApiError(err));
+    } finally {
+      setFieldCodeSubmitting(false);
+    }
+  };
+
   const handleCheckOut = async () => {
     const isFieldOfficer = summary?.field_officer_mode === true;
     if (isFieldOfficer && !checkoutCode.trim()) {
       setMessage(t('checkoutCodeRequired'));
+      return;
+    }
+    if (isFieldOfficer && checkoutCode.trim().length < FIELD_CHECKOUT_MIN_LEN) {
+      setMessage(t('checkoutCodeTooShort', { min: FIELD_CHECKOUT_MIN_LEN }));
       return;
     }
     setMessage('');
@@ -251,13 +301,16 @@ export default function EmployeeDashboard() {
   const canRemote = summary?.remote_work_allowed !== false;
   const canClockIn = Boolean(assignedOffice?.id);
   const isFieldOfficer = summary?.field_officer_mode === true;
+  const isUmum = summary?.umum_mode === true;
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
   const shiftLabel = isFieldOfficer
-    ? t('fieldOfficerNoFixedSchedule')
-    : shift?.start_time && shift?.end_time
-      ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
-      : '07:00 – 16:00';
+    ? t('fieldFlexibleSchedule')
+    : isUmum
+      ? t('umumFlexibleSchedule')
+      : shift?.start_time && shift?.end_time
+        ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
+        : '07:00 – 16:00';
   const clockDisabled =
     summary == null ||
     !canClockIn ||
@@ -267,7 +320,11 @@ export default function EmployeeDashboard() {
 
   const primaryClockLabel =
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
-  const scheduleHint = isFieldOfficer ? t('fieldOfficerAttendanceHint') : t('onceInOnceOut');
+  const scheduleHint = isFieldOfficer
+    ? t('fieldOnceInOnceOut', { min: FIELD_CHECKOUT_MIN_LEN })
+    : isUmum
+      ? t('umumOncePerDay')
+      : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
   return (
@@ -291,7 +348,15 @@ export default function EmployeeDashboard() {
       </div>
 
       {message && (
-        <Alert tone={message.includes(t('checkedIn')) || message.includes(t('checkedOut')) ? 'success' : 'error'}>
+        <Alert
+          tone={
+            message.includes(t('checkedIn')) ||
+            message.includes(t('checkedOut')) ||
+            message.includes(t('fieldCodeAccepted'))
+              ? 'success'
+              : 'error'
+          }
+        >
           {message}
         </Alert>
       )}
@@ -303,12 +368,17 @@ export default function EmployeeDashboard() {
             {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            {isFieldOfficer ? shiftLabel : `${t('expectedShift')}: ${shiftLabel}`}
-            {!isFieldOfficer && shift?.shift_name ? ` · ${shift.shift_name}` : ''}
+            {isFieldOfficer || isUmum ? shiftLabel : `${t('expectedShift')}: ${shiftLabel}`}
+            {!isFieldOfficer && !isUmum && shift?.shift_name ? ` · ${shift.shift_name}` : ''}
           </p>
           <p className="mt-1 text-xs font-medium text-slate-600">{scheduleHint}</p>
-          {isFieldOfficer && summary?.has_checkout_code_today === false && sessionsToday.length > 0 && (
-            <p className="mt-1 text-xs text-amber-700">{t('fieldOfficerCodeReminder')}</p>
+          {isFieldOfficer && summary?.has_checkout_code_today === false && (
+            <p className="mt-1 text-xs text-amber-700">
+              {t('fieldCodeRequiredToday', { min: FIELD_CHECKOUT_MIN_LEN })}
+            </p>
+          )}
+          {isFieldOfficer && summary?.has_checkout_code_today === true && (
+            <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
           )}
           <div className="mt-3 space-y-2 text-sm text-slate-600">
             {isFieldOfficer && sessionsToday.length > 0 ? (
@@ -322,9 +392,9 @@ export default function EmployeeDashboard() {
                     {t('checkOut')}: {seg.check_out ? new Date(seg.check_out).toLocaleString() : t('emDash')}
                   </div>
                   {seg.checkout_code ? (
-                    <div>
-                      {t('checkoutCode')}: {seg.checkout_code}
-                    </div>
+                    <p>
+                      {t('fieldCheckoutCode')}: {seg.checkout_code}
+                    </p>
                   ) : null}
                   <div>
                     {t('workHours')}: {seg.work_hours != null ? seg.work_hours : t('emDash')}
@@ -336,12 +406,16 @@ export default function EmployeeDashboard() {
                 <div>
                   {t('checkIn')}: {today?.check_in ? new Date(today.check_in).toLocaleString() : t('emDash')}
                 </div>
-                <div>
-                  {t('checkOut')}: {today?.check_out ? new Date(today.check_out).toLocaleString() : t('emDash')}
-                </div>
-                <div>
-                  {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
-                </div>
+                {!isUmum && (
+                  <>
+                    <div>
+                      {t('checkOut')}: {today?.check_out ? new Date(today.check_out).toLocaleString() : t('emDash')}
+                    </div>
+                    <div>
+                      {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -375,16 +449,58 @@ export default function EmployeeDashboard() {
           ) : nextAction === 'check_in' ? (
             <p className="text-xs text-slate-500">{t('remoteWorkDisabledByAdmin')}</p>
           ) : null}
+          {isFieldOfficer && summary?.has_checkout_code_today === false && (
+            <Field
+              label={t('fieldCheckoutCode')}
+              hint={t('fieldCodeSubmitHint', { min: FIELD_CHECKOUT_MIN_LEN })}
+            >
+              <input
+                type="text"
+                className={inputClass}
+                value={fieldCodeDraft}
+                onChange={(e) => setFieldCodeDraft(e.target.value)}
+                autoComplete="off"
+                placeholder={t('fieldCheckoutCodePlaceholder', { min: FIELD_CHECKOUT_MIN_LEN })}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {t('fieldCheckoutCharCount', {
+                  count: fieldCodeDraft.trim().length,
+                  min: FIELD_CHECKOUT_MIN_LEN,
+                })}
+              </p>
+              <Button
+                type="button"
+                variant="primary"
+                className="mt-2 w-full sm:w-auto"
+                disabled={
+                  fieldCodeSubmitting ||
+                  fieldCodeDraft.trim().length < FIELD_CHECKOUT_MIN_LEN
+                }
+                onClick={handleSubmitFieldCode}
+              >
+                {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
+              </Button>
+            </Field>
+          )}
           {isFieldOfficer && nextAction === 'check_out' && (
-            <Field label={t('checkoutCode')} hint={t('checkoutCodeHint')}>
+            <Field
+              label={t('fieldCheckoutCodeForOut')}
+              hint={t('fieldCodeSubmitHint', { min: FIELD_CHECKOUT_MIN_LEN })}
+            >
               <input
                 type="text"
                 className={inputClass}
                 value={checkoutCode}
                 onChange={(e) => setCheckoutCode(e.target.value)}
                 autoComplete="off"
-                placeholder={t('checkoutCodePlaceholder')}
+                placeholder={t('fieldCheckoutCodePlaceholder', { min: FIELD_CHECKOUT_MIN_LEN })}
               />
+              <p className="mt-1 text-xs text-slate-500">
+                {t('fieldCheckoutCharCount', {
+                  count: checkoutCode.trim().length,
+                  min: FIELD_CHECKOUT_MIN_LEN,
+                })}
+              </p>
             </Field>
           )}
           <Button
@@ -398,6 +514,56 @@ export default function EmployeeDashboard() {
           </Button>
         </div>
       </section>
+
+      <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
+        {payroll.length > 0 ? (
+          <ul className="space-y-3 text-sm">
+            {payroll.map((row) => {
+              const deductions =
+                Number(row.loan_deduction || 0) + Number(row.other_deductions || 0);
+              return (
+                <li
+                  key={row.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900">
+                      {payrollPeriodLabel(row.payroll_period)}
+                    </span>
+                    <span className="font-semibold text-brand-700">
+                      Rp {formatIdr(row.final_salary)}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid gap-1 text-slate-600 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        {t('payrollDaysAttended')}
+                      </dt>
+                      <dd className="font-medium text-slate-800">{row.days_attended ?? 0}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        {t('payrollBasicSalary')}
+                      </dt>
+                      <dd className="font-medium text-slate-800">Rp {formatIdr(row.basic_salary)}</dd>
+                    </div>
+                    {deductions > 0 && (
+                      <div className="sm:col-span-2">
+                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                          {t('payrollDeductions')}
+                        </dt>
+                        <dd className="font-medium text-slate-800">Rp {formatIdr(deductions)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-600">{t('payrollEmployeeEmpty')}</p>
+        )}
+      </Card>
 
       <Card title={t('loanTitle')} description={t('loanEmployeeHint')}>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLoanSubmit}>
@@ -502,9 +668,11 @@ export default function EmployeeDashboard() {
                 <div className="text-slate-600">
                   {t('checkIn')}: {item.check_in ? new Date(item.check_in).toLocaleString() : ''}
                 </div>
-                <div className="text-slate-600">
-                  {t('checkOut')}: {item.check_out ? new Date(item.check_out).toLocaleString() : t('notCheckedOut')}
-                </div>
+                {!isUmum && (
+                  <div className="text-slate-600">
+                    {t('checkOut')}: {item.check_out ? new Date(item.check_out).toLocaleString() : t('notCheckedOut')}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

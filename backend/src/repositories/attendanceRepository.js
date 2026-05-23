@@ -1,12 +1,26 @@
 const { query } = require('../db/pool');
+const config = require('../config/env');
 
 class AttendanceRepository {
+  /** Any open session (check-out not set), regardless of calendar day. */
+  async findOpenSession(employeeId) {
+    const r = await query(
+      `SELECT * FROM attendance
+       WHERE employee_id = $1 AND check_out IS NULL
+       ORDER BY check_in DESC LIMIT 1`,
+      [employeeId]
+    );
+    return r.rows[0] || null;
+  }
+
   async findOpenToday(employeeId, dayStr) {
     const r = await query(
       `SELECT * FROM attendance
-       WHERE employee_id = $1 AND check_in::date = $2::date AND check_out IS NULL
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $3)::date = $2::date
+         AND check_out IS NULL
        ORDER BY check_in DESC LIMIT 1`,
-      [employeeId, dayStr]
+      [employeeId, dayStr, config.attendanceCalendarTz]
     );
     return r.rows[0] || null;
   }
@@ -14,9 +28,10 @@ class AttendanceRepository {
   async findAnyToday(employeeId, dayStr) {
     const r = await query(
       `SELECT * FROM attendance
-       WHERE employee_id = $1 AND check_in::date = $2::date
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $3)::date = $2::date
        ORDER BY check_in DESC LIMIT 1`,
-      [employeeId, dayStr]
+      [employeeId, dayStr, config.attendanceCalendarTz]
     );
     return r.rows[0] || null;
   }
@@ -24,8 +39,9 @@ class AttendanceRepository {
   async countTodaySegments(employeeId, dayStr) {
     const r = await query(
       `SELECT COUNT(*)::int AS c FROM attendance
-       WHERE employee_id = $1 AND check_in::date = $2::date`,
-      [employeeId, dayStr]
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $3)::date = $2::date`,
+      [employeeId, dayStr, config.attendanceCalendarTz]
     );
     return r.rows[0].c;
   }
@@ -33,9 +49,10 @@ class AttendanceRepository {
   async listTodaySegments(employeeId, dayStr) {
     const r = await query(
       `SELECT * FROM attendance
-       WHERE employee_id = $1 AND check_in::date = $2::date
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $3)::date = $2::date
        ORDER BY check_in ASC`,
-      [employeeId, dayStr]
+      [employeeId, dayStr, config.attendanceCalendarTz]
     );
     return r.rows;
   }

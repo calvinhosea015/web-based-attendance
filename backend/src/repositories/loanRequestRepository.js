@@ -84,11 +84,11 @@ class LoanRequestRepository {
   async setDecision(id, { status, decidedBy, rejectionReason }) {
     const r = await query(
       `UPDATE loan_requests SET
-        approval_status = $2,
+        approval_status = $2::varchar,
         decided_by = $3,
         decided_at = NOW(),
         rejection_reason = $4,
-        remaining_balance = CASE WHEN $2 = 'approved' THEN loan_amount ELSE NULL END
+        remaining_balance = CASE WHEN $2::varchar = 'approved' THEN loan_amount ELSE NULL END
        WHERE id = $1 AND approval_status = 'pending'
        RETURNING *`,
       [id, status, decidedBy, rejectionReason || null]

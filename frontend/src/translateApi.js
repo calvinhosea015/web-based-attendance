@@ -32,6 +32,7 @@ const MESSAGE_CODE = {
   'Invalid role.': 'ROLE',
   'Employees require an assigned office (office_id).': 'OFFICE_REQUIRED',
   'Employees require full_name.': 'EMPLOYEE_FIELDS',
+  'full_name is required for Staff Kantor and Petugas Lapangan.': 'EMPLOYEE_FIELDS',
   'full_name is required for pegawai and petugas lapangan.': 'EMPLOYEE_FIELDS',
   'Username or employee id already exists.': 'DUPLICATE',
   'Password is required': 'PASSWORD',
@@ -43,6 +44,7 @@ const MESSAGE_CODE = {
   'You still have an open session. Clock out before starting another.': 'ALREADY_IN',
   'All clock sessions for today are already complete.': 'DAY_COMPLETE',
   'Attendance for today is already complete.': 'DAY_COMPLETE',
+  'Check-out is not required for your role.': 'CHECKOUT_NOT_REQUIRED',
   'Checkout code is required to check out.': 'CHECKOUT_CODE_REQUIRED',
   'Selected office not found.': 'OFFICE_NOT_FOUND',
   'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.':
@@ -51,11 +53,19 @@ const MESSAGE_CODE = {
     'RADIUS',
   'No check-in found for today.': 'NO_OPEN',
   'Could not complete checkout.': 'CHECKOUT_CONFLICT',
+  'Invalid checkout keyword.': 'INVALID_CHECKOUT_CODE',
+  'Checkout keyword is not configured. Contact IT or admin.': 'FIELD_KEYWORD_NOT_CONFIGURED',
+  'Checkout keyword already recorded for today.': 'FIELD_CODE_ALREADY',
+  'Checkout keyword accepted for today.': 'FIELD_CODE_ACCEPTED',
+  'Only field officers can submit the checkout keyword.': 'NOT_FIELD_OFFICER',
+  'Checkout phrase is too long.': 'CHECKOUT_CODE_TOO_LONG',
   'Username cannot be empty.': 'USERNAME_EMPTY',
   'Username already exists.': 'USERNAME_EXISTS',
   'Invalid office_id.': 'OFFICE_ID_INVALID',
   'full_name cannot be empty.': 'FULL_NAME_EMPTY',
   'full_name is required when changing role to employee.': 'FULL_NAME_REQUIRED_ROLE',
+  'full_name is required when changing role to Staff Kantor or Petugas Lapangan.':
+    'FULL_NAME_REQUIRED_ROLE',
   'full_name is required when changing role to pegawai or petugas lapangan.':
     'FULL_NAME_REQUIRED_ROLE',
   'No office configured; create an office first.': 'NO_OFFICE_CONFIGURED',
@@ -68,7 +78,8 @@ const MESSAGE_CODE = {
   'Monthly deduction cannot exceed loan amount.': 'LOAN_DEDUCTION',
   'You already have a pending loan request.': 'LOAN_PENDING',
   'Request not found or already decided.': 'NOT_FOUND',
-  'Password must include uppercase, lowercase, a number, and a symbol.': 'PASSWORD_COMPLEXITY',
+  'Password must contain only letters and numbers.': 'PASSWORD_ALPHANUMERIC',
+  'Password must include uppercase, lowercase, a number, and a symbol.': 'PASSWORD_ALPHANUMERIC',
   'Send refreshToken in body, or authenticate to revoke all sessions.': 'LOGOUT_BODY',
 };
 
@@ -87,6 +98,12 @@ function paramsFromMessage(message) {
   let m = message.match(/^GPS accuracy must be better than (\d+)m\.$/);
   if (m) return { meters: m[1] };
   m = message.match(/^Password must be at least (\d+) characters\.$/);
+  if (m) return { min: m[1] };
+  m = message.match(/^Checkout phrase must be at least (\d+) characters\.$/);
+  if (m) return { min: m[1] };
+  m = message.match(
+    /^Enter the checkout phrase \(at least (\d+) characters\) before you can check out\.$/
+  );
   if (m) return { min: m[1] };
   m = message.match(/^Validation failed: (.+)$/);
   if (m) return { detail: m[1] };
@@ -124,7 +141,8 @@ export function translateApiMessage(input) {
   let code = rawCode || (message ? MESSAGE_CODE[message] : null);
   if (code === 'PASSWORD_POLICY' && message) {
     if (/must be at least \d+ characters/.test(message)) code = 'PASSWORD_MIN_LENGTH';
-    else if (/uppercase, lowercase/.test(message)) code = 'PASSWORD_COMPLEXITY';
+    else if (/only letters and numbers|uppercase, lowercase/.test(message))
+      code = 'PASSWORD_ALPHANUMERIC';
   }
 
   if (code) {
@@ -163,5 +181,6 @@ export function translateRole(role) {
   if (role === 'admin') return i18n.t('roleAdmin');
   if (role === 'employee') return i18n.t('roleEmployee');
   if (role === 'field_officer') return i18n.t('roleFieldOfficer');
+  if (role === 'umum') return i18n.t('roleUmum');
   return role ?? '';
 }

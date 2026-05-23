@@ -2,8 +2,9 @@ const { haversineMeters } = require('../utils/geo');
 const { validateClockGeoOrThrow } = require('../utils/geoTrust');
 const { AppError } = require('../utils/errors');
 const { ATTENDANCE_STATUSES, CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
-const { isAttendanceRole, isFieldOfficer } = require('../constants/roles');
+const { isAttendanceRole, isFieldOfficer, isUmum } = require('../constants/roles');
 const config = require('../config/env');
+const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 
 /** Two clocks per day: fixed 07:00–16:00 with 60 min break (used for late / hours math, not DB-dependent). */
 const STANDARD_TWO_CLOCK_SHIFT = {
@@ -158,13 +159,14 @@ class AttendanceService {
     }
     const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
 
-    const dayStr = new Date().toISOString().slice(0, 10);
-    const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
+    const dayStr = attendanceCalendarDayStr();
+    const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
     if (open) {
       throw new AppError('You still have an open session. Clock out before starting another.', 400, 'ALREADY_IN');
     }
 
     const fieldOfficer = isFieldOfficer(auth.role);
+    const umum = isUmum(auth.role);
     if (!fieldOfficer) {
       const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
       if (segCount >= CLOCK_SEGMENTS_PER_DAY) {
@@ -213,7 +215,7 @@ class AttendanceService {
     const checkInTime = new Date();
     let lateMinutes = 0;
     let attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
-    if (fieldOfficer) {
+    if (fieldOfficer || umum) {
       if (remoteWork) attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
     } else {
       const late = computeLateAndStatus(checkInTime.toISOString(), STANDARD_TWO_CLOCK_SHIFT);
@@ -239,6 +241,27 @@ class AttendanceService {
       },
     });
 
+    if (umum) {
+      const closed = await this.attendanceRepository.checkoutRow(row.id, {
+        latOut: lat,
+        lngOut: lng,
+        gpsAccuracyOutM: accuracyMeters,
+        clientTsOut: clientTimestampMs,
+        ipOut: reqMeta.ip,
+        userAgentOut: reqMeta.userAgent,
+        workHours: 0,
+        overtimeHours: 0,
+        attendanceStatus: row.attendance_status,
+        checkoutCode: null,
+        validationFlagsOut: {
+          umum_auto_checkout: true,
+          checkout_geo_flags: geo.flags,
+          checkout_fake_gps_hints: geo.fakeGpsHints,
+        },
+      });
+      return { message: 'Checked in successfully.', attendance: closed || row };
+    }
+
     return { message: 'Checked in successfully.', attendance: row };
   }
 
@@ -246,8 +269,10 @@ class AttendanceService {
     if (!isAttendanceRole(auth.role) || !auth.employeeId) {
       throw new AppError('Only linked employees can clock out.', 403, 'NOT_EMPLOYEE');
     }
-    const dayStr = new Date().toISOString().slice(0, 10);
-    const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
+    if (isUmum(auth.role)) {
+      throw new AppError('Check-out is not required for your role.', 400, 'CHECKOUT_NOT_REQUIRED');
+    }
+    const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
     if (!open) {
       throw new AppError('No check-in found for today.', 400, 'NO_OPEN');
     }
@@ -269,20 +294,15 @@ class AttendanceService {
       }
     }
     const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
-    const last = {
-      lat: open.lat_in,
-      lng: open.lng_in,
-      ts: open.client_ts_in,
-    };
     const geo = validateClockGeoOrThrow(
       {
         lat,
         lng,
         accuracyMeters,
         clientTimestampMs,
-        lastLat: last.lat,
-        lastLng: last.lng,
-        lastClientTimestampMs: last.ts,
+        lastLat: null,
+        lastLng: null,
+        lastClientTimestampMs: null,
       },
       config
     );

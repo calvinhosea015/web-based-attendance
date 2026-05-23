@@ -1,6 +1,7 @@
 const { AppError } = require('../utils/errors');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
-const { isFieldOfficer } = require('../constants/roles');
+const { isFieldOfficer, isUmum } = require('../constants/roles');
+const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 
 class EmployeePortalService {
   constructor(
@@ -22,11 +23,12 @@ class EmployeePortalService {
       throw new AppError('Account is not linked to an employee profile.', 400, 'NO_EMPLOYEE');
     }
     const userRow = await this.userRepository.findById(auth.userId);
-    const dayStr = new Date().toISOString().slice(0, 10);
+    const dayStr = attendanceCalendarDayStr();
     const employee = await this.employeeRepository.findById(auth.employeeId);
     const fieldOfficer = isFieldOfficer(auth.role);
+    const umum = isUmum(auth.role);
 
-    const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
+    const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
     const sessions = await this.attendanceRepository.listTodaySegments(auth.employeeId, dayStr);
 
     let clockEventsDone = 0;
@@ -40,6 +42,12 @@ class EmployeePortalService {
       }
       nextClockAction = open ? 'check_out' : 'check_in';
       clockEventsTarget = null;
+    } else if (umum) {
+      for (const s of sessions) {
+        if (s.check_in) clockEventsDone += 1;
+      }
+      clockEventsTarget = 1;
+      nextClockAction = clockEventsDone >= 1 ? 'done' : 'check_in';
     } else {
       for (const s of sessions) {
         if (s.check_in) clockEventsDone += 1;
@@ -53,7 +61,7 @@ class EmployeePortalService {
 
     const todayRow = open || sessions[sessions.length - 1] || null;
     const weekHours = await this.attendanceRepository.sumWorkHoursThisWeek(auth.employeeId);
-    const dayStrForCode = new Date().toISOString().slice(0, 10);
+    const dayStrForCode = dayStr;
     const fieldCodeEntry =
       fieldOfficer && this.fieldCodeEntryRepository
         ? await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, dayStrForCode)
@@ -70,14 +78,15 @@ class EmployeePortalService {
         : null;
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
 
-    const shift = fieldOfficer
-      ? null
-      : {
-          shift_name: 'Standard 7–4',
-          start_time: '07:00:00',
-          end_time: '16:00:00',
-          break_duration: 60,
-        };
+    const shift =
+      fieldOfficer || umum
+        ? null
+        : {
+            shift_name: 'Standard 7–4',
+            start_time: '07:00:00',
+            end_time: '16:00:00',
+            break_duration: 60,
+          };
 
     const mapSession = (s) => ({
       id: s.id,
@@ -94,7 +103,8 @@ class EmployeePortalService {
       assigned_office: assignedOffice,
       remote_work_allowed: remoteWorkAllowed,
       field_officer_mode: fieldOfficer,
-      daily_segments: fieldOfficer ? null : CLOCK_SEGMENTS_PER_DAY,
+      umum_mode: umum,
+      daily_segments: fieldOfficer || umum ? null : CLOCK_SEGMENTS_PER_DAY,
       clock_events_target: clockEventsTarget,
       clock_events_done: clockEventsDone,
       next_clock_action: nextClockAction,

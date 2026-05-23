@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
-import { Alert, Button } from '../components/ui.jsx';
+import { Alert, Button, PasswordInput } from '../components/ui.jsx';
 import {
   ResponsiveContainer,
   BarChart,
@@ -308,9 +308,16 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      {overview?.payrollSummary?.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">{t('payrollSummary')}</h2>
+          <Link to="/admin/payroll">
+            <Button variant="secondary" size="sm">
+              {t('payrollOpenAdmin')}
+            </Button>
+          </Link>
+        </div>
+        {overview?.payrollSummary?.length > 0 ? (
           <ul className="mt-3 divide-y divide-slate-100 text-sm">
             {overview.payrollSummary.map((p) => (
               <li key={p.payroll_period} className="flex justify-between py-2">
@@ -321,8 +328,10 @@ export default function AdminDashboard() {
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">{t('payrollSummaryEmpty')}</p>
+        )}
+      </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -335,9 +344,8 @@ export default function AdminDashboard() {
               onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
               required
             />
-            <input
-              type="password"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            <PasswordInput
+              inputClassName="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               placeholder={t('password')}
               value={newUser.password}
               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
@@ -351,6 +359,7 @@ export default function AdminDashboard() {
             >
               <option value="employee">{t('roleEmployee')}</option>
               <option value="field_officer">{t('roleFieldOfficer')}</option>
+              <option value="umum">{t('roleUmum')}</option>
               <option value="admin">{t('roleAdmin')}</option>
             </select>
             {requiresFullName(newUser.role) && (
@@ -463,6 +472,7 @@ export default function AdminDashboard() {
                     >
                       <option value="employee">{t('roleEmployee')}</option>
                       <option value="field_officer">{t('roleFieldOfficer')}</option>
+                      <option value="umum">{t('roleUmum')}</option>
                       <option value="admin">{t('roleAdmin')}</option>
                     </select>
                     <select
@@ -517,9 +527,9 @@ export default function AdminDashboard() {
                 )}
                 {changingPasswordFor != null && Number(changingPasswordFor) === Number(user.id) && (
                   <form className="mt-2 flex w-full flex-col gap-2 sm:flex-row" onSubmit={handleChangePassword}>
-                    <input
-                      type="password"
-                      className="flex-1 rounded-md border border-slate-200 px-2 py-1 text-xs"
+                    <PasswordInput
+                      className="flex-1 min-w-0"
+                      inputClassName="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
                       placeholder={t('newPassword')}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}

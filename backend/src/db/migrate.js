@@ -39,7 +39,7 @@ const SCHEMA_STATEMENTS = [
     id SERIAL PRIMARY KEY,
     username VARCHAR(128) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer')),
+    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'umum')),
     office_id INTEGER REFERENCES offices(id),
     employee_id INTEGER UNIQUE REFERENCES employees(id)
   )`,
@@ -341,7 +341,7 @@ async function syncEmployeeCodeSequence() {
 }
 
 async function seed() {
-  const adminHash = bcrypt.hashSync('Admin123!Secure', 12);
+  const adminHash = bcrypt.hashSync('Admin123456', 12);
   await query(
     `INSERT INTO departments (name) VALUES ('General')
      ON CONFLICT (name) DO NOTHING`
@@ -380,7 +380,7 @@ async function seed() {
       [departmentId, positionId]
     );
     employeeId = ins.rows[0].id;
-    const userHash = bcrypt.hashSync('Employee123!Secure', 12);
+    const userHash = bcrypt.hashSync('Employee123456', 12);
     await query(
       `INSERT INTO users (username, password_hash, role, employee_id, office_id)
        VALUES ('employee', $1, 'employee', $2, (SELECT id FROM offices ORDER BY id LIMIT 1))
@@ -405,7 +405,7 @@ async function migrateUserRoleConstraint() {
   }
   await query(`
     ALTER TABLE users ADD CONSTRAINT users_role_check
-    CHECK (role IN ('admin', 'employee', 'field_officer'))
+    CHECK (role IN ('admin', 'employee', 'field_officer', 'umum'))
   `);
 }
 
@@ -419,6 +419,10 @@ async function normalizeEmployeeClockMode() {
       segment2_start = NULL,
       segment2_end = NULL
   `);
+}
+
+async function migrateAttendanceCheckoutCode() {
+  await query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS checkout_code TEXT`);
 }
 
 async function migrateFieldCheckoutTables() {
@@ -443,6 +447,7 @@ async function migrate() {
   }
   await migrateUserRoleConstraint();
   await migrateEnterpriseColumns();
+  await migrateAttendanceCheckoutCode();
   await migrateFieldCheckoutTables();
   await normalizeEmployeeClockMode();
   await migratePayrollColumns();

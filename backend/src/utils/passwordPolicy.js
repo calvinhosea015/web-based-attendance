@@ -1,9 +1,8 @@
 const { AppError } = require('./errors');
 const config = require('../config/env');
 
-/**
- * Enterprise password policy (NIST-aligned: length + character classes).
- */
+const ALPHANUMERIC = /^[a-zA-Z0-9]+$/;
+
 function assertPasswordPolicy(password) {
   if (!password || typeof password !== 'string') {
     throw new AppError('Password is required.', 400, 'PASSWORD_POLICY');
@@ -15,16 +14,9 @@ function assertPasswordPolicy(password) {
       'PASSWORD_POLICY'
     );
   }
-  if (!config.passwordRequireComplexity) return;
-
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasDigit = /\d/.test(password);
-  const hasSymbol = /[!@#$%^&*()_+\-=[\]{}|\\:;"'<>,.?/`~]/.test(password);
-  const classes = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
-  if (classes < 4) {
+  if (!ALPHANUMERIC.test(password)) {
     throw new AppError(
-      'Password must include uppercase, lowercase, a number, and a symbol.',
+      'Password must contain only letters and numbers.',
       400,
       'PASSWORD_POLICY'
     );

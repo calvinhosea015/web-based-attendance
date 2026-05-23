@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function Card({ title, description, action, children, className = '' }) {
   return (
@@ -108,6 +109,30 @@ export function Field({ label, hint, children, className = '' }) {
 
 export const inputClass =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20';
+
+export function PasswordInput({ className = '', inputClassName = inputClass, ...props }) {
+  const { t } = useTranslation();
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className={`relative ${className}`}>
+      <input
+        type={visible ? 'text' : 'password'}
+        className={`${inputClassName} pr-24`}
+        {...props}
+      />
+      <button
+        type="button"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        onClick={() => setVisible((v) => !v)}
+        aria-pressed={visible}
+        aria-label={visible ? t('hidePassword') : t('showPassword')}
+      >
+        {visible ? t('hidePassword') : t('showPassword')}
+      </button>
+    </div>
+  );
+}
 
 export function Modal({ title, subtitle, onClose, children, footer }) {
   return (

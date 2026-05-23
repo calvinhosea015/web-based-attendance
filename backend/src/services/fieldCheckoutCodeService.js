@@ -1,4 +1,5 @@
 const config = require('../config/env');
+const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 const { AppError } = require('../utils/errors');
 const { isFieldOfficer } = require('../constants/roles');
 const {
@@ -63,7 +64,7 @@ class FieldCheckoutCodeService {
       throw new AppError('Invalid checkout keyword.', 400, 'INVALID_CHECKOUT_CODE');
     }
 
-    const validOn = new Date().toISOString().slice(0, 10);
+    const validOn = attendanceCalendarDayStr();
     const existing = await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, validOn);
     if (existing) {
       throw new AppError('Checkout keyword already recorded for today.', 409, 'FIELD_CODE_ALREADY');
@@ -89,8 +90,12 @@ class FieldCheckoutCodeService {
       throw new AppError('Invalid checkout keyword.', 400, 'INVALID_CHECKOUT_CODE');
     }
 
-    const validOn = new Date().toISOString().slice(0, 10);
-    const entry = await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, validOn);
+    const validOn = attendanceCalendarDayStr();
+    let entry = await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, validOn);
+    if (!entry) {
+      await this.fieldCodeEntryRepository.createForEmployeeOnDate(auth.employeeId, validOn);
+      entry = await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, validOn);
+    }
     if (!entry) {
       throw new AppError(
         `Enter the checkout phrase (at least ${FIELD_OFFICER_CHECKOUT_MIN_LENGTH} characters) before you can check out.`,
@@ -102,7 +107,7 @@ class FieldCheckoutCodeService {
 
   async linkCheckout(auth, attendanceId) {
     if (!isFieldOfficer(auth.role) || !auth.employeeId || !attendanceId) return;
-    const validOn = new Date().toISOString().slice(0, 10);
+    const validOn = attendanceCalendarDayStr();
     await this.fieldCodeEntryRepository.linkAttendance(auth.employeeId, validOn, attendanceId);
   }
 }

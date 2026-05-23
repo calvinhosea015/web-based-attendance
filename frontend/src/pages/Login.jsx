@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Field, inputClass } from '../components/ui.jsx';
+import { Alert, Button, Field, PasswordInput, inputClass } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { isAttendanceRole } from '../roles.js';
@@ -62,9 +62,7 @@ export default function Login() {
               />
             </Field>
             <Field label={t('password')}>
-              <input
-                type="password"
-                className={inputClass}
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"

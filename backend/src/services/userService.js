@@ -53,7 +53,7 @@ class UserService {
     if (isAttendanceRole(role)) {
       const trimmedFullName = fullName && String(fullName).trim();
       if (requiresFullName(role) && !trimmedFullName) {
-        throw new AppError('full_name is required for pegawai and petugas lapangan.', 400, 'EMPLOYEE_FIELDS');
+        throw new AppError('full_name is required for Staff Kantor and Petugas Lapangan.', 400, 'EMPLOYEE_FIELDS');
       }
       const resolvedFullName = trimmedFullName;
       const trimmedCode = employeeCode && String(employeeCode).trim();
@@ -231,7 +231,7 @@ class UserService {
     if (prevRole === 'admin' && isAttendanceRole(effectiveRole)) {
       if (requiresFullName(effectiveRole) && newFullNameRaw === undefined) {
         throw new AppError(
-          'full_name is required when changing role to pegawai or petugas lapangan.',
+          'full_name is required when changing role to Staff Kantor or Petugas Lapangan.',
           400,
           'EMPLOYEE_FIELDS'
         );
@@ -239,7 +239,7 @@ class UserService {
       const fullNameForNewEmployee = newFullNameRaw;
       if (requiresFullName(effectiveRole) && !fullNameForNewEmployee) {
         throw new AppError(
-          'full_name is required when changing role to pegawai or petugas lapangan.',
+          'full_name is required when changing role to Staff Kantor or Petugas Lapangan.',
           400,
           'EMPLOYEE_FIELDS'
         );

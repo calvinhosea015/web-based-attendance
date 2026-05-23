@@ -180,8 +180,7 @@ The static output is under **`frontend/dist`**. If the UI is **not** served from
 | `ACCESS_TOKEN_TTL_SEC` | Access token lifetime in seconds (default **900** = 15 minutes). |
 | `REFRESH_TOKEN_TTL_DAYS` | Refresh token lifetime. |
 | `BCRYPT_ROUNDS` | Cost factor for password hashing. |
-| `PASSWORD_MIN_LENGTH` | Minimum password length (default **12**). |
-| `PASSWORD_REQUIRE_COMPLEXITY` | If not `false`, passwords must include upper, lower, digit, and symbol. |
+| `PASSWORD_MIN_LENGTH` | Minimum password length (default **6**). Passwords must be letters and numbers only. |
 | `OFFICE_RADIUS_METERS` | Base allowed distance from the office pin for on-site check-in (default **350** m in `.env.example`). |
 | `OFFICE_RADIUS_GPS_BUFFER_CAP_METERS` | Extra tolerance from GPS uncertainty, capped (see [Section 10](#10-attendance-and-gps-rules)). |
 | `MAX_GPS_ACCURACY_METERS` | Reject clock events if reported accuracy is worse than this (default **250** m). |
@@ -198,8 +197,8 @@ After a successful first migration + seed, these accounts exist (see comments in
 
 | Username   | Password            | Role     |
 |-----------|---------------------|----------|
-| `admin`   | `Admin123!Secure`   | admin    |
-| `employee`| `Employee123!Secure` | employee |
+| `admin`   | `Admin123456`   | admin    |
+| `employee`| `Employee123456` | employee |
 
 The demo employee is linked to profile **`EMP001`** / **Demo Employee** and to the first office in the database (seed includes **RS Darmo** with coordinates from a Google Maps short link).
 
@@ -237,6 +236,8 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 - **Today’s status**: current attendance status, expected shift label, and progress toward the number of clock events required today (**two** for a single-segment day = one in + one out; **four** for a split day = two segments × in/out).
 - **Week hours**: rolling sum of recorded work hours for the week.
 - **Clock actions**: assigned office name, optional **Remote work day** checkbox (only on check-in and only if allowed), and the main **Check in / Check out** button.
+- **My payroll**: monthly salary rows after an administrator generates payroll (days attended, basic pay, deductions, final pay).
+- **Loans**: submit loan requests and track repayment (potong gaji) once payroll is run.
 - **History**: past attendance rows with office name, status, and timestamps.
 
 **How to check in or out**
@@ -261,7 +262,7 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 
 - **Summary cards**: total active employees, present-like today, late today, absent today (absence is derived as employees who have not checked in today versus headcount).
 - **Attendance chart**: last **30 days** of present-like vs late counts.
-- **Payroll summary** (if payroll rows exist): recent periods with row counts and totals.
+- **Payroll summary**: recent periods with row counts and totals, plus a link to **Payroll** (`/admin/payroll`).
 
 **Exports**
 
@@ -289,11 +290,22 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 
 - Global attendance list and **per-user** attendance (select a user to load history).
 
+### 8.6 Payroll (`/admin/payroll`)
+
+Use the **Payroll** item in the admin header (or **Open payroll** on the dashboard).
+
+1. **Choose the month** (`YYYY-MM`) and click **Generate / refresh from attendance** to create or update a payroll row for every active employee. **Days attended** are counted from check-ins in that calendar month.
+2. **Default allowances**: set global transport and diligence amounts (used when an employee has no custom amounts).
+3. **Per employee**: open a row to adjust daily wage, tenure allowance, overtime, incentives, transport/diligence eligibility, and other deductions. **Loan deductions** are applied automatically from approved active loans when payroll is generated.
+4. **Export**: download an individual **slip** (Excel) or **all slips** for the period.
+
+Employees see finalized periods under **My payroll** on `/employee` after you generate payroll for that month.
+
 ---
 
 ## 9. Password policy
 
-New and updated passwords must satisfy `PASSWORD_MIN_LENGTH` (default **12**). When complexity is enabled (default), passwords must include **uppercase**, **lowercase**, **a number**, and **a symbol** (`backend/src/utils/passwordPolicy.js`).
+New and updated passwords must be at least `PASSWORD_MIN_LENGTH` characters (default **6**) and contain **only letters and numbers** (`backend/src/utils/passwordPolicy.js`).
 
 ---
 
@@ -349,8 +361,6 @@ Examples:
 - `GET /api/v1/admin/attendance-corrections/pending`, `PUT /api/v1/admin/attendance-corrections/:id`
 - `PUT /api/v1/admin/employees/:id`
 - Analytics: `/api/v1/admin/analytics/...`
-- Employee: `GET /api/v1/employee/me/payroll` (payroll list for the logged-in employee)
-
 The shipped React app **does not** include screens for all of these; use **Swagger**, API clients, or future UI work to operate them.
 
 ---

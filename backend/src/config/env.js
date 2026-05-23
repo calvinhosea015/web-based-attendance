@@ -24,11 +24,12 @@ module.exports = {
   accessTokenTtlSec: parseInt(process.env.ACCESS_TOKEN_TTL_SEC || '900', 10),
   refreshTokenTtlDays: parseInt(process.env.REFRESH_TOKEN_TTL_DAYS || '14', 10),
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
-  passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '12', 10),
-  passwordRequireComplexity: process.env.PASSWORD_REQUIRE_COMPLEXITY !== 'false',
+  passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '6', 10),
   allowedOrigins: parseList(process.env.ALLOWED_ORIGINS),
   csrfEnabled: process.env.CSRF_ENABLED !== 'false',
   activityLogEnabled: process.env.ACTIVITY_LOG_ENABLED !== 'false',
   /** Shared keyword petugas lapangan must enter to check out (not set by admin in the app). */
   fieldOfficerCheckoutKeyword: (process.env.FIELD_OFFICER_CHECKOUT_KEYWORD || '').trim(),
+  /** Calendar day for attendance (check-in/out “today”) — use office local TZ. */
+  attendanceCalendarTz: process.env.ATTENDANCE_CALENDAR_TZ || 'Asia/Jakarta',
 };
