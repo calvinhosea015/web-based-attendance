@@ -27,11 +27,27 @@ api.interceptors.request.use((config) => {
 });
 
 let refreshPromise = null;
+
+/** When responseType is blob, error bodies are still JSON — parse for interceptors and UI. */
+async function normalizeErrorResponseData(err) {
+  const data = err.response?.data;
+  if (!(data instanceof Blob)) return data;
+  try {
+    const text = await data.text();
+    const parsed = JSON.parse(text);
+    err.response.data = parsed;
+    return parsed;
+  } catch {
+    return data;
+  }
+}
+
 api.interceptors.response.use(
   (r) => r,
   async (err) => {
     const original = err.config;
-    const code = err.response?.data?.code;
+    const parsed = await normalizeErrorResponseData(err);
+    const code = parsed?.code;
     if (err.response?.status === 401 && code === 'TOKEN_EXPIRED' && !original._retry) {
       original._retry = true;
       const rt = localStorage.getItem('refreshToken');
@@ -79,4 +95,39 @@ export const paths = {
   employeeSummary: '/v1/employee/me/summary',
   employeeAttendance: '/v1/employee/me/attendance',
   employeePayroll: '/v1/employee/me/payroll',
+  adminPayrollSettings: '/v1/admin/payroll/settings',
+  /** @param {string} period YYYY-MM */
+  adminPayrollPeriod: (period) => `/v1/admin/payroll/periods/${period}`,
+  /** @param {string} period YYYY-MM */
+  adminPayrollGenerate: (period) => `/v1/admin/payroll/periods/${period}/generate`,
+  /** @param {string} period @param {string|number} employeeId */
+  adminPayrollEntry: (period, employeeId) =>
+    `/v1/admin/payroll/periods/${period}/employees/${employeeId}`,
+  /** @param {string} period @param {string|number} employeeId */
+  adminPayrollSlip: (period, employeeId) =>
+    `/v1/admin/payroll/periods/${period}/employees/${employeeId}/slip/export`,
+  /** @param {string} period */
+  adminPayrollSlipsAll: (period) => `/v1/admin/payroll/periods/${period}/slips/export`,
+  employeeLoans: '/v1/employee/me/loans',
+  employeeFieldCode: '/v1/employee/me/field-code',
+  adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
+  adminLoanRequests: '/v1/admin/loan-requests',
+  /** @param {string|number} id */
+  adminLoanRequest: (id) => `/v1/admin/loan-requests/${id}`,
 };
+
+/** Download an axios blob response as a file (same pattern as attendance export). */
+export function downloadBlobResponse(res, fallbackFilename) {
+  const disposition = res.headers?.['content-disposition'];
+  const m = disposition && /filename="?([^";]+)"?/i.exec(disposition);
+  const filename = m ? m[1] : fallbackFilename;
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+  return filename;
+}

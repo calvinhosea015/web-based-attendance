@@ -39,7 +39,7 @@ const SCHEMA_STATEMENTS = [
     id SERIAL PRIMARY KEY,
     username VARCHAR(128) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee')),
+    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer')),
     office_id INTEGER REFERENCES offices(id),
     employee_id INTEGER UNIQUE REFERENCES employees(id)
   )`,
@@ -178,6 +178,109 @@ const SCHEMA_STATEMENTS = [
   )`,
 ];
 
+async function migratePayrollColumns() {
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS tunjangan_masa_kerja NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS transport_eligible BOOLEAN NOT NULL DEFAULT false`
+  );
+  await query(
+    `CREATE TABLE IF NOT EXISTS payroll_settings (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      transport_amount NUMERIC(14,2) NOT NULL DEFAULT 250000,
+      diligence_amount NUMERIC(14,2) NOT NULL DEFAULT 100000,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`
+  );
+  await query(
+    `INSERT INTO payroll_settings (id, transport_amount, diligence_amount)
+     VALUES (1, 250000, 100000)
+     ON CONFLICT (id) DO NOTHING`
+  );
+  await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS days_attended INTEGER NOT NULL DEFAULT 0`);
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS tunjangan_masa_kerja NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS transport_eligible BOOLEAN NOT NULL DEFAULT false`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS transport_allowance NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS insentif NUMERIC(14,2) NOT NULL DEFAULT 0`);
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS diligence_eligible BOOLEAN NOT NULL DEFAULT false`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS diligence_bonus NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS bonus_omset NUMERIC(14,2) NOT NULL DEFAULT 0`);
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS upah_harian NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS upah_harian NUMERIC(14,2) NOT NULL DEFAULT 0`);
+}
+
+async function migrateLoanRequests() {
+  await query(
+    `CREATE TABLE IF NOT EXISTS loan_requests (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      loan_amount NUMERIC(14,2) NOT NULL,
+      monthly_deduction NUMERIC(14,2) NOT NULL,
+      notes TEXT,
+      approval_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      decided_by INTEGER REFERENCES users(id),
+      decided_at TIMESTAMPTZ,
+      rejection_reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_loan_requests_employee ON loan_requests(employee_id, created_at DESC)`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_loan_requests_pending ON loan_requests(approval_status) WHERE approval_status = 'pending'`
+  );
+}
+
+async function migratePayrollLoanColumns() {
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS transport_allowance_amount NUMERIC(14,2) NOT NULL DEFAULT 250000`
+  );
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS diligence_allowance_amount NUMERIC(14,2) NOT NULL DEFAULT 100000`
+  );
+  await query(
+    `ALTER TABLE loan_requests ADD COLUMN IF NOT EXISTS remaining_balance NUMERIC(14,2)`
+  );
+  await query(
+    `UPDATE loan_requests SET remaining_balance = loan_amount
+     WHERE approval_status = 'approved' AND remaining_balance IS NULL`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS loan_deduction NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS other_deductions NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `UPDATE payroll SET other_deductions = deductions
+     WHERE other_deductions = 0 AND deductions > 0`
+  );
+  await query(
+    `CREATE TABLE IF NOT EXISTS loan_payroll_deductions (
+      id SERIAL PRIMARY KEY,
+      loan_request_id INTEGER NOT NULL REFERENCES loan_requests(id) ON DELETE CASCADE,
+      payroll_period VARCHAR(32) NOT NULL,
+      amount NUMERIC(14,2) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (loan_request_id, payroll_period)
+    )`
+  );
+}
+
 async function migrateEnterpriseColumns() {
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_url TEXT`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_status VARCHAR(32) DEFAULT 'active'`);
@@ -287,11 +390,64 @@ async function seed() {
   }
 }
 
+/** Allow pegawai (employee) and petugas lapangan (field_officer) roles on existing DBs. */
+async function migrateUserRoleConstraint() {
+  const r = await query(`
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class rel ON rel.oid = c.conrelid
+    WHERE rel.relname = 'users'
+      AND c.contype = 'c'
+      AND pg_get_constraintdef(c.oid) LIKE '%role%'
+  `);
+  for (const row of r.rows) {
+    await query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS "${row.conname}"`);
+  }
+  await query(`
+    ALTER TABLE users ADD CONSTRAINT users_role_check
+    CHECK (role IN ('admin', 'employee', 'field_officer'))
+  `);
+}
+
+/** All staff: one check-in and one check-out per day (no split-shift / four-clock mode). */
+async function normalizeEmployeeClockMode() {
+  await query(`UPDATE employees SET daily_segments = 1`);
+  await query(`
+    UPDATE employees SET
+      segment1_start = NULL,
+      segment1_end = NULL,
+      segment2_start = NULL,
+      segment2_end = NULL
+  `);
+}
+
+async function migrateFieldCheckoutTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS field_code_entries (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      valid_on DATE NOT NULL,
+      attendance_id INTEGER REFERENCES attendance(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (employee_id, valid_on)
+    )
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_field_code_entries_date ON field_code_entries(valid_on DESC)`
+  );
+}
+
 async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
   }
+  await migrateUserRoleConstraint();
   await migrateEnterpriseColumns();
+  await migrateFieldCheckoutTables();
+  await normalizeEmployeeClockMode();
+  await migratePayrollColumns();
+  await migrateLoanRequests();
+  await migratePayrollLoanColumns();
   await seed();
   await syncEmployeeCodeSequence();
   await ensureDefaultShift();

@@ -1,7 +1,8 @@
 const { haversineMeters } = require('../utils/geo');
 const { validateClockGeoOrThrow } = require('../utils/geoTrust');
 const { AppError } = require('../utils/errors');
-const { ATTENDANCE_STATUSES } = require('../constants/attendance');
+const { ATTENDANCE_STATUSES, CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
+const { isAttendanceRole, isFieldOfficer } = require('../constants/roles');
 const config = require('../config/env');
 
 /** Two clocks per day: fixed 07:00–16:00 with 60 min break (used for late / hours math, not DB-dependent). */
@@ -116,15 +117,22 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
 }
 
 class AttendanceService {
-  constructor(attendanceRepository, officeRepository, employeeRepository, userRepository) {
+  constructor(
+    attendanceRepository,
+    officeRepository,
+    employeeRepository,
+    userRepository,
+    fieldCheckoutCodeService = null
+  ) {
     this.attendanceRepository = attendanceRepository;
     this.officeRepository = officeRepository;
     this.employeeRepository = employeeRepository;
     this.userRepository = userRepository;
+    this.fieldCheckoutCodeService = fieldCheckoutCodeService;
   }
 
   async checkIn(auth, body, reqMeta) {
-    if (auth.role !== 'employee' || !auth.employeeId) {
+    if (!isAttendanceRole(auth.role) || !auth.employeeId) {
       throw new AppError('Only linked employees can clock in.', 403, 'NOT_EMPLOYEE');
     }
     const userRow = await this.userRepository.findById(auth.userId);
@@ -156,11 +164,12 @@ class AttendanceService {
       throw new AppError('You still have an open session. Clock out before starting another.', 400, 'ALREADY_IN');
     }
 
-    const emp = await this.employeeRepository.findById(auth.employeeId);
-    const dailySegments = emp && Number(emp.daily_segments) === 2 ? 2 : 1;
-    const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
-    if (segCount >= dailySegments) {
-      throw new AppError('All clock sessions for today are already complete.', 400, 'DAY_COMPLETE');
+    const fieldOfficer = isFieldOfficer(auth.role);
+    if (!fieldOfficer) {
+      const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
+      if (segCount >= CLOCK_SEGMENTS_PER_DAY) {
+        throw new AppError('Attendance for today is already complete.', 400, 'DAY_COMPLETE');
+      }
     }
 
     const last = await this.attendanceRepository.lastCompletedLocation(auth.employeeId);
@@ -202,18 +211,15 @@ class AttendanceService {
     }
 
     const checkInTime = new Date();
-    const segmentIndex = segCount;
-    let lateShift;
-    if (dailySegments === 1) {
-      lateShift = STANDARD_TWO_CLOCK_SHIFT;
+    let lateMinutes = 0;
+    let attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
+    if (fieldOfficer) {
+      if (remoteWork) attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
     } else {
-      const b = splitSegmentBounds(emp);
-      lateShift = { start_time: segmentIndex === 0 ? b.seg0.start : b.seg1.start };
+      const late = computeLateAndStatus(checkInTime.toISOString(), STANDARD_TWO_CLOCK_SHIFT);
+      lateMinutes = late.lateMinutes;
+      attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : late.status;
     }
-    const late = computeLateAndStatus(checkInTime.toISOString(), lateShift);
-    const lateMinutes = late.lateMinutes;
-    let baseStatus = late.status;
-    const attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : baseStatus;
 
     const row = await this.attendanceRepository.insertCheckIn({
       employeeId: auth.employeeId,
@@ -237,7 +243,7 @@ class AttendanceService {
   }
 
   async checkOut(auth, body, reqMeta) {
-    if (auth.role !== 'employee' || !auth.employeeId) {
+    if (!isAttendanceRole(auth.role) || !auth.employeeId) {
       throw new AppError('Only linked employees can clock out.', 403, 'NOT_EMPLOYEE');
     }
     const dayStr = new Date().toISOString().slice(0, 10);
@@ -246,7 +252,22 @@ class AttendanceService {
       throw new AppError('No check-in found for today.', 400, 'NO_OPEN');
     }
 
-    const { lat, lng, accuracy_m: accuracyMeters, client_ts_ms: clientTimestampMsRaw } = body;
+    const {
+      lat,
+      lng,
+      accuracy_m: accuracyMeters,
+      client_ts_ms: clientTimestampMsRaw,
+      checkout_code: checkoutCodeRaw,
+    } = body;
+    const fieldOfficer = isFieldOfficer(auth.role);
+    if (fieldOfficer && this.fieldCheckoutCodeService) {
+      await this.fieldCheckoutCodeService.assertReadyForCheckout(auth, checkoutCodeRaw);
+    } else if (fieldOfficer) {
+      const code = checkoutCodeRaw != null ? String(checkoutCodeRaw).trim() : '';
+      if (!code) {
+        throw new AppError('Checkout code is required to check out.', 400, 'CHECKOUT_CODE_REQUIRED');
+      }
+    }
     const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
     const last = {
       lat: open.lat_in,
@@ -266,37 +287,25 @@ class AttendanceService {
       config
     );
 
-    const emp = await this.employeeRepository.findById(auth.employeeId);
-    const dailySegments = emp && Number(emp.daily_segments) === 2 ? 2 : 1;
-
     const nowIso = new Date().toISOString();
     const checkInIso = new Date(open.check_in).toISOString();
     let workHours;
     let overtimeHours;
     let status;
-    if (dailySegments === 1) {
+    let checkoutCode = null;
+    if (fieldOfficer) {
+      checkoutCode = String(checkoutCodeRaw).trim();
+      const rawHours = (new Date(nowIso).getTime() - new Date(checkInIso).getTime()) / 3600000;
+      workHours = Number(Math.max(0, rawHours).toFixed(2));
+      overtimeHours = 0;
+      status = open.attendance_status || ATTENDANCE_STATUSES.PRESENT;
+    } else {
       const w = computeWorkAndCheckoutStatus(
         checkInIso,
         nowIso,
         STANDARD_TWO_CLOCK_SHIFT,
         open.attendance_status,
         { skipBreakDeduction: false }
-      );
-      ({ workHours, overtimeHours, status } = w);
-    } else {
-      const sessions = await this.attendanceRepository.listTodaySegments(auth.employeeId, dayStr);
-      const segIdx = Math.max(
-        0,
-        sessions.findIndex((s) => s.id === open.id)
-      );
-      const b = splitSegmentBounds(emp);
-      const seg = segIdx === 0 ? b.seg0 : b.seg1;
-      const w = computeSegmentCheckout(
-        checkInIso,
-        nowIso,
-        seg.start,
-        seg.end,
-        open.attendance_status
       );
       ({ workHours, overtimeHours, status } = w);
     }
@@ -311,6 +320,7 @@ class AttendanceService {
       workHours,
       overtimeHours,
       attendanceStatus: status,
+      checkoutCode,
       validationFlagsOut: {
         checkout_geo_flags: geo.flags,
         checkout_fake_gps_hints: geo.fakeGpsHints,
@@ -318,6 +328,9 @@ class AttendanceService {
     });
     if (!updated) {
       throw new AppError('Could not complete checkout.', 409, 'CHECKOUT_CONFLICT');
+    }
+    if (fieldOfficer && this.fieldCheckoutCodeService) {
+      await this.fieldCheckoutCodeService.linkCheckout(auth, updated.id);
     }
     return { message: 'Checked out successfully.', attendance: updated };
   }

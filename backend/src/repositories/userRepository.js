@@ -58,23 +58,35 @@ class UserRepository {
     return r.rows[0];
   }
 
-  async delete(id) {
+  /**
+   * @param {number} id
+   * @param {number|null} [employeeId] — when set, employee row is removed after user (cascades attendance, payroll, etc.)
+   */
+  async delete(id, employeeId = null) {
     const numericId = Number(id);
     if (!Number.isFinite(numericId) || numericId < 1) {
       throw new Error('Invalid user id');
     }
+    const empPk =
+      employeeId != null && Number.isFinite(Number(employeeId)) && Number(employeeId) > 0
+        ? Number(employeeId)
+        : null;
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await client.query(`UPDATE activity_logs SET user_id = NULL WHERE user_id = $1`, [numericId]);
       await client.query(`UPDATE audit_logs SET actor_user_id = NULL WHERE actor_user_id = $1`, [numericId]);
       await client.query(`UPDATE overtime_requests SET decided_by = NULL WHERE decided_by = $1`, [numericId]);
+      await client.query(`UPDATE loan_requests SET decided_by = NULL WHERE decided_by = $1`, [numericId]);
       await client.query(
         `UPDATE attendance_correction_requests SET decided_by = NULL WHERE decided_by = $1`,
         [numericId]
       );
       await client.query(`UPDATE leave_requests SET approved_by = NULL WHERE approved_by = $1`, [numericId]);
       await client.query(`DELETE FROM users WHERE id = $1`, [numericId]);
+      if (empPk) {
+        await client.query(`DELETE FROM employees WHERE id = $1`, [empPk]);
+      }
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK').catch(() => {});

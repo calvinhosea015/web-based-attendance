@@ -1,11 +1,20 @@
 const { AppError } = require('../utils/errors');
+const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
+const { isFieldOfficer } = require('../constants/roles');
 
 class EmployeePortalService {
-  constructor(userRepository, attendanceRepository, employeeRepository, payrollRepository) {
+  constructor(
+    userRepository,
+    attendanceRepository,
+    employeeRepository,
+    payrollRepository,
+    fieldCodeEntryRepository = null
+  ) {
     this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
     this.employeeRepository = employeeRepository;
     this.payrollRepository = payrollRepository;
+    this.fieldCodeEntryRepository = fieldCodeEntryRepository;
   }
 
   async meSummary(auth) {
@@ -15,25 +24,45 @@ class EmployeePortalService {
     const userRow = await this.userRepository.findById(auth.userId);
     const dayStr = new Date().toISOString().slice(0, 10);
     const employee = await this.employeeRepository.findById(auth.employeeId);
-    const dailySegments = employee && Number(employee.daily_segments) === 2 ? 2 : 1;
-    const clockEventsTarget = dailySegments * 2;
+    const fieldOfficer = isFieldOfficer(auth.role);
 
     const open = await this.attendanceRepository.findOpenToday(auth.employeeId, dayStr);
     const sessions = await this.attendanceRepository.listTodaySegments(auth.employeeId, dayStr);
 
     let clockEventsDone = 0;
-    for (const s of sessions) {
-      if (s.check_in) clockEventsDone += 1;
-      if (s.check_out) clockEventsDone += 1;
-    }
+    let clockEventsTarget = CLOCK_SEGMENTS_PER_DAY * 2;
+    let nextClockAction;
 
-    let nextClockAction = 'done';
-    if (clockEventsDone < clockEventsTarget) {
+    if (fieldOfficer) {
+      for (const s of sessions) {
+        if (s.check_in) clockEventsDone += 1;
+        if (s.check_out) clockEventsDone += 1;
+      }
       nextClockAction = open ? 'check_out' : 'check_in';
+      clockEventsTarget = null;
+    } else {
+      for (const s of sessions) {
+        if (s.check_in) clockEventsDone += 1;
+        if (s.check_out) clockEventsDone += 1;
+      }
+      nextClockAction = 'done';
+      if (clockEventsDone < clockEventsTarget) {
+        nextClockAction = open ? 'check_out' : 'check_in';
+      }
     }
 
     const todayRow = open || sessions[sessions.length - 1] || null;
     const weekHours = await this.attendanceRepository.sumWorkHoursThisWeek(auth.employeeId);
+    const dayStrForCode = new Date().toISOString().slice(0, 10);
+    const fieldCodeEntry =
+      fieldOfficer && this.fieldCodeEntryRepository
+        ? await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, dayStrForCode)
+        : null;
+    const hasCheckoutCodeToday = fieldOfficer
+      ? Boolean(fieldCodeEntry)
+      : sessions.some(
+          (s) => s.check_out != null && s.checkout_code != null && String(s.checkout_code).trim() !== ''
+        );
 
     const assignedOffice =
       userRow && userRow.office_id != null
@@ -41,50 +70,44 @@ class EmployeePortalService {
         : null;
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
 
-    const split_shift =
-      dailySegments === 2
-        ? {
-            segment1_start: employee?.segment1_start,
-            segment1_end: employee?.segment1_end,
-            segment2_start: employee?.segment2_start,
-            segment2_end: employee?.segment2_end,
-          }
-        : null;
+    const shift = fieldOfficer
+      ? null
+      : {
+          shift_name: 'Standard 7–4',
+          start_time: '07:00:00',
+          end_time: '16:00:00',
+          break_duration: 60,
+        };
 
-    /** Two clocks per day: always 07:00–16:00 (not read from DB). Four clocks: use split_shift. */
-    const shift =
-      dailySegments === 1
-        ? {
-            shift_name: 'Standard 7–4',
-            start_time: '07:00:00',
-            end_time: '16:00:00',
-            break_duration: 60,
-          }
-        : null;
+    const mapSession = (s) => ({
+      id: s.id,
+      check_in: s.check_in,
+      check_out: s.check_out,
+      work_hours: s.work_hours,
+      attendance_status: s.attendance_status,
+      checkout_code: s.checkout_code ?? null,
+    });
 
     return {
+      role: auth.role,
       employee,
       assigned_office: assignedOffice,
       remote_work_allowed: remoteWorkAllowed,
-      daily_segments: dailySegments,
+      field_officer_mode: fieldOfficer,
+      daily_segments: fieldOfficer ? null : CLOCK_SEGMENTS_PER_DAY,
       clock_events_target: clockEventsTarget,
       clock_events_done: clockEventsDone,
       next_clock_action: nextClockAction,
+      has_checkout_code_today: fieldOfficer ? hasCheckoutCodeToday : null,
       shift,
-      split_shift,
+      split_shift: null,
       today: todayRow
         ? {
             status: todayRow.attendance_status,
             check_in: todayRow.check_in,
             check_out: todayRow.check_out,
             work_hours: todayRow.work_hours,
-            sessions_today: sessions.map((s) => ({
-              id: s.id,
-              check_in: s.check_in,
-              check_out: s.check_out,
-              work_hours: s.work_hours,
-              attendance_status: s.attendance_status,
-            })),
+            sessions_today: sessions.map(mapSession),
           }
         : {
             status: null,

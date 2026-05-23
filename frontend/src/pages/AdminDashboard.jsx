@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import AdminLayout from '../components/AdminLayout.jsx';
+import { Alert, Button } from '../components/ui.jsx';
 import {
   ResponsiveContainer,
   BarChart,
@@ -11,6 +13,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
+import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
+import { isAttendanceRole, requiresFullName } from '../roles.js';
 
 function toTimeInputValue(v) {
   if (v == null || v === '') return '';
@@ -25,13 +29,7 @@ function toTimeInputValue(v) {
 }
 
 function formatUserApiError(err) {
-  const data = err.response?.data;
-  let msg = data?.message || err.message || String(err);
-  if (Array.isArray(data?.errors) && data.errors.length) {
-    const details = data.errors.map((e) => e.msg || `${e.path || ''} ${e.msg || ''}`.trim()).join(' · ');
-    if (details && !msg.includes(details)) msg = `${msg} (${details})`;
-  }
-  return msg;
+  return translateApiMessage(err) || String(err);
 }
 
 export default function AdminDashboard() {
@@ -51,11 +49,6 @@ export default function AdminDashboard() {
     office_id: '',
     full_name: '',
     remote_work_allowed: true,
-    daily_segments: 1,
-    segment1_start: '07:00',
-    segment1_end: '12:00',
-    segment2_start: '13:00',
-    segment2_end: '16:00',
   });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
   const [message, setMessage] = useState('');
@@ -107,7 +100,7 @@ export default function AdminDashboard() {
       refresh();
       setNewOffice({ name: '', locationLink: '' });
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message);
+      setMessage(translateApiMessage(err));
     }
   };
 
@@ -117,7 +110,7 @@ export default function AdminDashboard() {
       setMessage(t('officeDeleted'));
       refresh();
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message);
+      setMessage(translateApiMessage(err));
     }
   };
 
@@ -128,8 +121,12 @@ export default function AdminDashboard() {
         ? Number(newUser.office_id)
         : NaN;
     const officeOk = Number.isFinite(parsedOffice) && parsedOffice >= 1;
-    if (newUser.role === 'employee' && !officeOk) {
+    if (isAttendanceRole(newUser.role) && !officeOk) {
       setMessage(t('officeRequiredEmployee'));
+      return;
+    }
+    if (requiresFullName(newUser.role) && !newUser.full_name?.trim()) {
+      setMessage(t('fullNameRequired'));
       return;
     }
     try {
@@ -140,16 +137,9 @@ export default function AdminDashboard() {
         full_name: newUser.full_name?.trim() || undefined,
       };
       if (officeOk) payload.office_id = parsedOffice;
-      if (newUser.role === 'employee') {
+      if (isAttendanceRole(newUser.role)) {
         payload.office_id = parsedOffice;
         payload.remote_work_allowed = Boolean(newUser.remote_work_allowed);
-        payload.daily_segments = Number(newUser.daily_segments) === 2 ? 2 : 1;
-        if (payload.daily_segments === 2) {
-          payload.segment1_start = newUser.segment1_start;
-          payload.segment1_end = newUser.segment1_end;
-          payload.segment2_start = newUser.segment2_start;
-          payload.segment2_end = newUser.segment2_end;
-        }
       }
       const res = await api.post(paths.users, payload);
       const ec = res.data?.employee_code;
@@ -162,11 +152,6 @@ export default function AdminDashboard() {
         office_id: offices.length ? String(offices[0].id) : '',
         full_name: '',
         remote_work_allowed: true,
-        daily_segments: 1,
-        segment1_start: '07:00',
-        segment1_end: '12:00',
-        segment2_start: '13:00',
-        segment2_end: '16:00',
       });
     } catch (err) {
       setMessage(formatUserApiError(err));
@@ -193,11 +178,6 @@ export default function AdminDashboard() {
       office_id: user.office_id != null ? String(user.office_id) : '',
       full_name: user.full_name || '',
       remote_work_allowed: user.remote_work_allowed !== false,
-      daily_segments: user.daily_segments === 2 ? 2 : 1,
-      segment1_start: toTimeInputValue(user.segment1_start) || '07:00',
-      segment1_end: toTimeInputValue(user.segment1_end) || '12:00',
-      segment2_start: toTimeInputValue(user.segment2_start) || '13:00',
-      segment2_end: toTimeInputValue(user.segment2_end) || '16:00',
     });
   };
 
@@ -209,9 +189,9 @@ export default function AdminDashboard() {
         username: editingUser.username.trim(),
         role: editingUser.role,
       };
-      if (editingUser.role === 'employee') {
+      if (isAttendanceRole(editingUser.role)) {
         const fn = editingUser.full_name.trim();
-        if (!fn) {
+        if (requiresFullName(editingUser.role) && !fn) {
           setMessage(t('fullNameRequired'));
           return;
         }
@@ -222,13 +202,6 @@ export default function AdminDashboard() {
         body.full_name = fn;
         body.office_id = Number(editingUser.office_id);
         body.remote_work_allowed = Boolean(editingUser.remote_work_allowed);
-        body.daily_segments = Number(editingUser.daily_segments) === 2 ? 2 : 1;
-        if (body.daily_segments === 2) {
-          body.segment1_start = editingUser.segment1_start;
-          body.segment1_end = editingUser.segment1_end;
-          body.segment2_start = editingUser.segment2_start;
-          body.segment2_end = editingUser.segment2_end;
-        }
       } else if (editingUser.office_id) {
         body.office_id = Number(editingUser.office_id);
       }
@@ -249,7 +222,7 @@ export default function AdminDashboard() {
       setChangingPasswordFor(null);
       setNewPassword('');
     } catch (err) {
-      setMessage(err.response?.data?.message || err.message);
+      setMessage(translateApiMessage(err));
     }
   };
 
@@ -281,24 +254,8 @@ export default function AdminDashboard() {
       link.remove();
     } catch (err) {
       console.error(err);
-      setMessage(err.response?.data?.message || err.message);
+      setMessage(translateApiMessage(err));
     }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const rt = localStorage.getItem('refreshToken');
-      if (rt) {
-        await ensureCsrf();
-        await rawApi.post(paths.logout, { refreshToken: rt });
-      }
-    } catch {
-      /* ignore */
-    }
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('role');
-    navigate('/login');
   };
 
   const chartData =
@@ -309,36 +266,22 @@ export default function AdminDashboard() {
     })) || [];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{t('adminDashboard')}</h1>
-          <p className="text-sm text-slate-600">{t('adminSubtitle')}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
-            onClick={handleProfessionalExport}
-          >
+    <AdminLayout
+      title={t('adminDashboard')}
+      subtitle={t('adminSubtitle')}
+      actions={
+        <>
+          <Button variant="secondary" onClick={handleProfessionalExport}>
             {t('professionalReport')}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
-            onClick={handleExport}
-          >
+          </Button>
+          <Button variant="secondary" onClick={handleExport}>
             {t('exportExcel')}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            onClick={handleLogout}
-          >
-            {t('logout')}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-8">
+      {message && <Alert tone="info">{message}</Alert>}
 
       {overview && (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -407,9 +350,10 @@ export default function AdminDashboard() {
               onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
             >
               <option value="employee">{t('roleEmployee')}</option>
+              <option value="field_officer">{t('roleFieldOfficer')}</option>
               <option value="admin">{t('roleAdmin')}</option>
             </select>
-            {newUser.role === 'employee' && (
+            {requiresFullName(newUser.role) && (
               <input
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 placeholder={t('fullName')}
@@ -418,7 +362,7 @@ export default function AdminDashboard() {
                 required
               />
             )}
-            {newUser.role === 'employee' && (
+            {isAttendanceRole(newUser.role) && (
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -428,61 +372,8 @@ export default function AdminDashboard() {
                 {t('allowRemoteWork')}
               </label>
             )}
-            {newUser.role === 'employee' && (
-              <select
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={String(newUser.daily_segments)}
-                onChange={(e) =>
-                  setNewUser({ ...newUser, daily_segments: Number(e.target.value) })
-                }
-              >
-                <option value="1">{t('clockModeTwo')}</option>
-                <option value="2">{t('clockModeFour')}</option>
-              </select>
-            )}
-            {newUser.role === 'employee' && Number(newUser.daily_segments) === 1 && (
+            {isAttendanceRole(newUser.role) && (
               <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
-            )}
-            {newUser.role === 'employee' && Number(newUser.daily_segments) === 2 && (
-              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
-                <label className="col-span-2 text-xs font-medium text-slate-600">{t('splitShiftTimes')}</label>
-                <label className="text-xs text-slate-600">
-                  {t('segment1Start')}
-                  <input
-                    type="time"
-                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
-                    value={newUser.segment1_start}
-                    onChange={(e) => setNewUser({ ...newUser, segment1_start: e.target.value })}
-                  />
-                </label>
-                <label className="text-xs text-slate-600">
-                  {t('segment1End')}
-                  <input
-                    type="time"
-                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
-                    value={newUser.segment1_end}
-                    onChange={(e) => setNewUser({ ...newUser, segment1_end: e.target.value })}
-                  />
-                </label>
-                <label className="text-xs text-slate-600">
-                  {t('segment2Start')}
-                  <input
-                    type="time"
-                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
-                    value={newUser.segment2_start}
-                    onChange={(e) => setNewUser({ ...newUser, segment2_start: e.target.value })}
-                  />
-                </label>
-                <label className="text-xs text-slate-600">
-                  {t('segment2End')}
-                  <input
-                    type="time"
-                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-sm"
-                    value={newUser.segment2_end}
-                    onChange={(e) => setNewUser({ ...newUser, segment2_end: e.target.value })}
-                  />
-                </label>
-              </div>
             )}
             <select
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -515,7 +406,7 @@ export default function AdminDashboard() {
                 <div>
                   <div className="font-medium text-slate-900">{user.username}</div>
                   <div className="text-xs text-slate-500">
-                    {user.role}
+                    {translateRole(user.role)}
                     {user.full_name ? ` · ${user.full_name}` : ''}
                   </div>
                 </div>
@@ -537,13 +428,15 @@ export default function AdminDashboard() {
                   >
                     {t('changePassword')}
                   </button>
-                  <button
-                    type="button"
-                    className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700"
-                    onClick={() => handleDeleteUser(user.id)}
-                  >
-                    {t('delete')}
-                  </button>
+                  {user.role !== 'admin' && (
+                    <button
+                      type="button"
+                      className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700"
+                      onClick={() => handleDeleteUser(user.id)}
+                    >
+                      {t('delete')}
+                    </button>
+                  )}
                 </div>
                 {editingUser != null && Number(editingUser.id) === Number(user.id) && (
                   <form className="mt-2 w-full space-y-2 rounded-lg border border-slate-200 bg-white p-3" onSubmit={handleSaveUser}>
@@ -562,20 +455,14 @@ export default function AdminDashboard() {
                         setEditingUser((prev) => ({
                           ...prev,
                           role,
-                          ...(role === 'employee' && prev.role !== 'employee'
-                            ? {
-                                remote_work_allowed: true,
-                                daily_segments: 1,
-                                segment1_start: '07:00',
-                                segment1_end: '12:00',
-                                segment2_start: '13:00',
-                                segment2_end: '16:00',
-                              }
+                          ...(isAttendanceRole(role) && !isAttendanceRole(prev.role)
+                            ? { remote_work_allowed: true }
                             : {}),
                         }));
                       }}
                     >
                       <option value="employee">{t('roleEmployee')}</option>
+                      <option value="field_officer">{t('roleFieldOfficer')}</option>
                       <option value="admin">{t('roleAdmin')}</option>
                     </select>
                     <select
@@ -590,7 +477,7 @@ export default function AdminDashboard() {
                         </option>
                       ))}
                     </select>
-                    {editingUser.role === 'employee' && (
+                    {isAttendanceRole(editingUser.role) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700">
                         <input
                           type="checkbox"
@@ -602,73 +489,10 @@ export default function AdminDashboard() {
                         {t('allowRemoteWork')}
                       </label>
                     )}
-                    {editingUser.role === 'employee' && (
-                      <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
-                        value={String(editingUser.daily_segments)}
-                        onChange={(e) =>
-                          setEditingUser({ ...editingUser, daily_segments: Number(e.target.value) })
-                        }
-                      >
-                        <option value="1">{t('clockModeTwo')}</option>
-                        <option value="2">{t('clockModeFour')}</option>
-                      </select>
-                    )}
-                    {editingUser.role === 'employee' && Number(editingUser.daily_segments) === 1 && (
+                    {isAttendanceRole(editingUser.role) && (
                       <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
                     )}
-                    {editingUser.role === 'employee' && Number(editingUser.daily_segments) === 2 && (
-                      <div className="grid grid-cols-2 gap-2 rounded-md border border-slate-100 bg-slate-50/80 p-2">
-                        <span className="col-span-2 text-xs font-medium text-slate-600">
-                          {t('splitShiftTimes')}
-                        </span>
-                        <label className="text-xs text-slate-600">
-                          {t('segment1Start')}
-                          <input
-                            type="time"
-                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
-                            value={editingUser.segment1_start}
-                            onChange={(e) =>
-                              setEditingUser({ ...editingUser, segment1_start: e.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-slate-600">
-                          {t('segment1End')}
-                          <input
-                            type="time"
-                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
-                            value={editingUser.segment1_end}
-                            onChange={(e) =>
-                              setEditingUser({ ...editingUser, segment1_end: e.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-slate-600">
-                          {t('segment2Start')}
-                          <input
-                            type="time"
-                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
-                            value={editingUser.segment2_start}
-                            onChange={(e) =>
-                              setEditingUser({ ...editingUser, segment2_start: e.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-slate-600">
-                          {t('segment2End')}
-                          <input
-                            type="time"
-                            className="mt-0.5 w-full rounded border border-slate-200 px-1 py-1 text-xs"
-                            value={editingUser.segment2_end}
-                            onChange={(e) =>
-                              setEditingUser({ ...editingUser, segment2_end: e.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-                    )}
-                    {editingUser.role === 'employee' && (
+                    {requiresFullName(editingUser.role) && (
                       <input
                         className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
                         placeholder={t('fullName')}
@@ -792,7 +616,7 @@ export default function AdminDashboard() {
                   const res = await api.get(paths.userAttendance(v), { params: { limit: 200 } });
                   setPerUserAttendance(res.data);
                 } catch (err) {
-                  setMessage(err.response?.data?.message || err.message);
+                  setMessage(translateApiMessage(err));
                   setPerUserAttendance(null);
                 } finally {
                   setPerUserLoading(false);
@@ -832,7 +656,7 @@ export default function AdminDashboard() {
                 <tr key={row.id} className="border-b border-slate-100">
                   <td className="px-2 py-2">{row.full_name || row.employee_code}</td>
                   <td className="px-2 py-2">{row.office_name}</td>
-                  <td className="px-2 py-2">{row.attendance_status}</td>
+                  <td className="px-2 py-2">{translateAttendanceStatus(row.attendance_status)}</td>
                   <td className="px-2 py-2">{row.check_in ? new Date(row.check_in).toLocaleString() : ''}</td>
                   <td className="px-2 py-2">
                     {row.check_out ? new Date(row.check_out).toLocaleString() : t('notCheckedOut')}
@@ -844,10 +668,8 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      {message && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</div>
-      )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
 

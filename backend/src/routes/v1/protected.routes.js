@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/authMiddleware');
+const { authenticate, requireRole, requireAttendanceRole } = require('../../middleware/authMiddleware');
 const { validateRequest } = require('../../middleware/validateRequest');
 const { csrfProtection } = require('../../middleware/csrfProtection');
 const { activityLogger } = require('../../middleware/activityLogger');
@@ -14,8 +14,15 @@ const {
   officeCreateValidators,
   departmentCreateValidators,
   employeeUpdateValidators,
+  payrollSettingsValidators,
+  payrollPeriodParamValidator,
+  payrollEntryValidators,
+  payrollEmployeeDefaultsValidators,
+  loanSubmitValidators,
+  loanDecideValidators,
+  fieldCodeSubmitValidators,
 } = require('../../validators/commonValidators');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 
 function buildProtectedRoutes(deps) {
   const r = Router();
@@ -26,6 +33,9 @@ function buildProtectedRoutes(deps) {
     dashboardController,
     adminEnterpriseController,
     analyticsController,
+    payrollController,
+    loanController,
+    fieldCheckoutCodeController,
   } = deps;
 
   r.use(authenticate);
@@ -44,14 +54,14 @@ function buildProtectedRoutes(deps) {
 
   r.post(
     '/attendance/check-in',
-    requireRole('employee'),
+    requireAttendanceRole,
     checkInValidators,
     validateRequest,
     attendanceController.checkIn
   );
   r.post(
     '/attendance/check-out',
-    requireRole('employee'),
+    requireAttendanceRole,
     checkOutValidators,
     validateRequest,
     attendanceController.checkOut
@@ -152,9 +162,105 @@ function buildProtectedRoutes(deps) {
   r.get('/admin/analytics/overtime/trends', requireRole('admin'), analyticsController.overtimeTrends);
   r.get('/admin/analytics/payroll/trends', requireRole('admin'), analyticsController.payrollTrends);
 
-  r.get('/employee/me/summary', requireRole('employee'), dashboardController.employeeSummary);
-  r.get('/employee/me/attendance', requireRole('employee'), dashboardController.employeeHistory);
-  r.get('/employee/me/payroll', requireRole('employee'), dashboardController.employeePayroll);
+  r.get('/admin/payroll/settings', requireRole('admin'), payrollController.getSettings);
+  r.put(
+    '/admin/payroll/settings',
+    requireRole('admin'),
+    payrollSettingsValidators,
+    validateRequest,
+    payrollController.updateSettings
+  );
+  r.post(
+    '/admin/payroll/periods/:period/slips/export',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    validateRequest,
+    payrollController.exportAllSlips
+  );
+  r.post(
+    '/admin/payroll/periods/:period/employees/:employeeId/slip/export',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    param('employeeId').isInt({ min: 1 }),
+    validateRequest,
+    payrollController.exportEmployeeSlip
+  );
+  r.get(
+    '/admin/payroll/periods/:period/slips',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    validateRequest,
+    payrollController.exportAllSlips
+  );
+  r.get(
+    '/admin/payroll/periods/:period/employees/:employeeId/slip',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    param('employeeId').isInt({ min: 1 }),
+    validateRequest,
+    payrollController.exportEmployeeSlip
+  );
+  r.get(
+    '/admin/payroll/periods/:period',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    validateRequest,
+    payrollController.getPeriod
+  );
+  r.post(
+    '/admin/payroll/periods/:period/generate',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    validateRequest,
+    payrollController.generatePeriod
+  );
+  r.put(
+    '/admin/payroll/periods/:period/employees/:employeeId',
+    requireRole('admin'),
+    ...payrollPeriodParamValidator,
+    param('employeeId').isInt({ min: 1 }),
+    payrollEntryValidators,
+    validateRequest,
+    payrollController.updateEntry
+  );
+  r.put(
+    '/admin/payroll/employees/:id/defaults',
+    requireRole('admin'),
+    idParamValidator,
+    payrollEmployeeDefaultsValidators,
+    validateRequest,
+    payrollController.updateEmployeeDefaults
+  );
+
+  r.post(
+    '/employee/me/loans',
+    requireAttendanceRole,
+    loanSubmitValidators,
+    validateRequest,
+    loanController.submit
+  );
+  r.get('/employee/me/loans', requireAttendanceRole, loanController.listMine);
+  r.get('/admin/loan-requests/pending', requireRole('admin'), loanController.listPending);
+  r.get('/admin/loan-requests', requireRole('admin'), loanController.listAll);
+  r.put(
+    '/admin/loan-requests/:id',
+    requireRole('admin'),
+    idParamValidator,
+    loanDecideValidators,
+    validateRequest,
+    loanController.decide
+  );
+
+  r.get('/employee/me/summary', requireAttendanceRole, dashboardController.employeeSummary);
+  r.get('/employee/me/attendance', requireAttendanceRole, dashboardController.employeeHistory);
+  r.get('/employee/me/payroll', requireAttendanceRole, dashboardController.employeePayroll);
+  r.post(
+    '/employee/me/field-code',
+    requireAttendanceRole,
+    fieldCodeSubmitValidators,
+    validateRequest,
+    fieldCheckoutCodeController.submit
+  );
 
   return r;
 }

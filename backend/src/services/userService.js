@@ -3,70 +3,14 @@ const { pool } = require('../db/pool');
 const { AppError } = require('../utils/errors');
 const { MetaRepository } = require('../repositories/metaRepository');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
-const { normalizeTimeForDb, segmentsCompleteInDb } = require('../utils/timeOfDay');
 const config = require('../config/env');
+const { ROLES, isValidRole, isAttendanceRole, requiresFullName } = require('../constants/roles');
+const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
 
 function stripUserSecrets(row) {
   if (!row) return null;
   const { password_hash: _p, ...rest } = row;
   return rest;
-}
-
-async function applyShiftSegmentRules(userRepository, employeeRepository, userId, payload, has) {
-  const fresh = await userRepository.findById(userId);
-  if (!fresh?.employee_id || fresh.role !== 'employee') return;
-
-  const empRow = await employeeRepository.findById(fresh.employee_id);
-  if (!empRow) return;
-
-  if (has('daily_segments')) {
-    if (Number(payload.daily_segments) !== 2) {
-      await employeeRepository.enforceStandardShift(fresh.employee_id);
-      await employeeRepository.updateEnterpriseFields(fresh.employee_id, {
-        segment1_start: null,
-        segment1_end: null,
-        segment2_start: null,
-        segment2_end: null,
-      });
-      return;
-    }
-    const existingOk = segmentsCompleteInDb(empRow);
-    const payloadHasAll = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'].every((k) =>
-      has(k)
-    );
-    if (!existingOk && !payloadHasAll) {
-      throw new AppError(
-        'Four shift times (segment1_start, segment1_end, segment2_start, segment2_end) are required for four clocks per day.',
-        400,
-        'SPLIT_SHIFT_TIMES'
-      );
-    }
-    if (payloadHasAll) {
-      await employeeRepository.updateEnterpriseFields(fresh.employee_id, {
-        segment1_start: normalizeTimeForDb(payload.segment1_start),
-        segment1_end: normalizeTimeForDb(payload.segment1_end),
-        segment2_start: normalizeTimeForDb(payload.segment2_start),
-        segment2_end: normalizeTimeForDb(payload.segment2_end),
-      });
-    }
-    return;
-  }
-
-  const ds = Number(empRow.daily_segments) === 2 ? 2 : 1;
-  if (ds !== 2) return;
-
-  const keys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
-  if (keys.some((k) => has(k)) && !keys.every((k) => has(k))) {
-    throw new AppError('Send all four segment times together.', 400, 'SPLIT_SHIFT_TIMES');
-  }
-  if (keys.every((k) => has(k))) {
-    await employeeRepository.updateEnterpriseFields(fresh.employee_id, {
-      segment1_start: normalizeTimeForDb(payload.segment1_start),
-      segment1_end: normalizeTimeForDb(payload.segment1_end),
-      segment2_start: normalizeTimeForDb(payload.segment2_start),
-      segment2_end: normalizeTimeForDb(payload.segment2_end),
-    });
-  }
 }
 
 class UserService {
@@ -94,54 +38,37 @@ class UserService {
       throw new AppError('Username, password, and role are required.', 400, 'USER_FIELDS');
     }
     assertPasswordPolicy(password);
-    if (!['admin', 'employee'].includes(role)) {
+    if (!isValidRole(role)) {
       throw new AppError('Invalid role.', 400, 'ROLE');
     }
-    if (role === 'employee' && !officeId) {
+    if (isAttendanceRole(role) && !officeId) {
       throw new AppError('Employees require an assigned office (office_id).', 400, 'OFFICE_REQUIRED');
     }
 
     const has = (k) => Object.prototype.hasOwnProperty.call(payload, k);
     const remoteWorkAllowed = has('remote_work_allowed') ? Boolean(payload.remote_work_allowed) : true;
-    const dailySegments = has('daily_segments') ? (Number(payload.daily_segments) === 2 ? 2 : 1) : 1;
-
-    const segmentKeys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
-    let segmentTimes = {};
-    if (dailySegments === 2) {
-      if (!segmentKeys.every((k) => has(k))) {
-        throw new AppError(
-          'Four shift times (segment1_start, segment1_end, segment2_start, segment2_end) are required for four clocks per day.',
-          400,
-          'SPLIT_SHIFT_TIMES'
-        );
-      }
-      segmentTimes = {
-        segment1_start: normalizeTimeForDb(payload.segment1_start),
-        segment1_end: normalizeTimeForDb(payload.segment1_end),
-        segment2_start: normalizeTimeForDb(payload.segment2_start),
-        segment2_end: normalizeTimeForDb(payload.segment2_end),
-      };
-    }
 
     let employeeId = null;
     let createdEmployee = null;
-    if (role === 'employee') {
-      if (!fullName) {
-        throw new AppError('Employees require full_name.', 400, 'EMPLOYEE_FIELDS');
+    if (isAttendanceRole(role)) {
+      const trimmedFullName = fullName && String(fullName).trim();
+      if (requiresFullName(role) && !trimmedFullName) {
+        throw new AppError('full_name is required for pegawai and petugas lapangan.', 400, 'EMPLOYEE_FIELDS');
       }
+      const resolvedFullName = trimmedFullName;
       const trimmedCode = employeeCode && String(employeeCode).trim();
       const { departmentId, positionId } = await this.metaRepository.defaultDepartmentAndPosition();
       const empPayload = {
-        fullName,
+        fullName: resolvedFullName,
         departmentId,
         positionId,
         salaryType: payload.salary_type || 'monthly',
         basicSalary: payload.basic_salary ?? 0,
+        upahHarian: payload.upah_harian ?? 0,
         joinDate: payload.join_date,
         status: 'active',
         remoteWorkAllowed,
-        dailySegments,
-        ...segmentTimes,
+        dailySegments: CLOCK_SEGMENTS_PER_DAY,
       };
       let emp;
       if (trimmedCode) {
@@ -175,7 +102,7 @@ class UserService {
         username,
         passwordHash,
         role,
-        officeId: role === 'employee' ? officeId : officeId || null,
+        officeId: isAttendanceRole(role) ? officeId : officeId || null,
         employeeId,
       });
       if (createdEmployee) {
@@ -191,7 +118,17 @@ class UserService {
   }
 
   async deleteUser(id) {
-    await this.userRepository.delete(id);
+    const userId = Number(id);
+    if (!Number.isFinite(userId) || userId < 1) {
+      throw new AppError('User not found.', 404, 'NOT_FOUND');
+    }
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new AppError('User not found.', 404, 'NOT_FOUND');
+    if (user.role === ROLES.ADMIN) {
+      throw new AppError('Admin accounts cannot be deleted.', 403, 'CANNOT_DELETE_ADMIN');
+    }
+    const empId = user.employee_id != null ? Number(user.employee_id) : null;
+    await this.userRepository.delete(userId, Number.isFinite(empId) && empId > 0 ? empId : null);
   }
 
   async changePassword(id, password) {
@@ -211,21 +148,10 @@ class UserService {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'NOT_FOUND');
 
-    const allowedKeys = [
-      'username',
-      'role',
-      'office_id',
-      'full_name',
-      'remote_work_allowed',
-      'daily_segments',
-      'segment1_start',
-      'segment1_end',
-      'segment2_start',
-      'segment2_end',
-    ];
+    const allowedKeys = ['username', 'role', 'office_id', 'full_name', 'remote_work_allowed'];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
-        'At least one of username, role, office_id, full_name, remote_work_allowed, daily_segments, or segment times is required.',
+        'At least one of username, role, office_id, full_name, or remote_work_allowed is required.',
         400,
         'NO_FIELDS'
       );
@@ -234,12 +160,11 @@ class UserService {
     const syncEmployeePolicies = async () => {
       const latest = await this.userRepository.findById(userId);
       if (!latest?.employee_id) return;
-      const epatch = {};
-      if (has('remote_work_allowed')) epatch.remote_work_allowed = Boolean(payload.remote_work_allowed);
-      if (has('daily_segments')) epatch.daily_segments = Number(payload.daily_segments) === 2 ? 2 : 1;
-      if (Object.keys(epatch).length) {
-        await this.employeeRepository.updateEnterpriseFields(latest.employee_id, epatch);
-      }
+      if (!has('remote_work_allowed')) return;
+      await this.employeeRepository.updateEnterpriseFields(latest.employee_id, {
+        remote_work_allowed: Boolean(payload.remote_work_allowed),
+        daily_segments: CLOCK_SEGMENTS_PER_DAY,
+      });
     };
 
     let newUsername;
@@ -254,7 +179,7 @@ class UserService {
     }
 
     const newRole = has('role') ? payload.role : undefined;
-    if (newRole !== undefined && !['admin', 'employee'].includes(newRole)) {
+    if (newRole !== undefined && !isValidRole(newRole)) {
       throw new AppError('Invalid role.', 400, 'ROLE');
     }
 
@@ -276,16 +201,18 @@ class UserService {
     let newFullNameRaw;
     if (has('full_name')) {
       newFullNameRaw = String(payload.full_name).trim();
-      if (!newFullNameRaw) throw new AppError('full_name cannot be empty.', 400);
+      if (!newFullNameRaw && requiresFullName(effectiveRole)) {
+        throw new AppError('full_name cannot be empty.', 400, 'FULL_NAME_EMPTY');
+      }
     }
 
     const empFk = user.employee_id;
 
-    if (effectiveRole === 'employee' && empFk && newFullNameRaw !== undefined) {
+    if (isAttendanceRole(effectiveRole) && empFk && newFullNameRaw !== undefined) {
       await this.employeeRepository.updateFullName(empFk, newFullNameRaw);
     }
 
-    if (prevRole === 'employee' && effectiveRole === 'admin') {
+    if (isAttendanceRole(prevRole) && effectiveRole === 'admin') {
       const patch = { role: 'admin', employeeId: null };
       if (newUsername !== undefined) patch.username = newUsername;
       if (newOfficeIdValue !== undefined) patch.officeId = newOfficeIdValue;
@@ -301,27 +228,21 @@ class UserService {
       return stripUserSecrets(await this.userRepository.findById(userId));
     }
 
-    if (prevRole === 'admin' && effectiveRole === 'employee') {
-      if (newFullNameRaw === undefined) {
-        throw new AppError('full_name is required when changing role to employee.', 400, 'EMPLOYEE_FIELDS');
+    if (prevRole === 'admin' && isAttendanceRole(effectiveRole)) {
+      if (requiresFullName(effectiveRole) && newFullNameRaw === undefined) {
+        throw new AppError(
+          'full_name is required when changing role to pegawai or petugas lapangan.',
+          400,
+          'EMPLOYEE_FIELDS'
+        );
       }
-      const dailySeg = has('daily_segments') ? (Number(payload.daily_segments) === 2 ? 2 : 1) : 1;
-      const segmentKeys = ['segment1_start', 'segment1_end', 'segment2_start', 'segment2_end'];
-      let segmentTimes = {};
-      if (dailySeg === 2) {
-        if (!segmentKeys.every((k) => has(k))) {
-          throw new AppError(
-            'Four shift times are required when using four clocks per day.',
-            400,
-            'SPLIT_SHIFT_TIMES'
-          );
-        }
-        segmentTimes = {
-          segment1_start: normalizeTimeForDb(payload.segment1_start),
-          segment1_end: normalizeTimeForDb(payload.segment1_end),
-          segment2_start: normalizeTimeForDb(payload.segment2_start),
-          segment2_end: normalizeTimeForDb(payload.segment2_end),
-        };
+      const fullNameForNewEmployee = newFullNameRaw;
+      if (requiresFullName(effectiveRole) && !fullNameForNewEmployee) {
+        throw new AppError(
+          'full_name is required when changing role to pegawai or petugas lapangan.',
+          400,
+          'EMPLOYEE_FIELDS'
+        );
       }
       const { departmentId, positionId } = await this.metaRepository.defaultDepartmentAndPosition();
       let emp;
@@ -337,7 +258,7 @@ class UserService {
             emp = await this.employeeRepository.create(
               {
                 employeeId: code,
-                fullName: newFullNameRaw,
+                fullName: fullNameForNewEmployee,
                 departmentId,
                 positionId,
                 salaryType: 'monthly',
@@ -345,8 +266,7 @@ class UserService {
                 joinDate: new Date().toISOString().slice(0, 10),
                 status: 'active',
                 remoteWorkAllowed: has('remote_work_allowed') ? Boolean(payload.remote_work_allowed) : true,
-                dailySegments: dailySeg,
-                ...segmentTimes,
+                dailySegments: CLOCK_SEGMENTS_PER_DAY,
               },
               exec
             );
@@ -361,7 +281,7 @@ class UserService {
             : (await this.metaRepository.firstOfficeId());
         if (!office) throw new AppError('No office configured; create an office first.', 400);
 
-        const patch = { role: 'employee', employeeId: emp.id, officeId: office };
+        const patch = { role: effectiveRole, employeeId: emp.id, officeId: office };
         if (newUsername !== undefined) patch.username = newUsername;
         await this.userRepository.updatePatch(userId, patch, exec);
         await client.query('COMMIT');
@@ -377,7 +297,6 @@ class UserService {
 
       await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
       await syncEmployeePolicies();
-      await applyShiftSegmentRules(this.userRepository, this.employeeRepository, userId, payload, has);
       const updated = stripUserSecrets(await this.userRepository.findById(userId));
       return { ...updated, employee_code: emp.employee_id };
     }
@@ -387,10 +306,10 @@ class UserService {
     if (newRole !== undefined) patch.role = newRole;
     if (newOfficeIdValue !== undefined) {
       let oid = newOfficeIdValue;
-      if (effectiveRole === 'employee' && !oid) {
+      if (isAttendanceRole(effectiveRole) && !oid) {
         oid = await this.metaRepository.firstOfficeId();
       }
-      patch.officeId = effectiveRole === 'employee' ? oid : newOfficeIdValue;
+      patch.officeId = isAttendanceRole(effectiveRole) ? oid : newOfficeIdValue;
     }
 
     if (Object.keys(patch).length) {
@@ -405,7 +324,6 @@ class UserService {
     }
 
     await syncEmployeePolicies();
-    await applyShiftSegmentRules(this.userRepository, this.employeeRepository, userId, payload, has);
     return stripUserSecrets(await this.userRepository.findById(userId));
   }
 }

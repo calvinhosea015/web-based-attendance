@@ -10,4 +10,7 @@ const ATTENDANCE_STATUSES = Object.freeze({
   SICK_LEAVE: 'SICK_LEAVE',
 });
 
-module.exports = { ATTENDANCE_STATUSES };
+/** One attendance segment per day: single check-in, single check-out. */
+const CLOCK_SEGMENTS_PER_DAY = 1;
+
+module.exports = { ATTENDANCE_STATUSES, CLOCK_SEGMENTS_PER_DAY };

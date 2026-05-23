@@ -79,7 +79,8 @@ class AttendanceRepository {
         work_hours = $8,
         overtime_hours = $9,
         attendance_status = $10,
-        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $11::jsonb
+        checkout_code = $11,
+        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $12::jsonb
       WHERE id = $1 AND check_out IS NULL
       RETURNING *`,
       [
@@ -93,6 +94,7 @@ class AttendanceRepository {
         row.workHours,
         row.overtimeHours,
         row.attendanceStatus,
+        row.checkoutCode ?? null,
         JSON.stringify(row.validationFlagsOut || {}),
       ]
     );

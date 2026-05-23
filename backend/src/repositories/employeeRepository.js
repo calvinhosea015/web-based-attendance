@@ -9,6 +9,7 @@ class EmployeeRepository {
       positionId,
       salaryType,
       basicSalary,
+      upahHarian,
       joinDate,
       status,
       remoteWorkAllowed,
@@ -23,11 +24,11 @@ class EmployeeRepository {
     const ds = dailySegments === 2 ? 2 : 1;
     const r = await exec(
       `INSERT INTO employees (
-        employee_id, full_name, department_id, position_id, salary_type, basic_salary, join_date, status,
+        employee_id, full_name, department_id, position_id, salary_type, basic_salary, upah_harian, join_date, status,
         remote_work_allowed, daily_segments,
         segment1_start, segment1_end, segment2_start, segment2_end
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, true), $10, $11, $12, $13, $14)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, true), $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         employeeId,
@@ -36,6 +37,7 @@ class EmployeeRepository {
         positionId,
         salaryType || 'monthly',
         basicSalary ?? 0,
+        upahHarian ?? 0,
         joinDate || new Date().toISOString().slice(0, 10),
         status || 'active',
         remoteWorkAllowed !== undefined ? Boolean(remoteWorkAllowed) : null,
@@ -170,6 +172,48 @@ class EmployeeRepository {
     if (segment2_end !== undefined) {
       sets.push(`segment2_end = $${i++}`);
       vals.push(segment2_end);
+    }
+    if (!sets.length) return this.findById(id);
+    vals.push(id);
+    const r = await query(
+      `UPDATE employees SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
+      vals
+    );
+    return r.rows[0] || null;
+  }
+
+  async updatePayrollDefaults(
+    id,
+    {
+      tunjangan_masa_kerja,
+      transport_eligible,
+      upah_harian,
+      transport_allowance_amount,
+      diligence_allowance_amount,
+    }
+  ) {
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    if (tunjangan_masa_kerja !== undefined) {
+      sets.push(`tunjangan_masa_kerja = $${i++}`);
+      vals.push(Number(tunjangan_masa_kerja) || 0);
+    }
+    if (upah_harian !== undefined) {
+      sets.push(`upah_harian = $${i++}`);
+      vals.push(Number(upah_harian) || 0);
+    }
+    if (transport_eligible !== undefined) {
+      sets.push(`transport_eligible = $${i++}`);
+      vals.push(Boolean(transport_eligible));
+    }
+    if (transport_allowance_amount !== undefined) {
+      sets.push(`transport_allowance_amount = $${i++}`);
+      vals.push(Math.max(0, Number(transport_allowance_amount) || 0));
+    }
+    if (diligence_allowance_amount !== undefined) {
+      sets.push(`diligence_allowance_amount = $${i++}`);
+      vals.push(Math.max(0, Number(diligence_allowance_amount) || 0));
     }
     if (!sets.length) return this.findById(id);
     vals.push(id);

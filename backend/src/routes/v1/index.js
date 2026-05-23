@@ -19,6 +19,11 @@ const { DashboardService } = require('../../services/dashboardService');
 const { EmployeePortalService } = require('../../services/employeePortalService');
 const { EnterpriseAdminService } = require('../../services/enterpriseAdminService');
 const { AnalyticsService } = require('../../services/analyticsService');
+const { PayrollService } = require('../../services/payrollService');
+const { LoanRequestRepository } = require('../../repositories/loanRequestRepository');
+const { LoanService } = require('../../services/loanService');
+const { FieldCodeEntryRepository } = require('../../repositories/fieldCodeEntryRepository');
+const { FieldCheckoutCodeService } = require('../../services/fieldCheckoutCodeService');
 const { makeAuthController } = require('../../controllers/authController');
 const { makeOfficeController } = require('../../controllers/officeController');
 const { makeAttendanceController } = require('../../controllers/attendanceController');
@@ -26,6 +31,9 @@ const { makeUserController } = require('../../controllers/userController');
 const { makeDashboardController } = require('../../controllers/dashboardController');
 const { makeAdminEnterpriseController } = require('../../controllers/adminEnterpriseController');
 const { makeAnalyticsController } = require('../../controllers/analyticsController');
+const { makePayrollController } = require('../../controllers/payrollController');
+const { makeLoanController } = require('../../controllers/loanController');
+const { makeFieldCheckoutCodeController } = require('../../controllers/fieldCheckoutCodeController');
 const { buildAuthRoutes } = require('./auth.routes');
 const { buildProtectedRoutes } = require('./protected.routes');
 
@@ -34,6 +42,7 @@ function buildV1Router() {
   const employeeRepository = new EmployeeRepository();
   const officeRepository = new OfficeRepository();
   const attendanceRepository = new AttendanceRepository();
+  const fieldCodeEntryRepository = new FieldCodeEntryRepository();
   const payrollRepository = new PayrollRepository();
   const refreshTokenRepository = new RefreshTokenRepository();
   const auditLogRepository = new AuditLogRepository();
@@ -45,11 +54,13 @@ function buildV1Router() {
 
   const authService = new AuthService(userRepository, refreshTokenRepository, auditLogRepository);
   const officeService = new OfficeService(officeRepository);
+  const fieldCheckoutCodeService = new FieldCheckoutCodeService(fieldCodeEntryRepository);
   const attendanceService = new AttendanceService(
     attendanceRepository,
     officeRepository,
     employeeRepository,
-    userRepository
+    userRepository,
+    fieldCheckoutCodeService
   );
   const userService = new UserService(userRepository, employeeRepository);
   const dashboardService = new DashboardService(
@@ -61,7 +72,8 @@ function buildV1Router() {
     userRepository,
     attendanceRepository,
     employeeRepository,
-    payrollRepository
+    payrollRepository,
+    fieldCodeEntryRepository
   );
   const enterpriseAdminService = new EnterpriseAdminService(
     notificationRepository,
@@ -71,6 +83,13 @@ function buildV1Router() {
     attendanceCorrectionRepository
   );
   const analyticsService = new AnalyticsService(analyticsRepository);
+  const loanRequestRepository = new LoanRequestRepository();
+  const payrollService = new PayrollService(
+    payrollRepository,
+    employeeRepository,
+    loanRequestRepository
+  );
+  const loanService = new LoanService(loanRequestRepository);
 
   const authController = makeAuthController(authService);
   const officeController = makeOfficeController(officeService);
@@ -79,6 +98,9 @@ function buildV1Router() {
   const dashboardController = makeDashboardController(dashboardService, employeePortalService);
   const adminEnterpriseController = makeAdminEnterpriseController(enterpriseAdminService, auditLogRepository);
   const analyticsController = makeAnalyticsController(analyticsService);
+  const payrollController = makePayrollController(payrollService);
+  const loanController = makeLoanController(loanService);
+  const fieldCheckoutCodeController = makeFieldCheckoutCodeController(fieldCheckoutCodeService);
 
   const v1 = Router();
   v1.use('/auth', buildAuthRoutes(authController));
@@ -91,6 +113,9 @@ function buildV1Router() {
       dashboardController,
       adminEnterpriseController,
       analyticsController,
+      payrollController,
+      loanController,
+      fieldCheckoutCodeController,
     })
   );
   return v1;
