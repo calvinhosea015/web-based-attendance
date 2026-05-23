@@ -395,4 +395,75 @@ Admins can add more offices the same way by pasting **Google Maps links**; the s
 
 ---
 
+## 16. Running on the internet (production)
+
+Employees need **HTTPS** in the browser for GPS check-in (browsers block precise location on plain `http://` except on `localhost`).
+
+The repo includes a **Docker Compose** stack: PostgreSQL, Node API (with the built React UI), and **Caddy** for automatic HTTPS.
+
+### 16.1 What you need
+
+1. A **VPS** or cloud VM (e.g. DigitalOcean, Hetzner, AWS Lightsail) with Docker and Docker Compose installed.
+2. A **domain name** (e.g. `attendance.yourcompany.com`) with a DNS **A record** pointing to the server’s public IP.
+3. Ports **80** and **443** open on the server firewall.
+
+### 16.2 Configure and start
+
+From the **repository root**:
+
+```bash
+cp .env.production.example .env.production
+```
+
+Edit **`.env.production`**:
+
+| Variable | Set to |
+|----------|--------|
+| `DOMAIN` | Your public hostname (no `https://`) |
+| `POSTGRES_PASSWORD` | Strong random password |
+| `JWT_SECRET` | Long random secret (32+ characters) |
+| `COOKIE_SECRET` | Optional; defaults to `JWT_SECRET` |
+
+Build and run:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+- Site: **`https://<DOMAIN>`**
+- API (same host): **`https://<DOMAIN>/api/v1`**
+- Swagger: **`https://<DOMAIN>/api-docs`**
+- Health: **`https://<DOMAIN>/health`**
+
+Caddy obtains a **Let’s Encrypt** certificate on first request. Migrations and seed data run when the `app` container starts.
+
+### 16.3 After deploy
+
+1. Change demo passwords (`admin` / `employee`) immediately.
+2. Confirm **`ALLOWED_ORIGINS`** matches your site — the compose file sets `https://<DOMAIN>` automatically.
+3. Open the site on a phone, allow **location**, and test check-in near an office.
+
+### 16.4 Updates
+
+```bash
+git pull
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+### 16.5 Quick test without a domain
+
+For a short demo you can use a tunnel (e.g. [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or [ngrok](https://ngrok.com/)) pointing at `http://127.0.0.1:5001` after a local `npm run build` and `SERVE_FRONTEND=true npm start` in `backend` — still use an **https** tunnel URL and add that origin to `ALLOWED_ORIGINS` in `backend/.env`.
+
+### 16.6 Split hosting (optional)
+
+If the UI and API are on **different** hosts:
+
+1. Deploy the backend with `SERVE_FRONTEND=false`.
+2. Build the frontend with the API URL:  
+   `VITE_API_BASE=https://api.example.com/api npm run build`
+3. Host `frontend/dist` on any static host (Netlify, S3, etc.).
+4. Set backend **`ALLOWED_ORIGINS`** to the UI origin (e.g. `https://app.example.com`).
+
+---
+
 *End of manual.*

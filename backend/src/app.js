@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,6 +20,23 @@ function corsOrigin(origin, cb) {
   if (!origin) return cb(null, true);
   if (config.allowedOrigins.includes(origin)) return cb(null, true);
   return cb(null, false);
+}
+
+function attachFrontend(app) {
+  const serve =
+    process.env.SERVE_FRONTEND === 'true' ||
+    (config.nodeEnv === 'production' && process.env.SERVE_FRONTEND !== 'false');
+  if (!serve) return;
+
+  const dist = path.resolve(__dirname, '../../frontend/dist');
+  const indexHtml = path.join(dist, 'index.html');
+  if (!fs.existsSync(indexHtml)) return;
+
+  app.use(express.static(dist, { index: false }));
+  app.get(/^(?!\/api|\/health|\/api-docs).*/, (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    res.sendFile(indexHtml);
+  });
 }
 
 function createApp() {
@@ -49,6 +68,8 @@ function createApp() {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
 
   app.use('/api/v1', apiLimiter, buildV1Router());
+
+  attachFrontend(app);
 
   app.use(errorHandler);
   return app;
