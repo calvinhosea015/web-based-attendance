@@ -5,8 +5,13 @@ if (!config.databaseUrl) {
   throw new Error('DATABASE_URL is required (PostgreSQL connection string).');
 }
 
+const useSsl =
+  process.env.DATABASE_SSL === 'true' ||
+  /neon\.tech|sslmode=require/i.test(config.databaseUrl || '');
+
 const pool = new Pool({
   connectionString: config.databaseUrl,
+  ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,

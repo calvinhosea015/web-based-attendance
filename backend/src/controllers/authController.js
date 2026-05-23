@@ -6,11 +6,14 @@ function makeAuthController(authService) {
   return {
     csrfToken: (req, res) => {
       const { sid, token } = createPair();
+      const sameSite =
+        process.env.COOKIE_SAME_SITE ||
+        (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
       res.cookie(CSRF_COOKIE, sid, {
         httpOnly: true,
         signed: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        sameSite,
+        secure: sameSite === 'none' || process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 1000,
         path: '/api',
       });

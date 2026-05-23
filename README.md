@@ -175,6 +175,9 @@ The static output is under **`frontend/dist`**. If the UI is **not** served from
 | `JWT_SECRET` | Secret for signing access tokens (**change in production**). |
 | `COOKIE_SECRET` | Secret for signed cookies (CSRF); defaults to `JWT_SECRET` if unset. |
 | `ALLOWED_ORIGINS` | Comma-separated browser origins allowed by CORS (e.g. `http://localhost:3000`). Empty means permissive for origins (still subject to browser rules). |
+| `COOKIE_SAME_SITE` | CSRF cookie `SameSite` (`lax` locally; use **`none`** when UI and API are on different hosts, e.g. Vercel + Railway). |
+| `DATABASE_SSL` | Set to `true` to force TLS to Postgres (auto-enabled for Neon URLs and `sslmode=require`). |
+| `SERVE_FRONTEND` | `false` when the API does not serve `frontend/dist` (split hosting). |
 | `CSRF_ENABLED` | Set to `false` to disable CSRF checks (not recommended in production). |
 | `ACTIVITY_LOG_ENABLED` | Set to `false` to disable HTTP activity logging middleware. |
 | `ACCESS_TOKEN_TTL_SEC` | Access token lifetime in seconds (default **900** = 15 minutes). |
@@ -399,70 +402,119 @@ Admins can add more offices the same way by pasting **Google Maps links**; the s
 
 Employees need **HTTPS** in the browser for GPS check-in (browsers block precise location on plain `http://` except on `localhost`).
 
-The repo includes a **Docker Compose** stack: PostgreSQL, Node API (with the built React UI), and **Caddy** for automatic HTTPS.
+### 16.1 Recommended: managed split stack
 
-### 16.1 What you need
+Good default for a small team (low cost, minimal ops):
 
-1. A **VPS** or cloud VM (e.g. DigitalOcean, Hetzner, AWS Lightsail) with Docker and Docker Compose installed.
-2. A **domain name** (e.g. `attendance.yourcompany.com`) with a DNS **A record** pointing to the server’s public IP.
-3. Ports **80** and **443** open on the server firewall.
+| Piece | Service | Role |
+|-------|---------|------|
+| **Frontend** | [Vercel](https://vercel.com) (free tier) | Hosts the React SPA (`frontend/`) |
+| **Backend** | [Railway](https://railway.app) | Runs the Node API (`backend/`) |
+| **Database** | [Neon](https://neon.tech) | Serverless PostgreSQL |
+| **Storage** | [Cloudflare R2](https://developers.cloudflare.com/r2/) | Optional — not required today (Excel exports are generated in memory) |
 
-### 16.2 Configure and start
+```mermaid
+flowchart LR
+  User[Browser] --> Vercel[Vercel SPA]
+  Vercel -->|HTTPS /api| Railway[Railway API]
+  Railway --> Neon[(Neon Postgres)]
+  Railway -.->|optional| R2[Cloudflare R2]
+```
 
-From the **repository root**:
+Env templates: **`deploy/split-stack.env.example`**.
+
+#### Step 1 — Neon (database)
+
+1. Create a Neon project and database.
+2. Copy the **pooled** connection string (includes `?sslmode=require`).
+3. Keep it for Railway — the API enables SSL automatically for Neon URLs.
+
+On first successful API start, **migrations and seed data** run (same as local dev).
+
+#### Step 2 — Railway (API)
+
+1. New project → **Deploy from GitHub** (this repo).
+2. Set the service **root directory** to **`backend`** (or deploy only that folder).
+3. Railway assigns **`PORT`**; the app reads it automatically.
+4. Variables (minimum):
+
+| Variable | Value |
+|----------|--------|
+| `NODE_ENV` | `production` |
+| `SERVE_FRONTEND` | `false` |
+| `DATABASE_URL` | Neon connection string |
+| `JWT_SECRET` | Long random secret (32+ chars) |
+| `COOKIE_SECRET` | Long random secret |
+| `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (exact UI origin, no trailing slash) |
+| `COOKIE_SAME_SITE` | `none` (required for cross-origin cookies) |
+
+5. Deploy and note the public URL, e.g. `https://web-based-attendance-production.up.railway.app`.
+6. Check **`https://<railway-host>/health`** → `{ "ok": true }`.
+
+`backend/railway.toml` sets the start command and health check.
+
+#### Step 3 — Vercel (frontend)
+
+1. Import the repo → set **Root Directory** to **`frontend`**.
+2. Framework preset: **Vite** (build: `npm run build`, output: `dist`).
+3. **Environment variable** (Production):
+
+| Variable | Value |
+|----------|--------|
+| `VITE_API_BASE` | `https://<railway-host>/api` |
+
+4. Deploy. `frontend/vercel.json` rewrites all routes to the SPA for React Router.
+
+#### Step 4 — Cloudflare R2 (optional)
+
+The current app does **not** persist files to object storage (payroll/attendance Excel files are built on demand). Add R2 when you need archived exports, attachments, or backups. Wire credentials via Railway env vars when you implement that feature (`deploy/split-stack.env.example` lists placeholders).
+
+#### After deploy (split stack)
+
+1. Change demo passwords (`admin` / `employee`) immediately.
+2. Open the **Vercel** URL on a phone, allow **location**, test check-in.
+3. If login returns **403 CSRF**, confirm `ALLOWED_ORIGINS` matches the Vercel URL and `COOKIE_SAME_SITE=none` on Railway.
+4. Swagger: `https://<railway-host>/api-docs`
+
+#### Updates (split stack)
+
+- **Frontend**: push to `main` → Vercel redeploys.
+- **Backend**: push to `main` → Railway redeploys.
+- **Schema**: migrations run on API startup; no separate migrate job.
+
+---
+
+### 16.2 Alternative: single VPS (Docker + Caddy)
+
+The repo also includes a **Docker Compose** stack: PostgreSQL, Node API (with the built React UI), and **Caddy** for automatic HTTPS on one machine.
+
+**What you need**
+
+1. A **VPS** with Docker and Docker Compose.
+2. A **domain** with DNS **A record** to the server.
+3. Ports **80** and **443** open.
+
+**Configure and start** (repository root):
 
 ```bash
 cp .env.production.example .env.production
 ```
 
-Edit **`.env.production`**:
-
-| Variable | Set to |
-|----------|--------|
-| `DOMAIN` | Your public hostname (no `https://`) |
-| `POSTGRES_PASSWORD` | Strong random password |
-| `JWT_SECRET` | Long random secret (32+ characters) |
-| `COOKIE_SECRET` | Optional; defaults to `JWT_SECRET` |
-
-Build and run:
+Edit **`.env.production`**: `DOMAIN`, `POSTGRES_PASSWORD`, `JWT_SECRET`, optional `COOKIE_SECRET`.
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
 - Site: **`https://<DOMAIN>`**
-- API (same host): **`https://<DOMAIN>/api/v1`**
+- API: **`https://<DOMAIN>/api/v1`**
 - Swagger: **`https://<DOMAIN>/api-docs`**
-- Health: **`https://<DOMAIN>/health`**
 
-Caddy obtains a **Let’s Encrypt** certificate on first request. Migrations and seed data run when the `app` container starts.
+**Updates:** `git pull` then re-run the `docker compose ... up -d --build` command above.
 
-### 16.3 After deploy
+### 16.3 Quick test without a domain
 
-1. Change demo passwords (`admin` / `employee`) immediately.
-2. Confirm **`ALLOWED_ORIGINS`** matches your site — the compose file sets `https://<DOMAIN>` automatically.
-3. Open the site on a phone, allow **location**, and test check-in near an office.
-
-### 16.4 Updates
-
-```bash
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-```
-
-### 16.5 Quick test without a domain
-
-For a short demo you can use a tunnel (e.g. [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or [ngrok](https://ngrok.com/)) pointing at `http://127.0.0.1:5001` after a local `npm run build` and `SERVE_FRONTEND=true npm start` in `backend` — still use an **https** tunnel URL and add that origin to `ALLOWED_ORIGINS` in `backend/.env`.
-
-### 16.6 Split hosting (optional)
-
-If the UI and API are on **different** hosts:
-
-1. Deploy the backend with `SERVE_FRONTEND=false`.
-2. Build the frontend with the API URL:  
-   `VITE_API_BASE=https://api.example.com/api npm run build`
-3. Host `frontend/dist` on any static host (Netlify, S3, etc.).
-4. Set backend **`ALLOWED_ORIGINS`** to the UI origin (e.g. `https://app.example.com`).
+Use an **HTTPS** tunnel (e.g. [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or [ngrok](https://ngrok.com/)) to your local API after `npm run build` and `SERVE_FRONTEND=true npm start` in `backend`. Add the tunnel URL to **`ALLOWED_ORIGINS`**.
 
 ---
 
