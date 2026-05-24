@@ -5,11 +5,11 @@ const { asyncHandler } = require('../middleware/authMiddleware');
 function makeAuthController(authService) {
   return {
     csrfToken: (req, res) => {
-      const { sid, token } = createPair();
+      const { token } = createPair();
       const sameSite =
         process.env.COOKIE_SAME_SITE ||
         (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
-      res.cookie(CSRF_COOKIE, sid, {
+      res.cookie(CSRF_COOKIE, token, {
         httpOnly: true,
         signed: true,
         sameSite,

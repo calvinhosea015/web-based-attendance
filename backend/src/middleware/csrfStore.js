@@ -1,31 +1,35 @@
 const crypto = require('crypto');
+const config = require('../config/env');
 
-const store = new Map();
 const TTL_MS = 60 * 60 * 1000;
 
-function prune() {
-  const now = Date.now();
-  for (const [k, v] of store.entries()) {
-    if (v.exp < now) store.delete(k);
-  }
+function sign(raw, exp) {
+  return crypto
+    .createHmac('sha256', config.cookieSecret)
+    .update(`${raw}.${exp}`)
+    .digest('hex');
 }
 
+/** Stateless CSRF token — works across Railway replicas and when third-party cookies are blocked. */
 function createPair() {
-  prune();
-  const sid = crypto.randomBytes(24).toString('hex');
-  const token = crypto.randomBytes(32).toString('hex');
-  store.set(sid, { token, exp: Date.now() + TTL_MS });
-  return { sid, token };
+  const raw = crypto.randomBytes(32).toString('hex');
+  const exp = Date.now() + TTL_MS;
+  const sig = sign(raw, exp);
+  const token = `${raw}.${exp}.${sig}`;
+  return { sid: token, token };
 }
 
-function verify(sid, headerToken) {
-  if (!sid || !headerToken) return false;
-  prune();
-  const row = store.get(sid);
-  if (!row || row.exp < Date.now()) return false;
+function verifyToken(token) {
+  if (!token) return false;
+  const parts = String(token).split('.');
+  if (parts.length !== 3) return false;
+  const [raw, expStr, sig] = parts;
+  const exp = Number(expStr);
+  if (!raw || !Number.isFinite(exp) || exp < Date.now()) return false;
+  const expected = sign(raw, exp);
   try {
-    const a = Buffer.from(row.token, 'utf8');
-    const b = Buffer.from(String(headerToken), 'utf8');
+    const a = Buffer.from(sig, 'utf8');
+    const b = Buffer.from(expected, 'utf8');
     if (a.length !== b.length) return false;
     return crypto.timingSafeEqual(a, b);
   } catch {
@@ -33,4 +37,9 @@ function verify(sid, headerToken) {
   }
 }
 
-module.exports = { createPair, verify };
+/** @param {string} [_sid] legacy in-memory id (ignored) @param {string} [headerToken] */
+function verify(_sid, headerToken) {
+  return verifyToken(headerToken);
+}
+
+module.exports = { createPair, verify, verifyToken };

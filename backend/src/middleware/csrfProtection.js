@@ -7,9 +7,10 @@ const CSRF_HEADER = 'x-csrf-token';
 function csrfProtection(req, res, next) {
   if (!config.csrfEnabled) return next();
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  const sid = req.signedCookies[CSRF_COOKIE] || req.cookies[CSRF_COOKIE];
-  const token = req.get(CSRF_HEADER);
-  if (!verify(sid, token)) {
+  const headerToken = req.get(CSRF_HEADER);
+  const cookieToken = req.signedCookies[CSRF_COOKIE] || req.cookies[CSRF_COOKIE];
+  const token = headerToken || cookieToken;
+  if (!verify(null, token)) {
     return res.status(403).json({ message: 'Invalid or missing CSRF token.', code: 'CSRF' });
   }
   return next();
