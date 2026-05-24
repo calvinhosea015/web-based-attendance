@@ -1,6 +1,19 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE || '/api';
+/** Ensure split-stack builds hit Railway, not the Vercel SPA (POST → 405 on static host). */
+function normalizeApiBase(raw) {
+  const fallback = '/api';
+  if (!raw || raw === fallback) return fallback;
+  let base = String(raw).trim();
+  if (!/^https?:\/\//i.test(base)) {
+    base = `https://${base.replace(/^\/+/, '')}`;
+  }
+  base = base.replace(/\/+$/, '');
+  if (!base.endsWith('/api')) base = `${base}/api`;
+  return base;
+}
+
+const baseURL = normalizeApiBase(import.meta.env.VITE_API_BASE);
 
 export const rawApi = axios.create({ baseURL, withCredentials: true });
 

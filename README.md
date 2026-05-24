@@ -2,8 +2,7 @@
 
 This document is the **operator and user manual** for the Web-Based Attendance System: what it does, how to install and configure it, and how to use the web application day to day.
 
-Main User:
-admin pass admin123
+**Default demo login** (fresh database seed — see [§7](#7-default-demo-accounts-fresh-install)): `admin` / `Admin123456`, `employee` / `Employee123456`.
 
 ---
 
@@ -375,7 +374,7 @@ The shipped React app **does not** include screens for all of these; use **Swagg
 | Backend exits on startup with Postgres errors | Docker running? `DATABASE_URL` correct? Port 5432 free? |
 | Frontend “network” errors | Backend up? Dev proxy: UI must use **`http://localhost:3000`** so `/api` hits Vite’s proxy. |
 | CORS errors in custom setups | Add your UI origin to **`ALLOWED_ORIGINS`**. |
-| 403 on POST after login | CSRF: ensure client calls **`ensureCsrf`** before login and that cookies are allowed (`withCredentials: true` is already set in the Axios client). |
+| 403 on POST after login (“security token”) | UI must call **`ensureCsrf`** before login and send **`X-CSRF-Token`**. On Vercel + Railway, login uses the token from the JSON response (cookies are optional). Redeploy the API after CSRF changes. On mobile/other browsers, third-party cookies are often blocked — the header must carry the token. |
 | Always “not within radius” | Office link coordinates, `OFFICE_RADIUS_METERS`, GPS accuracy indoors. |
 | Employee cannot clock | Office assigned? Already completed all segments for the day? Open session still waiting for check-out? |
 
@@ -461,9 +460,11 @@ On first successful API start, **migrations and seed data** run (same as local d
 
 | Variable | Value |
 |----------|--------|
-| `VITE_API_BASE` | `https://<railway-host>/api` |
+| `VITE_API_BASE` | `https://<railway-host>/api` (must include **`https://`** and **`/api`** — not just the hostname) |
 
 4. Deploy. `frontend/vercel.json` rewrites all routes to the SPA for React Router.
+
+**Login shows “405”:** the UI is posting to Vercel instead of Railway. Fix `VITE_API_BASE` as above and **redeploy** (Vite bakes env vars at build time).
 
 #### Step 4 — Cloudflare R2 (optional)
 
@@ -473,7 +474,7 @@ The current app does **not** persist files to object storage (payroll/attendance
 
 1. Change demo passwords (`admin` / `employee`) immediately.
 2. Open the **Vercel** URL on a phone, allow **location**, test check-in.
-3. If login returns **403 CSRF**, confirm `ALLOWED_ORIGINS` matches the Vercel URL and `COOKIE_SAME_SITE=none` on Railway.
+3. If login returns **403 CSRF** (“security token”), refresh the page, redeploy the latest API, and confirm `ALLOWED_ORIGINS` matches the Vercel URL. `COOKIE_SAME_SITE=none` is still recommended but login works via **`X-CSRF-Token`** when cookies are blocked (common on phones).
 4. Swagger: `https://<railway-host>/api-docs`
 
 #### Updates (split stack)
