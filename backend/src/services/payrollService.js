@@ -228,6 +228,11 @@ class PayrollService {
   async getPeriod(period) {
     const meta = this.periodMeta(period);
     const settings = await this.payrollRepository.getSettings();
+    const employees = await this.payrollRepository.listActiveEmployeesForPayroll();
+    await this.payrollRepository.deleteForPeriodExceptEmployees(
+      meta.period,
+      employees.map((e) => e.id)
+    );
     const rows = await this.enrichPayrollRows(
       await this.payrollRepository.listByPeriod(meta.period)
     );
@@ -287,6 +292,10 @@ class PayrollService {
       });
       rows.push(saved);
     }
+    await this.payrollRepository.deleteForPeriodExceptEmployees(
+      bounds.payroll_period,
+      employees.map((e) => e.id)
+    );
     const enrichedRows = await this.enrichPayrollRows(rows);
     return {
       ...this.periodMeta(bounds.payroll_period),

@@ -59,11 +59,31 @@ class PayrollRepository {
         e.diligence_allowance_amount AS employee_diligence_allowance_amount
        FROM payroll p
        JOIN employees e ON e.id = p.employee_id
-       WHERE p.payroll_period = $1
+       INNER JOIN users u ON u.employee_id = e.id
+       WHERE p.payroll_period = $1 AND e.status = 'active'
        ORDER BY e.full_name ASC`,
       [payrollPeriod]
     );
     return r.rows;
+  }
+
+  async deleteAllForEmployee(employeeId, exec = query) {
+    await exec(`DELETE FROM payroll WHERE employee_id = $1`, [employeeId]);
+  }
+
+  /** Remove payroll rows for a period that are not in the active employee id set. */
+  async deleteForPeriodExceptEmployees(payrollPeriod, employeeIds, exec = query) {
+    const ids = (employeeIds || []).map(Number).filter((id) => Number.isFinite(id) && id > 0);
+    if (!ids.length) {
+      await exec(`DELETE FROM payroll WHERE payroll_period = $1`, [payrollPeriod]);
+      return;
+    }
+    await exec(
+      `DELETE FROM payroll
+       WHERE payroll_period = $1
+         AND NOT (employee_id = ANY($2::int[]))`,
+      [payrollPeriod, ids]
+    );
   }
 
   async findByPeriodAndEmployee(payrollPeriod, employeeId) {
@@ -150,12 +170,13 @@ class PayrollRepository {
 
   async listActiveEmployeesForPayroll() {
     const r = await query(
-      `SELECT id, employee_id AS employee_code, full_name, upah_harian,
-              tunjangan_masa_kerja, transport_eligible,
-              transport_allowance_amount, diligence_allowance_amount, join_date
-       FROM employees
-       WHERE status = 'active'
-       ORDER BY full_name ASC`
+      `SELECT e.id, e.employee_id AS employee_code, e.full_name, e.upah_harian,
+              e.tunjangan_masa_kerja, e.transport_eligible,
+              e.transport_allowance_amount, e.diligence_allowance_amount, e.join_date
+       FROM employees e
+       INNER JOIN users u ON u.employee_id = e.id
+       WHERE e.status = 'active'
+       ORDER BY e.full_name ASC`
     );
     return r.rows;
   }

@@ -94,6 +94,7 @@ class UserRepository {
       await client.query(`UPDATE leave_requests SET approved_by = NULL WHERE approved_by = $1`, [numericId]);
       await client.query(`DELETE FROM users WHERE id = $1`, [numericId]);
       if (empPk) {
+        await client.query(`DELETE FROM payroll WHERE employee_id = $1`, [empPk]);
         await client.query(`DELETE FROM employees WHERE id = $1`, [empPk]);
       }
       await client.query('COMMIT');
