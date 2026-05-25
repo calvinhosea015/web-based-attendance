@@ -12,7 +12,7 @@ module.exports = {
   jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
   cookieSecret: process.env.COOKIE_SECRET || process.env.JWT_SECRET || 'change-me-in-production',
   databaseUrl: process.env.DATABASE_URL,
-  officeRadiusMeters: parseInt(process.env.OFFICE_RADIUS_METERS || '350', 10),
+  officeRadiusMeters: parseInt(process.env.OFFICE_RADIUS_METERS || '500', 10),
   /** Extra meters allowed toward reported GPS uncertainty (capped so accuracy cannot be abused). */
   officeRadiusGpsBufferCapMeters: parseFloat(process.env.OFFICE_RADIUS_GPS_BUFFER_CAP_METERS || '120'),
   maxGpsAccuracyMeters: parseFloat(process.env.MAX_GPS_ACCURACY_METERS || '250'),

@@ -183,7 +183,7 @@ The static output is under **`frontend/dist`**. If the UI is **not** served from
 | `REFRESH_TOKEN_TTL_DAYS` | Refresh token lifetime. |
 | `BCRYPT_ROUNDS` | Cost factor for password hashing. |
 | `PASSWORD_MIN_LENGTH` | Minimum password length (default **6**). Passwords must be letters and numbers only. |
-| `OFFICE_RADIUS_METERS` | Base allowed distance from the office pin for on-site check-in (default **350** m in `.env.example`). |
+| `OFFICE_RADIUS_METERS` | Base allowed distance from the office pin for on-site check-in (default **500** m in `.env.example`). |
 | `OFFICE_RADIUS_GPS_BUFFER_CAP_METERS` | Extra tolerance from GPS uncertainty, capped (see [Section 10](#10-attendance-and-gps-rules)). |
 | `MAX_GPS_ACCURACY_METERS` | Reject clock events if reported accuracy is worse than this (default **250** m). |
 | `MAX_CLIENT_CLOCK_SKEW_MS` | Reject if device time differs from server by more than this (default **5 minutes**). |
