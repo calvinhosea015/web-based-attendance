@@ -53,7 +53,15 @@ export default function AdminPayroll() {
     setMessageTone(tone);
   };
 
-  const handleExportSlip = async (employeeId, employeeCode) => {
+  const slipDownloadFilename = (fullName) => {
+    const name = String(fullName || 'Karyawan')
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/\s+/g, ' ');
+    return `Attendance Slip Gaji (${name}).xlsx`;
+  };
+
+  const handleExportSlip = async (employeeId, fullName) => {
     notify('');
     try {
       await ensureCsrf();
@@ -62,10 +70,7 @@ export default function AdminPayroll() {
         {},
         { responseType: 'blob' }
       );
-      downloadBlobResponse(
-        res,
-        `slip_gaji_${employeeCode || employeeId}_${period.replace('-', '')}.xlsx`
-      );
+      downloadBlobResponse(res, slipDownloadFilename(fullName));
       notify(t('payrollSlipExported'), 'success');
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
@@ -174,6 +179,7 @@ export default function AdminPayroll() {
         Number(row.loan_deduction_preview || 0)
       ),
       other_deductions: row.other_deductions ?? row.deductions ?? 0,
+      keterangan: row.keterangan ?? '',
     });
   };
 
@@ -333,6 +339,12 @@ export default function AdminPayroll() {
                             })}
                           </div>
                         )}
+                        {row.keterangan ? (
+                          <div className="mt-1 text-xs text-slate-600">
+                            <span className="font-medium text-slate-500">{t('payrollKeterangan')}:</span>{' '}
+                            {row.keterangan}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{row.days_attended ?? 0}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-600">
@@ -369,7 +381,7 @@ export default function AdminPayroll() {
                           <Button
                             variant="success"
                             size="sm"
-                            onClick={() => handleExportSlip(row.employee_id, row.employee_code)}
+                            onClick={() => handleExportSlip(row.employee_id, row.full_name)}
                           >
                             {t('payrollExportSlip')}
                           </Button>
@@ -410,6 +422,19 @@ export default function AdminPayroll() {
           }
         >
           <form id="payroll-edit-form" className="grid gap-4 sm:grid-cols-2" onSubmit={handleSaveRow}>
+            <Field
+              label={t('payrollKeterangan')}
+              hint={t('payrollKeteranganHint')}
+              className="sm:col-span-2"
+            >
+              <textarea
+                className={`${inputClass} min-h-[4.5rem] resize-y`}
+                maxLength={500}
+                rows={3}
+                value={editForm.keterangan}
+                onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
+              />
+            </Field>
             <Field label={t('payrollDaysAttended')} className="sm:col-span-2">
               <input
                 type="number"

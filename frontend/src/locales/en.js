@@ -126,6 +126,8 @@ export default {
   payrollFinal: 'Final pay',
   payrollDeductions: 'Deductions',
   payrollEditRow: 'Edit payroll row',
+  payrollKeterangan: 'Notes (keterangan)',
+  payrollKeteranganHint: 'Optional note on the salary slip (max 500 characters).',
   payrollRowSaved: 'Payroll row saved.',
   payrollNoRows: 'No payroll for this month. Click Generate to create rows.',
   payrollExportSlip: 'Slip',

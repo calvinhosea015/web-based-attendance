@@ -156,6 +156,7 @@ const payrollEntryValidators = [
   body('loan_deduction').optional().isFloat({ min: 0 }),
   body('transport_allowance_amount').optional().isFloat({ min: 0 }),
   body('diligence_allowance_amount').optional().isFloat({ min: 0 }),
+  body('keterangan').optional().isString().trim().isLength({ max: 500 }),
 ];
 
 const payrollEmployeeDefaultsValidators = [

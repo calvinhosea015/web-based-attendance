@@ -281,6 +281,10 @@ async function migratePayrollLoanColumns() {
   );
 }
 
+async function migratePayrollKeteranganColumn() {
+  await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS keterangan TEXT NOT NULL DEFAULT ''`);
+}
+
 async function migrateEnterpriseColumns() {
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_url TEXT`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_status VARCHAR(32) DEFAULT 'active'`);
@@ -454,6 +458,7 @@ async function migrate() {
   await migratePayrollColumns();
   await migrateLoanRequests();
   await migratePayrollLoanColumns();
+  await migratePayrollKeteranganColumn();
   await seed();
   await syncEmployeeCodeSequence();
   await ensureDefaultShift();

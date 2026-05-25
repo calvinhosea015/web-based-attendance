@@ -645,6 +645,14 @@ export default function EmployeeDashboard() {
                         <dd className="font-medium text-slate-800">Rp {formatIdr(deductions)}</dd>
                       </div>
                     )}
+                    {row.keterangan ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                          {t('payrollKeterangan')}
+                        </dt>
+                        <dd className="font-medium text-slate-800">{row.keterangan}</dd>
+                      </div>
+                    ) : null}
                   </dl>
                 </li>
               );

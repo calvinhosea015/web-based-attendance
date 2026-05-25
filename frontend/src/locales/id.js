@@ -126,6 +126,8 @@ export default {
   payrollFinal: 'Gaji akhir',
   payrollDeductions: 'Potongan',
   payrollEditRow: 'Ubah baris gaji',
+  payrollKeterangan: 'Keterangan',
+  payrollKeteranganHint: 'Catatan opsional pada slip gaji (maks. 500 karakter).',
   payrollRowSaved: 'Baris gaji disimpan.',
   payrollNoRows: 'Belum ada gaji untuk bulan ini. Klik Buat untuk membuat baris.',
   payrollExportSlip: 'Slip',

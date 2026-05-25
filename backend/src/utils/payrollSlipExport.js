@@ -32,20 +32,20 @@ const ROW = {
   HEADER1: 2,
   HEADER2: 3,
   PERIODE: 4,
-  PERINCIAN: 5,
-  TABLE_HEAD: 6,
-  TABLE_FIRST: 7,
-  TABLE_LAST: 14,
-  SPACER_BEFORE_JUMLAH: 15,
-  JUMLAH_HARI: 16,
-  JUMLAH_HADIR: 17,
-  SPACER_BEFORE_GAJI: 18,
-  GAJI_TERIMA: 19,
-  LOAN_NOTE: 20,
-  SIGN_TITLE: 23,
-  SIGN_LINE: 28,
+  SPACER_BEFORE_PERINCIAN: 5,
+  PERINCIAN: 6,
+  TABLE_HEAD: 7,
+  TABLE_FIRST: 8,
+  TABLE_LAST: 15,
+  SPACER_BEFORE_JUMLAH: 16,
+  JUMLAH_HARI: 17,
+  JUMLAH_HADIR: 18,
+  SPACER_BEFORE_GAJI: 19,
+  GAJI_TERIMA: 20,
+  SIGN_TITLE: 24,
+  SIGN_LINE: 29,
 };
-const SHEET_LAST_ROW = 28;
+const SHEET_LAST_ROW = 29;
 const SHEET_LAST_COL = 6;
 
 const FONT_BODY = { name: 'Calibri', size: 11 };
@@ -68,6 +68,18 @@ function num(v) {
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
+}
+
+function sanitizeFilenamePart(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ');
+}
+
+function employeeSlipExportFilename(row) {
+  const name = sanitizeFilenamePart(row.full_name || row.employee_code || 'Karyawan');
+  return `Attendance Slip Gaji (${name}).xlsx`;
 }
 
 function amountCell(n) {
@@ -249,7 +261,7 @@ function setHeaderRow(ws, row, leftLabel, leftValue, rightLabel, rightValue) {
 }
 
 function addSpacerRow(ws, row) {
-  ws.getRow(row).height = 6;
+  ws.getRow(row).height = 15;
 }
 
 function fillTableLine(ws, row, labelCol, colonCol, valueCol, label, amount) {
@@ -314,10 +326,12 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
     ROW.PERIODE,
     'Periode',
     payrollCycleLabel(period, { upper: true }),
-    '',
-    ''
+    'Keterangan',
+    row.keterangan || ''
   );
   ws.getRow(ROW.PERIODE).height = 18;
+
+  addSpacerRow(ws, ROW.SPACER_BEFORE_PERINCIAN);
 
   setCell(ws, ROW.PERINCIAN, L_LABEL, 'Perincian');
   setColon(ws, ROW.PERINCIAN, L_COLON);
@@ -390,23 +404,6 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   });
   ws.getRow(ROW.GAJI_TERIMA).height = 20;
 
-  const loanDeduction = num(row.loan_deduction);
-  if (loanDeduction > 0) {
-    const parts = [`Potongan pinjaman bulan ini: Rp ${formatIdr(loanDeduction)}`];
-    if (row.has_active_loan && row.loan_remaining_balance != null) {
-      parts.push(`Sisa pinjaman: Rp ${formatIdr(row.loan_remaining_balance)}`);
-    }
-    if (row.loan_monthly_deduction != null) {
-      parts.push(`Cicilan bulanan: Rp ${formatIdr(row.loan_monthly_deduction)}`);
-    }
-    ws.mergeCells(ROW.LOAN_NOTE, L_LABEL, ROW.LOAN_NOTE, R_VALUE);
-    const loanNote = ws.getCell(ROW.LOAN_NOTE, L_LABEL);
-    loanNote.value = parts.join(' · ');
-    loanNote.font = { ...FONT_BODY, size: 9, italic: true };
-    loanNote.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-    ws.getRow(ROW.LOAN_NOTE).height = 28;
-  }
-
   ws.mergeCells(ROW.SIGN_TITLE, L_LABEL, ROW.SIGN_TITLE, L_VALUE);
   const penerima = ws.getCell(ROW.SIGN_TITLE, L_LABEL);
   penerima.value = 'Penerima';
@@ -478,6 +475,7 @@ module.exports = {
   computeUsiaKerja,
   countWorkingDaysMonSat,
   slipAmounts,
+  employeeSlipExportFilename,
   addSlipSheet,
   buildEmployeeSlipWorkbook,
   slipWorkbookFromRows,

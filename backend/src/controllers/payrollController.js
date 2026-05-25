@@ -1,5 +1,10 @@
 const { asyncHandler } = require('../middleware/authMiddleware');
 
+function attachmentDisposition(filename) {
+  const safe = String(filename).replace(/"/g, "'");
+  return `attachment; filename="${safe}"`;
+}
+
 function makePayrollController(payrollService) {
   return {
     getSettings: asyncHandler(async (req, res) => {
@@ -27,7 +32,7 @@ function makePayrollController(payrollService) {
         req.params.period,
         req.params.employeeId
       );
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Disposition', attachmentDisposition(filename));
       res.setHeader(
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -36,7 +41,7 @@ function makePayrollController(payrollService) {
     }),
     exportAllSlips: asyncHandler(async (req, res) => {
       const { buffer, filename } = await payrollService.exportAllSlips(req.params.period);
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Disposition', attachmentDisposition(filename));
       res.setHeader(
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

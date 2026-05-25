@@ -1,6 +1,7 @@
 const { AppError } = require('../utils/errors');
 const {
   buildEmployeeSlipWorkbook,
+  employeeSlipExportFilename,
   slipWorkbookFromRows,
   writeSlipBuffer,
   periodLabel,
@@ -20,6 +21,11 @@ function parsePeriod(period) {
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeKeterangan(value) {
+  if (value == null) return '';
+  return String(value).trim().slice(0, 500);
 }
 
 /** Gaji pokok = hari kerja × upah harian */
@@ -262,6 +268,7 @@ class PayrollService {
         deductions: totals.deductions,
         allowances: totals.allowances,
         final_salary: totals.final_salary,
+        keterangan: prev?.keterangan ?? '',
       });
       rows.push(saved);
     }
@@ -369,6 +376,10 @@ class PayrollService {
     };
 
     const totals = computeTotals(fields, employee, settings);
+    const keterangan =
+      payload.keterangan !== undefined
+        ? normalizeKeterangan(payload.keterangan)
+        : normalizeKeterangan(existing.keterangan);
     const saved = await this.payrollRepository.upsertRow({
       employee_id: empId,
       payroll_period: bounds.payroll_period,
@@ -390,6 +401,7 @@ class PayrollService {
       deductions: totals.deductions,
       allowances: totals.allowances,
       final_salary: totals.final_salary,
+      keterangan,
     });
 
     const defaultsPayload = {};
@@ -442,9 +454,7 @@ class PayrollService {
     const slipRow = await this.enrichSlipRow(row, payroll_period);
     const wb = buildEmployeeSlipWorkbook(slipRow, payroll_period);
     const buffer = await writeSlipBuffer(wb);
-    const safeCode = String(row.employee_code || employeeId).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const safePeriod = payroll_period.replace('-', '');
-    const filename = `slip_gaji_${safeCode}_${safePeriod}.xlsx`;
+    const filename = employeeSlipExportFilename(row);
     return { buffer, filename };
   }
 
