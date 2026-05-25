@@ -51,6 +51,7 @@ class PayrollRepository {
       `SELECT p.*,
         e.employee_id AS employee_code,
         e.full_name,
+        e.join_date,
         e.upah_harian AS employee_upah_harian,
         e.tunjangan_masa_kerja AS employee_tunjangan_masa_kerja,
         e.transport_eligible AS employee_transport_eligible,
@@ -67,7 +68,7 @@ class PayrollRepository {
 
   async findByPeriodAndEmployee(payrollPeriod, employeeId) {
     const r = await query(
-      `SELECT p.*, e.employee_id AS employee_code, e.full_name
+      `SELECT p.*, e.employee_id AS employee_code, e.full_name, e.join_date
        FROM payroll p
        JOIN employees e ON e.id = p.employee_id
        WHERE p.payroll_period = $1 AND p.employee_id = $2`,

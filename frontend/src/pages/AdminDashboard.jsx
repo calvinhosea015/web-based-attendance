@@ -28,6 +28,14 @@ function toTimeInputValue(v) {
   return /^\d{1,2}:\d{2}/.test(s) ? s.slice(0, 5) : '';
 }
 
+function toDateInputValue(v) {
+  if (v == null || v === '') return '';
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  return '';
+}
+
 function formatUserApiError(err) {
   return translateApiMessage(err) || String(err);
 }
@@ -49,6 +57,8 @@ export default function AdminDashboard() {
     office_id: '',
     full_name: '',
     remote_work_allowed: true,
+    join_date: '',
+    birthday: '',
   });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
   const [message, setMessage] = useState('');
@@ -140,6 +150,8 @@ export default function AdminDashboard() {
       if (isAttendanceRole(newUser.role)) {
         payload.office_id = parsedOffice;
         payload.remote_work_allowed = Boolean(newUser.remote_work_allowed);
+        if (newUser.join_date) payload.join_date = newUser.join_date;
+        if (newUser.birthday) payload.birthday = newUser.birthday;
       }
       const res = await api.post(paths.users, payload);
       const ec = res.data?.employee_code;
@@ -152,6 +164,8 @@ export default function AdminDashboard() {
         office_id: offices.length ? String(offices[0].id) : '',
         full_name: '',
         remote_work_allowed: true,
+        join_date: '',
+        birthday: '',
       });
     } catch (err) {
       setMessage(formatUserApiError(err));
@@ -178,6 +192,8 @@ export default function AdminDashboard() {
       office_id: user.office_id != null ? String(user.office_id) : '',
       full_name: user.full_name || '',
       remote_work_allowed: user.remote_work_allowed !== false,
+      join_date: toDateInputValue(user.join_date),
+      birthday: toDateInputValue(user.birthday),
     });
   };
 
@@ -202,6 +218,8 @@ export default function AdminDashboard() {
         body.full_name = fn;
         body.office_id = Number(editingUser.office_id);
         body.remote_work_allowed = Boolean(editingUser.remote_work_allowed);
+        body.join_date = editingUser.join_date || null;
+        body.birthday = editingUser.birthday || null;
       } else if (editingUser.office_id) {
         body.office_id = Number(editingUser.office_id);
       }
@@ -384,6 +402,28 @@ export default function AdminDashboard() {
             {isAttendanceRole(newUser.role) && (
               <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
             )}
+            {isAttendanceRole(newUser.role) && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm text-slate-700">
+                  <span className="mb-1 block text-xs font-medium text-slate-600">{t('startDate')}</span>
+                  <input
+                    type="date"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={newUser.join_date}
+                    onChange={(e) => setNewUser({ ...newUser, join_date: e.target.value })}
+                  />
+                </label>
+                <label className="block text-sm text-slate-700">
+                  <span className="mb-1 block text-xs font-medium text-slate-600">{t('birthday')}</span>
+                  <input
+                    type="date"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={newUser.birthday}
+                    onChange={(e) => setNewUser({ ...newUser, birthday: e.target.value })}
+                  />
+                </label>
+              </div>
+            )}
             <select
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={newUser.office_id}
@@ -510,6 +550,28 @@ export default function AdminDashboard() {
                         onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
                         required
                       />
+                    )}
+                    {isAttendanceRole(editingUser.role) && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="block text-xs text-slate-700">
+                          <span className="mb-0.5 block font-medium text-slate-600">{t('startDate')}</span>
+                          <input
+                            type="date"
+                            className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                            value={editingUser.join_date}
+                            onChange={(e) => setEditingUser({ ...editingUser, join_date: e.target.value })}
+                          />
+                        </label>
+                        <label className="block text-xs text-slate-700">
+                          <span className="mb-0.5 block font-medium text-slate-600">{t('birthday')}</span>
+                          <input
+                            type="date"
+                            className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                            value={editingUser.birthday}
+                            onChange={(e) => setEditingUser({ ...editingUser, birthday: e.target.value })}
+                          />
+                        </label>
+                      </div>
                     )}
                     <div className="flex flex-wrap gap-2">
                       <button type="submit" className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white">

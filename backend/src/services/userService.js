@@ -66,6 +66,7 @@ class UserService {
         basicSalary: payload.basic_salary ?? 0,
         upahHarian: payload.upah_harian ?? 0,
         joinDate: payload.join_date,
+        birthday: payload.birthday || null,
         status: 'active',
         remoteWorkAllowed,
         dailySegments: CLOCK_SEGMENTS_PER_DAY,
@@ -148,14 +149,27 @@ class UserService {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'NOT_FOUND');
 
-    const allowedKeys = ['username', 'role', 'office_id', 'full_name', 'remote_work_allowed'];
+    const allowedKeys = [
+      'username',
+      'role',
+      'office_id',
+      'full_name',
+      'remote_work_allowed',
+      'join_date',
+      'birthday',
+    ];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
-        'At least one of username, role, office_id, full_name, or remote_work_allowed is required.',
+        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, or birthday is required.',
         400,
         'NO_FIELDS'
       );
     }
+
+    const normalizeOptionalDate = (value) => {
+      if (value === '' || value === null || value === undefined) return null;
+      return String(value);
+    };
 
     const syncEmployeePolicies = async () => {
       const latest = await this.userRepository.findById(userId);
@@ -165,6 +179,17 @@ class UserService {
         remote_work_allowed: Boolean(payload.remote_work_allowed),
         daily_segments: CLOCK_SEGMENTS_PER_DAY,
       });
+    };
+
+    const syncEmployeeHrFields = async () => {
+      const latest = await this.userRepository.findById(userId);
+      if (!latest?.employee_id) return;
+      const patch = {};
+      if (has('join_date')) patch.join_date = normalizeOptionalDate(payload.join_date);
+      if (has('birthday')) patch.birthday = normalizeOptionalDate(payload.birthday);
+      if (Object.keys(patch).length) {
+        await this.employeeRepository.updateEnterpriseFields(latest.employee_id, patch);
+      }
     };
 
     let newUsername;
@@ -263,7 +288,8 @@ class UserService {
                 positionId,
                 salaryType: 'monthly',
                 basicSalary: 0,
-                joinDate: new Date().toISOString().slice(0, 10),
+                joinDate: payload.join_date || new Date().toISOString().slice(0, 10),
+                birthday: payload.birthday || null,
                 status: 'active',
                 remoteWorkAllowed: has('remote_work_allowed') ? Boolean(payload.remote_work_allowed) : true,
                 dailySegments: CLOCK_SEGMENTS_PER_DAY,
@@ -297,6 +323,7 @@ class UserService {
 
       await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
       await syncEmployeePolicies();
+      await syncEmployeeHrFields();
       const updated = stripUserSecrets(await this.userRepository.findById(userId));
       return { ...updated, employee_code: emp.employee_id };
     }
@@ -324,6 +351,7 @@ class UserService {
     }
 
     await syncEmployeePolicies();
+    await syncEmployeeHrFields();
     return stripUserSecrets(await this.userRepository.findById(userId));
   }
 }

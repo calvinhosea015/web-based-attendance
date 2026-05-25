@@ -2,14 +2,15 @@ const { pool, query } = require('../db/pool');
 
 class UserRepository {
   async existsUsernameExcept(username, excludeUserId) {
-    const r = await query(`SELECT 1 FROM users WHERE username = $1 AND id <> $2 LIMIT 1`, [
-      username,
-      excludeUserId,
-    ]);
+    const r = await query(
+      `SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) AND id <> $2 LIMIT 1`,
+      [username, excludeUserId]
+    );
     return r.rows.length > 0;
   }
 
   async findByUsername(username) {
+    const loginId = String(username || '').trim();
     const r = await query(
       `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
@@ -17,8 +18,11 @@ class UserRepository {
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
        LEFT JOIN offices o ON o.id = u.office_id
-       WHERE u.username = $1`,
-      [username]
+       WHERE LOWER(u.username) = LOWER($1)
+          OR (e.employee_id IS NOT NULL AND LOWER(e.employee_id) = LOWER($1))
+       ORDER BY CASE WHEN LOWER(u.username) = LOWER($1) THEN 0 ELSE 1 END
+       LIMIT 1`,
+      [loginId]
     );
     return r.rows[0] || null;
   }
@@ -40,6 +44,7 @@ class UserRepository {
   async listSummary() {
     const r = await query(
       `SELECT u.id, u.username, u.role, u.office_id, u.employee_id, e.employee_id AS employee_code, e.full_name,
+              e.join_date, e.birthday,
               e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end
        FROM users u

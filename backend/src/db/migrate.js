@@ -297,6 +297,7 @@ async function migrateEnterpriseColumns() {
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment1_end TIME`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment2_start TIME`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment2_end TIME`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS birthday DATE`);
 }
 
 /** Default shift 07:00–16:00 and assign to employees who have no shift row yet. */

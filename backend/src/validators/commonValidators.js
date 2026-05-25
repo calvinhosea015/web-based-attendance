@@ -11,6 +11,17 @@ const loginValidators = [
   body('password').notEmpty().withMessage('password required'),
 ];
 
+const optionalDateBody = (field) =>
+  body(field)
+    .optional({ values: 'null' })
+    .custom((value) => {
+      if (value === '' || value == null) return true;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        throw new Error(`${field} must be YYYY-MM-DD`);
+      }
+      return true;
+    });
+
 const refreshValidators = [body('refreshToken').trim().notEmpty().withMessage('refreshToken required')];
 
 const logoutValidators = [body('refreshToken').optional().isString()];
@@ -83,7 +94,8 @@ const createUserValidators = [
   body('salary_type').optional({ values: 'null' }).isString(),
   body('basic_salary').optional({ values: 'null' }).isNumeric(),
   body('upah_harian').optional({ values: 'null' }).isNumeric(),
-  body('join_date').optional({ values: 'null' }).isString(),
+  optionalDateBody('join_date'),
+  optionalDateBody('birthday'),
 ];
 
 const changePasswordValidators = [passwordPolicyValidator()];
@@ -94,6 +106,8 @@ const updateUserValidators = [
   body('office_id').optional({ values: 'null' }),
   body('full_name').optional({ values: 'null' }).isString(),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
+  optionalDateBody('join_date'),
+  optionalDateBody('birthday'),
 ];
 
 const idParamValidator = [param('id').isInt({ min: 1 })];
@@ -113,6 +127,8 @@ const employeeUpdateValidators = [
   body('department_id').optional().isInt({ min: 1 }),
   body('position_id').optional().isInt({ min: 1 }),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
+  optionalDateBody('join_date'),
+  optionalDateBody('birthday'),
   body('tunjangan_masa_kerja').optional().isFloat({ min: 0 }),
   body('transport_eligible').optional().isBoolean({ strict: true }),
 ];

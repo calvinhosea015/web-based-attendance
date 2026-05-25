@@ -11,6 +11,7 @@ class EmployeeRepository {
       basicSalary,
       upahHarian,
       joinDate,
+      birthday,
       status,
       remoteWorkAllowed,
       dailySegments,
@@ -24,11 +25,11 @@ class EmployeeRepository {
     const ds = dailySegments === 2 ? 2 : 1;
     const r = await exec(
       `INSERT INTO employees (
-        employee_id, full_name, department_id, position_id, salary_type, basic_salary, upah_harian, join_date, status,
+        employee_id, full_name, department_id, position_id, salary_type, basic_salary, upah_harian, join_date, birthday, status,
         remote_work_allowed, daily_segments,
         segment1_start, segment1_end, segment2_start, segment2_end
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, true), $11, $12, $13, $14, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         employeeId,
@@ -39,6 +40,7 @@ class EmployeeRepository {
         basicSalary ?? 0,
         upahHarian ?? 0,
         joinDate || new Date().toISOString().slice(0, 10),
+        birthday || null,
         status || 'active',
         remoteWorkAllowed !== undefined ? Boolean(remoteWorkAllowed) : null,
         ds,
@@ -122,6 +124,8 @@ class EmployeeRepository {
     contract_status,
     department_id,
     position_id,
+    join_date,
+    birthday,
     remote_work_allowed,
     daily_segments,
     segment1_start,
@@ -147,6 +151,14 @@ class EmployeeRepository {
     if (position_id !== undefined) {
       sets.push(`position_id = $${i++}`);
       vals.push(position_id);
+    }
+    if (join_date !== undefined) {
+      sets.push(`join_date = $${i++}`);
+      vals.push(join_date);
+    }
+    if (birthday !== undefined) {
+      sets.push(`birthday = $${i++}`);
+      vals.push(birthday);
     }
     if (remote_work_allowed !== undefined) {
       sets.push(`remote_work_allowed = $${i++}`);

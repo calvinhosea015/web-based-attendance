@@ -179,9 +179,13 @@ export default {
   roleUmum: 'Umum',
   roleAdmin: 'Admin',
   loginRolesHint: 'Admin, Staff Kantor, Petugas Lapangan, atau Umum',
+  loginUsernameHint:
+    'Gunakan nama pengguna atau ID karyawan (mis. NIKE atau EMP000003). Kata sandi diatur admin — akun demo: employee / Employee123456',
   employeeCode: 'ID karyawan',
   employeeCodeOptional: 'ID karyawan (opsional — dibuat otomatis jika kosong)',
   fullName: 'Nama lengkap',
+  birthday: 'Tanggal lahir',
+  startDate: 'Tanggal mulai kerja',
   employee: 'Karyawan',
   status: 'Status',
   todayStatus: 'Status hari ini',

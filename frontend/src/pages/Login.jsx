@@ -48,6 +48,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <h2 className="text-xl font-semibold text-slate-900">{t('login')}</h2>
           <p className="mt-1 text-sm text-slate-500">{t('loginRolesHint')}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('loginUsernameHint')}</p>
           <form
             className="mt-8 space-y-5 rounded-xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/40"
             onSubmit={handleLogin}

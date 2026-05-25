@@ -81,6 +81,14 @@ class EnterpriseAdminService {
     if (has('department_id')) patch.department_id = payload.department_id;
     if (has('position_id')) patch.position_id = payload.position_id;
     if (has('remote_work_allowed')) patch.remote_work_allowed = payload.remote_work_allowed;
+    if (has('join_date')) {
+      patch.join_date =
+        payload.join_date === '' || payload.join_date == null ? null : String(payload.join_date);
+    }
+    if (has('birthday')) {
+      patch.birthday =
+        payload.birthday === '' || payload.birthday == null ? null : String(payload.birthday);
+    }
     const row = await this.employeeRepository.updateEnterpriseFields(Number(id), patch);
     return row;
   }

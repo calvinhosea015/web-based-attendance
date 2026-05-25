@@ -1,11 +1,10 @@
 const { AppError } = require('../utils/errors');
 const {
-  buildSlipAoa,
+  buildEmployeeSlipWorkbook,
   slipWorkbookFromRows,
   writeSlipBuffer,
   periodLabel,
 } = require('../utils/payrollSlipExport');
-const XLSX = require('xlsx');
 
 function parsePeriod(period) {
   const m = /^(\d{4})-(\d{2})$/.exec(String(period || '').trim());
@@ -371,12 +370,8 @@ class PayrollService {
 
   async exportEmployeeSlip(period, employeeId) {
     const { period: payroll_period, row } = await this.getSlipRow(period, employeeId);
-    const aoa = buildSlipAoa(row, payroll_period);
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 32 }, { wch: 28 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Slip Gaji');
-    const buffer = writeSlipBuffer(wb);
+    const wb = buildEmployeeSlipWorkbook(row, payroll_period);
+    const buffer = await writeSlipBuffer(wb);
     const safeCode = String(row.employee_code || employeeId).replace(/[^a-zA-Z0-9_-]/g, '_');
     const safePeriod = payroll_period.replace('-', '');
     const filename = `slip_gaji_${safeCode}_${safePeriod}.xlsx`;
@@ -394,7 +389,7 @@ class PayrollService {
       );
     }
     const wb = slipWorkbookFromRows(rows, payroll_period);
-    const buffer = writeSlipBuffer(wb);
+    const buffer = await writeSlipBuffer(wb);
     const label = periodLabel(payroll_period).replace(/\s+/g, '_');
     const filename = `slip_gaji_semua_${payroll_period.replace('-', '')}.xlsx`;
     return { buffer, filename, count: rows.length, label };

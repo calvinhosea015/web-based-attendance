@@ -178,9 +178,13 @@ export default {
   roleUmum: 'Umum',
   roleAdmin: 'Admin',
   loginRolesHint: 'Admin, Staff Kantor, Petugas Lapangan, or Umum',
+  loginUsernameHint:
+    'Use your account username or employee ID (e.g. NIKE or EMP000003). Passwords are set by your admin — demo account only: employee / Employee123456',
   employeeCode: 'Employee ID',
   employeeCodeOptional: 'Employee ID (optional — auto-generated if empty)',
   fullName: 'Full name',
+  birthday: 'Birthday',
+  startDate: 'Start date (joined company)',
   employee: 'Employee',
   status: 'Status',
   todayStatus: "Today's status",

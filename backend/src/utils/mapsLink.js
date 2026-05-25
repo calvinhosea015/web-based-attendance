@@ -33,20 +33,37 @@ function resolveRedirect(urlToResolve, limit = 5) {
   });
 }
 
+function isValidCoord(lat, lng) {
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 function parseMapsLink(link) {
   if (!link) return null;
-  const trimmed = link.trim();
+  let trimmed = link.trim();
+  try {
+    trimmed = decodeURIComponent(trimmed);
+  } catch {
+    // keep original if malformed percent-encoding
+  }
   const patterns = [
+    /!3d([-\d.]+)!4d([-\d.]+)/,
     /@([-\d.]+),([-\d.]+)/,
     /[?&]q=([-\d.]+),([-\d.]+)/,
-    /!3d([-\d.]+)!4d([-\d.]+)/,
-    /\/place\/.*\/([-\d.]+),([-\d.]+)(?:\/|$)/,
+    /[?&]query=([-\d.]+),([-\d.]+)/,
+    /[?&]ll=([-\d.]+),([-\d.]+)/,
+    /[?&]center=([-\d.]+),([-\d.]+)/,
+    /\/place\/.*\/([-\d.]+),([-\d.]+)(?:\/|$|\?|&)/,
+    /\/search\/([-\d.]+),([-\d.]+)/,
+    /\/dir\/\/([-\d.]+),([-\d.]+)/,
     /\/search\/.*@([-\d.]+),([-\d.]+)/,
+    /^geo:([-\d.]+),([-\d.]+)/,
   ];
   for (const pattern of patterns) {
     const match = trimmed.match(pattern);
     if (match) {
-      return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+      if (isValidCoord(lat, lng)) return { lat, lng };
     }
   }
   return null;

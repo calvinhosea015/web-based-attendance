@@ -24,7 +24,9 @@ class AuthService {
 
   async login(username, password, meta) {
     const user = await this.userRepository.findByUsername(username);
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    const passwordOk =
+      user?.password_hash && bcrypt.compareSync(password, user.password_hash);
+    if (!user || !passwordOk) {
       await this.auditLogRepository
         .logSecurity({
           actorUserId: user?.id || null,
