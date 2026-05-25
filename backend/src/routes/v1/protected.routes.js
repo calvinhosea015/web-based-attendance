@@ -50,6 +50,14 @@ function buildProtectedRoutes(deps) {
     validateRequest,
     officeController.create
   );
+  r.put(
+    '/offices/:id',
+    requireRole('admin'),
+    idParamValidator,
+    officeCreateValidators,
+    validateRequest,
+    officeController.update
+  );
   r.delete('/offices/:id', requireRole('admin'), idParamValidator, validateRequest, officeController.remove);
 
   r.post(

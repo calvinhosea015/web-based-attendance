@@ -9,6 +9,10 @@ function makeOfficeController(officeService) {
       const row = await officeService.createFromMapsLink(req.body);
       res.status(201).json(row);
     }),
+    update: asyncHandler(async (req, res) => {
+      const row = await officeService.update(req.params.id, req.body);
+      res.json(row);
+    }),
     remove: asyncHandler(async (req, res) => {
       await officeService.delete(req.params.id);
       res.json({ message: 'Office deleted' });
