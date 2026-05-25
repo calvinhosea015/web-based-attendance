@@ -134,9 +134,15 @@ export function PasswordInput({ className = '', inputClassName = inputClass, ...
   );
 }
 
-export function Modal({ title, subtitle, onClose, children, footer }) {
+const modalSizes = {
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-5xl',
+};
+
+export function Modal({ title, subtitle, onClose, children, footer, size = 'md', fitScreen = false }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
@@ -144,22 +150,45 @@ export function Modal({ title, subtitle, onClose, children, footer }) {
         onClick={onClose}
       />
       <div
-        className="relative flex max-h-[min(90vh,800px)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+        className={`relative flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl ${modalSizes[size] || modalSizes.md} ${
+          fitScreen ? 'max-h-[calc(100vh-1.5rem)]' : 'max-h-[min(90vh,800px)]'
+        }`}
         role="dialog"
         aria-modal="true"
       >
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+        <div className="shrink-0 border-b border-slate-100 px-4 py-3 sm:px-5">
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          {subtitle && <p className="mt-0.5 truncate text-sm text-slate-500">{subtitle}</p>}
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        <div
+          className={`shrink-0 px-4 py-3 sm:px-5 ${fitScreen ? 'overflow-hidden' : 'flex-1 overflow-y-auto'}`}
+        >
+          {children}
+        </div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/80 px-6 py-4">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
             {footer}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+export const inputClassCompact =
+  'w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20';
+
+export function CompactField({ label, hint, children, className = '' }) {
+  return (
+    <label className={`block min-w-0 ${className}`}>
+      {label && (
+        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </span>
+      )}
+      {children}
+      {hint && <span className="mt-0.5 block truncate text-[10px] text-slate-400">{hint}</span>}
+    </label>
   );
 }
 

@@ -94,7 +94,6 @@ export default {
     'Membuat atau memperbarui baris gaji untuk semua karyawan aktif. Periode: tgl 25 (bulan sebelumnya) s.d. tgl 24 (bulan dipilih). Hari hadir dihitung dari absen masuk dalam rentang itu.',
   payrollGenerated: 'Gaji diperbarui untuk {{count}} karyawan.',
   payrollGlobalSettings: 'Nominal tunjangan default',
-  payrollGlobalSettingsHint: 'Digunakan jika karyawan belum punya nominal transport/kerajinan khusus.',
   payrollTransportNominal: 'Default tunjangan transport (Rp)',
   payrollDiligenceNominal: 'Default uang kerajinan (Rp)',
   payrollSaveSettings: 'Simpan default',

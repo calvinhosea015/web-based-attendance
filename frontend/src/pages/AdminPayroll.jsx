@@ -10,33 +10,27 @@ import {
   Field,
   Modal,
   StatTile,
+  CompactField,
   inputClass,
+  inputClassCompact,
 } from '../components/ui.jsx';
 import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
-
-function currentPeriod() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
+import {
+  currentPayrollPeriodKey,
+  payrollCycleLabel,
+  periodLabelCalendar,
+} from '../utils/payrollPeriod.js';
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
 }
 
-function periodDisplay(period) {
-  const [y, m] = period.split('-').map(Number);
-  const months = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-  ];
-  return m >= 1 && m <= 12 ? `${months[m - 1]} ${y}` : period;
-}
-
 export default function AdminPayroll() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [period, setPeriod] = useState(currentPeriod());
+  const [period, setPeriod] = useState(currentPayrollPeriodKey());
+  const [periodCycleLabel, setPeriodCycleLabel] = useState(() => payrollCycleLabel(currentPayrollPeriodKey()));
   const [settings, setSettings] = useState({ transport_amount: 250000, diligence_amount: 100000 });
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState('');
@@ -100,12 +94,18 @@ export default function AdminPayroll() {
       const { data } = await api.get(paths.adminPayrollPeriod(period));
       setSettings(data.settings || settings);
       setRows(data.rows || []);
+      if (data.period_cycle_label) setPeriodCycleLabel(data.period_cycle_label);
+      else setPeriodCycleLabel(payrollCycleLabel(period));
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
       setRows([]);
     } finally {
       setLoading(false);
     }
+  }, [period]);
+
+  useEffect(() => {
+    setPeriodCycleLabel(payrollCycleLabel(period));
   }, [period]);
 
   useEffect(() => {
@@ -155,24 +155,14 @@ export default function AdminPayroll() {
 
   const openEdit = (row) => {
     setEditingId(row.employee_id);
-    const transportAmount =
-      row.transport_eligible && row.transport_allowance != null
-        ? Number(row.transport_allowance)
-        : Number(row.employee_transport_allowance_amount ?? settings.transport_amount ?? 250000);
-    const diligenceAmount =
-      row.diligence_eligible && row.diligence_bonus != null
-        ? Number(row.diligence_bonus)
-        : Number(row.employee_diligence_allowance_amount ?? settings.diligence_amount ?? 100000);
     setEditForm({
       days_attended: row.days_attended ?? 0,
       upah_harian: row.upah_harian ?? row.employee_upah_harian ?? 0,
       tunjangan_masa_kerja: row.tunjangan_masa_kerja ?? 0,
       transport_eligible: Boolean(row.transport_eligible),
-      transport_allowance_amount: transportAmount,
       overtime_pay: row.overtime_pay ?? 0,
       insentif: row.insentif ?? 0,
       diligence_eligible: Boolean(row.diligence_eligible),
-      diligence_allowance_amount: diligenceAmount,
       bonus_omset: row.bonus_omset ?? 0,
       loan_deduction: Math.max(
         Number(row.loan_deduction || 0),
@@ -198,9 +188,6 @@ export default function AdminPayroll() {
       notify(translateApiMessage(err) || String(err), 'error');
     }
   };
-
-  const transportNominal = Number(settings.transport_amount || 0);
-  const diligenceNominal = Number(settings.diligence_amount || 0);
 
   const totals = useMemo(() => {
     const count = rows.length;
@@ -233,7 +220,11 @@ export default function AdminPayroll() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <StatTile label={t('payrollMonth')} value={periodDisplay(period)} sub={period} />
+          <StatTile
+            label={t('payrollMonth')}
+            value={periodLabelCalendar(period)}
+            sub={periodCycleLabel || payrollCycleLabel(period)}
+          />
           <StatTile
             label={t('totalEmployees')}
             value={totals.count}
@@ -246,8 +237,8 @@ export default function AdminPayroll() {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-1">
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card title={t('payrollPeriod')} description={t('payrollGenerateHint')}>
               <div className="space-y-4">
                 <Field label={t('payrollMonth')}>
@@ -269,7 +260,7 @@ export default function AdminPayroll() {
               </div>
             </Card>
 
-            <Card title={t('payrollGlobalSettings')} description={t('payrollGlobalSettingsHint')}>
+            <Card title={t('payrollGlobalSettings')}>
               <form className="space-y-4" onSubmit={handleSaveSettings}>
                 <Field label={t('payrollTransportNominal')}>
                   <input
@@ -300,15 +291,11 @@ export default function AdminPayroll() {
             </Card>
           </div>
 
-          <Card
-            className="lg:col-span-2"
-            title={t('payrollEmployeeTable')}
-            description={`${t('payrollTransportFixedHint', { amount: formatIdr(transportNominal) })} · ${t('payrollDiligenceFixedHint', { amount: formatIdr(diligenceNominal) })}`}
-          >
-            <div className="-mx-5 -mb-4 overflow-x-auto sm:-mx-6">
+          <Card className="flex flex-col" title={t('payrollEmployeeTable')}>
+            <div className="-mx-5 -mb-4 max-h-[min(65vh,calc(100vh-16rem))] overflow-auto sm:-mx-6">
               <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 shadow-[0_1px_0_0_rgb(226,232,240)]">
                     <th className="px-4 py-3">{t('employee')}</th>
                     <th className="px-4 py-3 text-right">{t('payrollDaysAttended')}</th>
                     <th className="px-4 py-3 text-right">{t('payrollUpahHarian')}</th>
@@ -398,6 +385,8 @@ export default function AdminPayroll() {
 
       {editingId && editForm && (
         <Modal
+          size="xl"
+          fitScreen
           title={t('payrollEditRow')}
           subtitle={editingRow?.full_name}
           onClose={() => {
@@ -408,6 +397,7 @@ export default function AdminPayroll() {
             <>
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => {
                   setEditingId(null);
                   setEditForm(null);
@@ -415,138 +405,130 @@ export default function AdminPayroll() {
               >
                 {t('cancel')}
               </Button>
-              <Button type="submit" form="payroll-edit-form" variant="primary">
+              <Button type="submit" form="payroll-edit-form" variant="primary" size="sm">
                 {t('saveUser')}
               </Button>
             </>
           }
         >
-          <form id="payroll-edit-form" className="grid gap-4 sm:grid-cols-2" onSubmit={handleSaveRow}>
-            <Field
-              label={t('payrollKeterangan')}
-              hint={t('payrollKeteranganHint')}
-              className="sm:col-span-2"
-            >
-              <textarea
-                className={`${inputClass} min-h-[4.5rem] resize-y`}
+          <form
+            id="payroll-edit-form"
+            className="grid grid-cols-2 gap-x-3 gap-y-2 md:grid-cols-4"
+            onSubmit={handleSaveRow}
+          >
+            <CompactField label={t('payrollKeterangan')} className="col-span-2 md:col-span-4">
+              <input
+                type="text"
+                className={inputClassCompact}
                 maxLength={500}
-                rows={3}
+                placeholder={t('payrollKeteranganHint')}
                 value={editForm.keterangan}
                 onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
               />
-            </Field>
-            <Field label={t('payrollDaysAttended')} className="sm:col-span-2">
+            </CompactField>
+            <CompactField label={t('payrollDaysAttended')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.days_attended}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, days_attended: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <Field label={t('payrollUpahHarian')}>
+            </CompactField>
+            <CompactField label={t('payrollUpahHarian')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.upah_harian}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, upah_harian: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <div className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-brand-600">
+            </CompactField>
+            <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
                 {t('payrollBasicSalary')}
               </p>
-              <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+              <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
                 Rp{' '}
                 {formatIdr(
                   Math.max(0, Math.floor(editForm.days_attended || 0)) *
                     Number(editForm.upah_harian || 0)
                 )}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">{t('payrollGajiPokokFormula')}</p>
             </div>
-            <Field label={t('payrollTunjanganMasaKerja')}>
+            <CompactField label={t('payrollTunjanganMasaKerja')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.tunjangan_masa_kerja}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, tunjangan_masa_kerja: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <Field label={t('payrollLembur')} hint={t('payrollLemburPlaceholder')}>
+            </CompactField>
+            <CompactField label={t('payrollLembur')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.overtime_pay}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, overtime_pay: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <Field label={t('payrollInsentif')}>
+            </CompactField>
+            <CompactField label={t('payrollInsentif')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.insentif}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, insentif: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <Field label={t('payrollBonusOmset')} hint={t('payrollBonusOmsetPlaceholder')}>
+            </CompactField>
+            <CompactField label={t('payrollBonusOmset')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.bonus_omset}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, bonus_omset: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <Field label={t('payrollLoanDeduction')} hint={t('payrollLoanDeductionHint')}>
+            </CompactField>
+            <CompactField label={t('payrollLoanDeduction')} hint={t('payrollLoanDeductionHint')}>
               <input
                 type="number"
                 min="0"
-                className={`${inputClass} bg-slate-50`}
+                className={`${inputClassCompact} bg-slate-50`}
                 value={editForm.loan_deduction}
                 readOnly
               />
-              {editingRow?.has_active_loan && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {t('payrollActiveLoanHint', {
-                    monthly: formatIdr(editingRow.loan_monthly_deduction),
-                    remaining: formatIdr(editingRow.loan_remaining_balance),
-                  })}
-                </p>
-              )}
-            </Field>
-            <Field label={t('payrollOtherDeductions')}>
+            </CompactField>
+            <CompactField label={t('payrollOtherDeductions')}>
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inputClassCompact}
                 value={editForm.other_deductions}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, other_deductions: Number(e.target.value) }))
                 }
               />
-            </Field>
-            <div className="flex flex-wrap gap-4 sm:col-span-2">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            </CompactField>
+            <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                   checked={editForm.transport_eligible}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, transport_eligible: e.target.checked }))
@@ -554,10 +536,10 @@ export default function AdminPayroll() {
                 />
                 {t('payrollTransportEligible')}
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                   checked={editForm.diligence_eligible}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, diligence_eligible: e.target.checked }))
@@ -566,34 +548,14 @@ export default function AdminPayroll() {
                 {t('payrollDiligenceEligible')}
               </label>
             </div>
-            <Field label={t('payrollTransportAmount')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClass}
-                value={editForm.transport_allowance_amount}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    transport_allowance_amount: Number(e.target.value),
-                  }))
-                }
-              />
-            </Field>
-            <Field label={t('payrollDiligenceAmount')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClass}
-                value={editForm.diligence_allowance_amount}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    diligence_allowance_amount: Number(e.target.value),
-                  }))
-                }
-              />
-            </Field>
+            {editingRow?.has_active_loan && (
+              <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
+                {t('payrollActiveLoanHint', {
+                  monthly: formatIdr(editingRow.loan_monthly_deduction),
+                  remaining: formatIdr(editingRow.loan_remaining_balance),
+                })}
+              </p>
+            )}
           </form>
         </Modal>
       )}

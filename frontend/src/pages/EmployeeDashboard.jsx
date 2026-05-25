@@ -8,6 +8,7 @@ import i18n from '../i18n.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
 import { isAttendanceRole } from '../roles.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
+import { payrollCycleLabel } from '../utils/payrollPeriod.js';
 
 /** Must match backend FIELD_OFFICER_CHECKOUT_MIN_LENGTH */
 const FIELD_CHECKOUT_MIN_LEN = 42;
@@ -33,15 +34,6 @@ function formatTimePart(t) {
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
-}
-
-function payrollPeriodLabel(period) {
-  const [y, m] = String(period || '').split('-').map(Number);
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  return m >= 1 && m <= 12 ? `${months[m - 1]} ${y}` : period;
 }
 
 export default function EmployeeDashboard() {
@@ -602,7 +594,7 @@ export default function EmployeeDashboard() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-semibold text-slate-900">
-                      {payrollPeriodLabel(row.payroll_period)}
+                      {payrollCycleLabel(row.payroll_period)}
                     </span>
                     <span className="font-semibold text-brand-700">
                       Rp {formatIdr(row.final_salary)}

@@ -6,7 +6,11 @@ const {
   writeSlipBuffer,
   periodLabel,
 } = require('../utils/payrollSlipExport');
-const { payrollCycleBounds } = require('../utils/payrollPeriod');
+const {
+  payrollCycleBounds,
+  payrollCycleLabel,
+  periodLabelCalendar,
+} = require('../utils/payrollPeriod');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -210,13 +214,24 @@ class PayrollService {
     });
   }
 
+  periodMeta(period) {
+    const bounds = parsePeriod(period);
+    return {
+      period: bounds.payroll_period,
+      period_start: bounds.period_start,
+      period_end: bounds.period_end,
+      period_label: periodLabelCalendar(bounds.payroll_period),
+      period_cycle_label: payrollCycleLabel(bounds.payroll_period),
+    };
+  }
+
   async getPeriod(period) {
-    const { payroll_period } = parsePeriod(period);
+    const meta = this.periodMeta(period);
     const settings = await this.payrollRepository.getSettings();
     const rows = await this.enrichPayrollRows(
-      await this.payrollRepository.listByPeriod(payroll_period)
+      await this.payrollRepository.listByPeriod(meta.period)
     );
-    return { period: payroll_period, settings, rows };
+    return { ...meta, settings, rows };
   }
 
   async generatePeriod(period) {
@@ -274,7 +289,7 @@ class PayrollService {
     }
     const enrichedRows = await this.enrichPayrollRows(rows);
     return {
-      period: bounds.payroll_period,
+      ...this.periodMeta(bounds.payroll_period),
       settings,
       rows: enrichedRows,
       generated: enrichedRows.length,

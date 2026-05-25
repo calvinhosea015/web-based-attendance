@@ -94,7 +94,6 @@ export default {
     'Creates or updates payroll rows for all active employees. Each period is 25th (previous month) to 24th (selected month). Days attended are counted from check-ins in that range.',
   payrollGenerated: 'Payroll updated for {{count}} employee(s).',
   payrollGlobalSettings: 'Default allowance amounts',
-  payrollGlobalSettingsHint: 'Used when an employee has no custom transport or diligence amount set.',
   payrollTransportNominal: 'Default transport allowance (IDR)',
   payrollDiligenceNominal: 'Default diligence bonus (IDR)',
   payrollSaveSettings: 'Save defaults',

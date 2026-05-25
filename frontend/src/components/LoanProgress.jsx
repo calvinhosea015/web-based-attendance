@@ -1,18 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from './ui.jsx';
+import { payrollCycleLabel } from '../utils/payrollPeriod.js';
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
-}
-
-function periodLabel(period) {
-  const [y, m] = String(period || '').split('-').map(Number);
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  return m >= 1 && m <= 12 ? `${months[m - 1]} ${y}` : period;
 }
 
 export default function LoanProgress({ loan }) {
@@ -96,7 +88,7 @@ export default function LoanProgress({ loan }) {
                 key={d.payroll_period}
                 className="flex justify-between rounded-md bg-white px-2 py-1 ring-1 ring-slate-100"
               >
-                <span>{periodLabel(d.payroll_period)}</span>
+                <span>{payrollCycleLabel(d.payroll_period)}</span>
                 <span className="font-medium tabular-nums text-slate-800">
                   − Rp {formatIdr(d.amount)}
                 </span>
