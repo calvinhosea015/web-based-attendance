@@ -296,7 +296,7 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 
 Use the **Payroll** item in the admin header (or **Open payroll** on the dashboard).
 
-1. **Choose the month** (`YYYY-MM`) and click **Generate / refresh from attendance** to create or update a payroll row for every active employee. **Days attended** are counted from check-ins in that calendar month.
+1. **Choose the month** (`YYYY-MM`, pay month) and click **Generate / refresh from attendance** to create or update a payroll row for every active employee. Each period runs **25th of the previous month through 24th** of the pay month (e.g. May 2026 → 25 Apr–24 May). **Days attended** are counted from check-ins in that range. Salary slips show the same period on the **Periode** line.
 2. **Default allowances**: set global transport and diligence amounts (used when an employee has no custom amounts).
 3. **Per employee**: open a row to adjust daily wage, tenure allowance, overtime, incentives, transport/diligence eligibility, and other deductions. **Loan deductions** are applied automatically from approved active loans when payroll is generated.
 4. **Export**: download an individual **slip** (Excel) or **all slips** for the period.

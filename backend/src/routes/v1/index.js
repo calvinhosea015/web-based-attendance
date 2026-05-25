@@ -68,12 +68,19 @@ function buildV1Router() {
     employeeRepository,
     payrollRepository
   );
+  const loanRequestRepository = new LoanRequestRepository();
+  const payrollService = new PayrollService(
+    payrollRepository,
+    employeeRepository,
+    loanRequestRepository
+  );
   const employeePortalService = new EmployeePortalService(
     userRepository,
     attendanceRepository,
     employeeRepository,
     payrollRepository,
-    fieldCodeEntryRepository
+    fieldCodeEntryRepository,
+    payrollService
   );
   const enterpriseAdminService = new EnterpriseAdminService(
     notificationRepository,
@@ -83,12 +90,6 @@ function buildV1Router() {
     attendanceCorrectionRepository
   );
   const analyticsService = new AnalyticsService(analyticsRepository);
-  const loanRequestRepository = new LoanRequestRepository();
-  const payrollService = new PayrollService(
-    payrollRepository,
-    employeeRepository,
-    loanRequestRepository
-  );
   const loanService = new LoanService(loanRequestRepository);
 
   const authController = makeAuthController(authService);

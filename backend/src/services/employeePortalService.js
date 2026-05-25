@@ -10,13 +10,15 @@ class EmployeePortalService {
     attendanceRepository,
     employeeRepository,
     payrollRepository,
-    fieldCodeEntryRepository = null
+    fieldCodeEntryRepository = null,
+    payrollService = null
   ) {
     this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
     this.employeeRepository = employeeRepository;
     this.payrollRepository = payrollRepository;
     this.fieldCodeEntryRepository = fieldCodeEntryRepository;
+    this.payrollService = payrollService;
   }
 
   async meSummary(auth) {
@@ -147,6 +149,9 @@ class EmployeePortalService {
 
   async mePayroll(auth) {
     if (!auth.employeeId) return [];
+    if (this.payrollService) {
+      return this.payrollService.listPayrollForEmployee(auth.employeeId);
+    }
     return this.payrollRepository.listForEmployee(auth.employeeId);
   }
 }

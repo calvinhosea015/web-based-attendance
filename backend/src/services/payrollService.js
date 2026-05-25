@@ -5,17 +5,16 @@ const {
   writeSlipBuffer,
   periodLabel,
 } = require('../utils/payrollSlipExport');
+const { payrollCycleBounds } = require('../utils/payrollPeriod');
 
 function parsePeriod(period) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(period || '').trim());
-  if (!m) throw new AppError('Invalid payroll period. Use YYYY-MM.', 400, 'PAYROLL_PERIOD');
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  if (month < 1 || month > 12) throw new AppError('Invalid payroll period month.', 400, 'PAYROLL_PERIOD');
-  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const lastDay = new Date(year, month, 0).getDate();
-  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  return { payroll_period: `${year}-${String(month).padStart(2, '0')}`, period_start: periodStart, period_end: periodEnd };
+  const bounds = payrollCycleBounds(period);
+  if (!bounds) throw new AppError('Invalid payroll period. Use YYYY-MM.', 400, 'PAYROLL_PERIOD');
+  return {
+    payroll_period: bounds.payroll_period,
+    period_start: bounds.period_start,
+    period_end: bounds.period_end,
+  };
 }
 
 function num(v) {
@@ -76,29 +75,91 @@ class PayrollService {
     this.loanRequestRepository = loanRequestRepository;
   }
 
-  async resolveLoanDeduction(employeeId, payrollPeriod) {
+  async previewLoanDeduction(employeeId, payrollPeriod) {
     const activeLoan = await this.loanRequestRepository.findActiveForEmployee(employeeId);
-    if (!activeLoan) return 0;
+    if (!activeLoan) {
+      return { amount: 0, loan: null, alreadyRecorded: false };
+    }
 
     const recorded = await this.loanRequestRepository.findDeductionForPeriod(
       activeLoan.id,
       payrollPeriod
     );
-    if (recorded) return num(recorded.amount);
+    if (recorded) {
+      return {
+        amount: num(recorded.amount),
+        loan: activeLoan,
+        alreadyRecorded: true,
+      };
+    }
 
     const remaining = num(activeLoan.remaining_balance ?? activeLoan.loan_amount);
-    if (remaining <= 0) return 0;
+    if (remaining <= 0) {
+      return { amount: 0, loan: activeLoan, alreadyRecorded: false };
+    }
 
     const monthly = num(activeLoan.monthly_deduction);
     const amount = Math.min(monthly, remaining);
-    if (amount > 0) {
-      await this.loanRequestRepository.recordPayrollDeduction({
-        loanRequestId: activeLoan.id,
-        payrollPeriod,
-        amount,
-      });
+    return { amount, loan: activeLoan, alreadyRecorded: false };
+  }
+
+  async resolveLoanDeduction(employeeId, payrollPeriod) {
+    const preview = await this.previewLoanDeduction(employeeId, payrollPeriod);
+    if (!preview.loan || preview.amount <= 0 || preview.alreadyRecorded) {
+      return preview.amount;
     }
-    return amount;
+    await this.loanRequestRepository.recordPayrollDeduction({
+      loanRequestId: preview.loan.id,
+      payrollPeriod,
+      amount: preview.amount,
+    });
+    return preview.amount;
+  }
+
+  loanContextFromPreview(preview) {
+    if (!preview.loan) {
+      return {
+        has_active_loan: false,
+        loan_monthly_deduction: null,
+        loan_remaining_balance: null,
+        loan_amount: null,
+      };
+    }
+    return {
+      has_active_loan: true,
+      loan_monthly_deduction: num(preview.loan.monthly_deduction),
+      loan_remaining_balance: num(preview.loan.remaining_balance ?? preview.loan.loan_amount),
+      loan_amount: num(preview.loan.loan_amount),
+    };
+  }
+
+  async enrichPayrollRow(row) {
+    const preview = await this.previewLoanDeduction(row.employee_id, row.payroll_period);
+    return {
+      ...row,
+      ...this.loanContextFromPreview(preview),
+      loan_deduction_preview: preview.amount,
+    };
+  }
+
+  async enrichPayrollRows(rows) {
+    return Promise.all(rows.map((row) => this.enrichPayrollRow(row)));
+  }
+
+  async enrichSlipRow(row, period) {
+    const enriched = await this.enrichPayrollRow({ ...row, payroll_period: period });
+    return {
+      ...row,
+      loan_remaining_balance: enriched.loan_remaining_balance,
+      loan_monthly_deduction: enriched.loan_monthly_deduction,
+      loan_amount: enriched.loan_amount,
+      has_active_loan: enriched.has_active_loan,
+    };
+  }
+
+  async listPayrollForEmployee(employeeId) {
+    const rows = await this.payrollRepository.listForEmployee(employeeId);
+    return this.enrichPayrollRows(rows);
   }
 
   buildFieldsFromSources({ prev, emp, employee, settings, days, upahHarian, payrollPeriod }) {
@@ -146,7 +207,9 @@ class PayrollService {
   async getPeriod(period) {
     const { payroll_period } = parsePeriod(period);
     const settings = await this.payrollRepository.getSettings();
-    const rows = await this.payrollRepository.listByPeriod(payroll_period);
+    const rows = await this.enrichPayrollRows(
+      await this.payrollRepository.listByPeriod(payroll_period)
+    );
     return { period: payroll_period, settings, rows };
   }
 
@@ -202,7 +265,13 @@ class PayrollService {
       });
       rows.push(saved);
     }
-    return { period: bounds.payroll_period, settings, rows, generated: rows.length };
+    const enrichedRows = await this.enrichPayrollRows(rows);
+    return {
+      period: bounds.payroll_period,
+      settings,
+      rows: enrichedRows,
+      generated: enrichedRows.length,
+    };
   }
 
   async updateEntry(period, employeeId, payload) {
@@ -341,7 +410,7 @@ class PayrollService {
       await this.employeeRepository.updatePayrollDefaults(empId, defaultsPayload);
     }
 
-    return saved;
+    return this.enrichPayrollRow(saved);
   }
 
   async updateEmployeeDefaults(employeeId, payload) {
@@ -370,7 +439,8 @@ class PayrollService {
 
   async exportEmployeeSlip(period, employeeId) {
     const { period: payroll_period, row } = await this.getSlipRow(period, employeeId);
-    const wb = buildEmployeeSlipWorkbook(row, payroll_period);
+    const slipRow = await this.enrichSlipRow(row, payroll_period);
+    const wb = buildEmployeeSlipWorkbook(slipRow, payroll_period);
     const buffer = await writeSlipBuffer(wb);
     const safeCode = String(row.employee_code || employeeId).replace(/[^a-zA-Z0-9_-]/g, '_');
     const safePeriod = payroll_period.replace('-', '');
@@ -388,7 +458,10 @@ class PayrollService {
         'PAYROLL_NOT_FOUND'
       );
     }
-    const wb = slipWorkbookFromRows(rows, payroll_period);
+    const slipRows = await Promise.all(
+      rows.map((row) => this.enrichSlipRow(row, payroll_period))
+    );
+    const wb = slipWorkbookFromRows(slipRows, payroll_period);
     const buffer = await writeSlipBuffer(wb);
     const label = periodLabel(payroll_period).replace(/\s+/g, '_');
     const filename = `slip_gaji_semua_${payroll_period.replace('-', '')}.xlsx`;

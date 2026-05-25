@@ -169,7 +169,10 @@ export default function AdminPayroll() {
       diligence_eligible: Boolean(row.diligence_eligible),
       diligence_allowance_amount: diligenceAmount,
       bonus_omset: row.bonus_omset ?? 0,
-      loan_deduction: row.loan_deduction ?? 0,
+      loan_deduction: Math.max(
+        Number(row.loan_deduction || 0),
+        Number(row.loan_deduction_preview || 0)
+      ),
       other_deductions: row.other_deductions ?? row.deductions ?? 0,
     });
   };
@@ -322,6 +325,14 @@ export default function AdminPayroll() {
                       <td className="px-4 py-3">
                         <div className="font-medium text-slate-900">{row.full_name}</div>
                         <div className="text-xs text-slate-500">{row.employee_code}</div>
+                        {row.has_active_loan && (
+                          <div className="mt-1 text-xs text-amber-700">
+                            {t('payrollActiveLoanHint', {
+                              monthly: formatIdr(row.loan_monthly_deduction),
+                              remaining: formatIdr(row.loan_remaining_balance),
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{row.days_attended ?? 0}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-600">
@@ -336,7 +347,16 @@ export default function AdminPayroll() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-rose-600">
-                        {formatIdr(row.loan_deduction)}
+                        <div>{formatIdr(row.loan_deduction)}</div>
+                        {row.has_active_loan &&
+                          Number(row.loan_deduction || 0) === 0 &&
+                          Number(row.loan_deduction_preview || 0) > 0 && (
+                            <div className="text-xs font-normal text-amber-600">
+                              {t('payrollLoanPreview', {
+                                amount: formatIdr(row.loan_deduction_preview),
+                              })}
+                            </div>
+                          )}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums font-semibold text-brand-600">
                         {formatIdr(row.final_salary)}
@@ -477,6 +497,14 @@ export default function AdminPayroll() {
                 value={editForm.loan_deduction}
                 readOnly
               />
+              {editingRow?.has_active_loan && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('payrollActiveLoanHint', {
+                    monthly: formatIdr(editingRow.loan_monthly_deduction),
+                    remaining: formatIdr(editingRow.loan_remaining_balance),
+                  })}
+                </p>
+              )}
             </Field>
             <Field label={t('payrollOtherDeductions')}>
               <input

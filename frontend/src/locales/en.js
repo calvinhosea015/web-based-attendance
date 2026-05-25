@@ -91,7 +91,7 @@ export default {
   payrollRefresh: 'Reload',
   payrollGenerate: 'Generate / refresh from attendance',
   payrollGenerateHint:
-    'Creates or updates payroll rows for all active employees. Days attended are counted from check-ins in this month.',
+    'Creates or updates payroll rows for all active employees. Each period is 25th (previous month) to 24th (selected month). Days attended are counted from check-ins in that range.',
   payrollGenerated: 'Payroll updated for {{count}} employee(s).',
   payrollGlobalSettings: 'Default allowance amounts',
   payrollGlobalSettingsHint: 'Used when an employee has no custom transport or diligence amount set.',
@@ -106,6 +106,8 @@ export default {
   payrollDiligenceAmount: 'Diligence amount (IDR)',
   payrollLoanDeduction: 'Loan deduction',
   payrollLoanDeductionHint: 'Auto-applied from approved active loan for this month.',
+  payrollActiveLoanHint: 'Active loan — {{monthly}}/mo · remaining Rp {{remaining}}',
+  payrollLoanPreview: 'Will deduct Rp {{amount}} on save/generate',
   payrollOtherDeductions: 'Other deductions',
   payrollDaysAttended: 'Days attended',
   payrollUpahHarian: 'Daily wage',

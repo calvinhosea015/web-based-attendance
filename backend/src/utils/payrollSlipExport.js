@@ -1,19 +1,10 @@
 const ExcelJS = require('exceljs');
-
-const ID_MONTHS = [
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-];
+const {
+  payrollCycleLabel,
+  periodLabelCalendar,
+  countWorkingDaysMonSatInCycle,
+  cycleEndDate,
+} = require('./payrollPeriod');
 
 const EARNINGS = [
   { key: 'gaji_harian', label: 'Gaji Harian' },
@@ -30,7 +21,7 @@ const DEDUCTIONS = [
   { key: 'bpjs_tk', label: 'BPJS Ketenagakerjaan' },
   { key: 'bpjs_kes', label: 'BPJS Kesehatan' },
   { key: 'pph21', label: 'PPh 21' },
-  { key: 'kasbon', label: 'Kasbon' },
+  { key: 'kasbon', label: 'Potongan Pinjaman' },
   { key: 'potongan_lain', label: 'Potongan lain' },
 ];
 
@@ -40,17 +31,21 @@ const ROW = {
   TITLE: 1,
   HEADER1: 2,
   HEADER2: 3,
-  PERINCIAN: 4,
-  TABLE_HEAD: 5,
-  TABLE_FIRST: 6,
-  TABLE_LAST: 13,
-  JUMLAH_HARI: 14,
-  JUMLAH_HADIR: 15,
-  GAJI_TERIMA: 16,
-  SIGN_TITLE: 20,
-  SIGN_LINE: 25,
+  PERIODE: 4,
+  PERINCIAN: 5,
+  TABLE_HEAD: 6,
+  TABLE_FIRST: 7,
+  TABLE_LAST: 14,
+  SPACER_BEFORE_JUMLAH: 15,
+  JUMLAH_HARI: 16,
+  JUMLAH_HADIR: 17,
+  SPACER_BEFORE_GAJI: 18,
+  GAJI_TERIMA: 19,
+  LOAN_NOTE: 20,
+  SIGN_TITLE: 23,
+  SIGN_LINE: 28,
 };
-const SHEET_LAST_ROW = 25;
+const SHEET_LAST_ROW = 28;
 const SHEET_LAST_COL = 6;
 
 const FONT_BODY = { name: 'Calibri', size: 11 };
@@ -80,23 +75,11 @@ function amountCell(n) {
 }
 
 function periodLabel(period) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
-  if (!m) return period;
-  const month = Number(m[2]);
-  const year = Number(m[1]);
-  if (month >= 1 && month <= 12) return `${ID_MONTHS[month - 1]} ${year}`;
-  return period;
+  return periodLabelCalendar(period);
 }
 
 function periodLabelUpper(period) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
-  if (!m) return String(period || '').toUpperCase();
-  const month = Number(m[2]);
-  const year = Number(m[1]);
-  if (month >= 1 && month <= 12) {
-    return `${ID_MONTHS[month - 1].toUpperCase()} ${year}`;
-  }
-  return String(period).toUpperCase();
+  return payrollCycleLabel(period, { upper: true });
 }
 
 function parseDateOnly(value) {
@@ -113,27 +96,11 @@ function parseDateOnly(value) {
 }
 
 function endOfPayrollMonth(period) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
-  if (!m) return null;
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  if (month < 1 || month > 12) return null;
-  return new Date(year, month, 0);
+  return cycleEndDate(period);
 }
 
 function countWorkingDaysMonSat(period) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
-  if (!m) return 0;
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  if (month < 1 || month > 12) return 0;
-  const lastDay = new Date(year, month, 0).getDate();
-  let count = 0;
-  for (let day = 1; day <= lastDay; day += 1) {
-    const dow = new Date(year, month - 1, day).getDay();
-    if (dow !== 0) count += 1;
-  }
-  return count;
+  return countWorkingDaysMonSatInCycle(period);
 }
 
 function computeUsiaKerja(joinDate, asOfDate) {
@@ -281,6 +248,10 @@ function setHeaderRow(ws, row, leftLabel, leftValue, rightLabel, rightValue) {
   setCell(ws, row, R_VALUE, rightValue);
 }
 
+function addSpacerRow(ws, row) {
+  ws.getRow(row).height = 6;
+}
+
 function fillTableLine(ws, row, labelCol, colonCol, valueCol, label, amount) {
   setCell(ws, row, labelCol, label);
   setCell(ws, row, colonCol, 'Rp.', { alignment: { horizontal: 'center', vertical: 'middle' } });
@@ -333,10 +304,20 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
     ws,
     ROW.HEADER2,
     'Gaji Bulan',
-    periodLabelUpper(period),
+    periodLabel(period),
     'Usia Kerja',
     computeUsiaKerja(row.join_date, slipAsOfDate(row, period))
   );
+
+  setHeaderRow(
+    ws,
+    ROW.PERIODE,
+    'Periode',
+    payrollCycleLabel(period, { upper: true }),
+    '',
+    ''
+  );
+  ws.getRow(ROW.PERIODE).height = 18;
 
   setCell(ws, ROW.PERINCIAN, L_LABEL, 'Perincian');
   setColon(ws, ROW.PERINCIAN, L_COLON);
@@ -384,6 +365,8 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
 
   applyTableBorders(ws);
 
+  addSpacerRow(ws, ROW.SPACER_BEFORE_JUMLAH);
+
   setCell(ws, ROW.JUMLAH_HARI, L_LABEL, 'Jumlah Hari');
   setCell(ws, ROW.JUMLAH_HARI, L_COLON, countWorkingDaysMonSat(period), {
     alignment: { horizontal: 'left', vertical: 'middle' },
@@ -393,6 +376,8 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   setCell(ws, ROW.JUMLAH_HADIR, L_COLON, num(row.days_attended), {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
+
+  addSpacerRow(ws, ROW.SPACER_BEFORE_GAJI);
 
   setCell(ws, ROW.GAJI_TERIMA, L_LABEL, 'Gaji Terima', { font: FONT_NET });
   setCell(ws, ROW.GAJI_TERIMA, R_COLON, 'Rp.', {
@@ -404,6 +389,23 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
   ws.getRow(ROW.GAJI_TERIMA).height = 20;
+
+  const loanDeduction = num(row.loan_deduction);
+  if (loanDeduction > 0) {
+    const parts = [`Potongan pinjaman bulan ini: Rp ${formatIdr(loanDeduction)}`];
+    if (row.has_active_loan && row.loan_remaining_balance != null) {
+      parts.push(`Sisa pinjaman: Rp ${formatIdr(row.loan_remaining_balance)}`);
+    }
+    if (row.loan_monthly_deduction != null) {
+      parts.push(`Cicilan bulanan: Rp ${formatIdr(row.loan_monthly_deduction)}`);
+    }
+    ws.mergeCells(ROW.LOAN_NOTE, L_LABEL, ROW.LOAN_NOTE, R_VALUE);
+    const loanNote = ws.getCell(ROW.LOAN_NOTE, L_LABEL);
+    loanNote.value = parts.join(' · ');
+    loanNote.font = { ...FONT_BODY, size: 9, italic: true };
+    loanNote.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    ws.getRow(ROW.LOAN_NOTE).height = 28;
+  }
 
   ws.mergeCells(ROW.SIGN_TITLE, L_LABEL, ROW.SIGN_TITLE, L_VALUE);
   const penerima = ws.getCell(ROW.SIGN_TITLE, L_LABEL);

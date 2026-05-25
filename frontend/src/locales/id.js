@@ -91,7 +91,7 @@ export default {
   payrollRefresh: 'Muat ulang',
   payrollGenerate: 'Buat / perbarui dari kehadiran',
   payrollGenerateHint:
-    'Membuat atau memperbarui baris gaji untuk semua karyawan aktif. Hari kerja dihitung dari absen masuk di bulan ini.',
+    'Membuat atau memperbarui baris gaji untuk semua karyawan aktif. Periode: tgl 25 (bulan sebelumnya) s.d. tgl 24 (bulan dipilih). Hari hadir dihitung dari absen masuk dalam rentang itu.',
   payrollGenerated: 'Gaji diperbarui untuk {{count}} karyawan.',
   payrollGlobalSettings: 'Nominal tunjangan default',
   payrollGlobalSettingsHint: 'Digunakan jika karyawan belum punya nominal transport/kerajinan khusus.',
@@ -106,6 +106,8 @@ export default {
   payrollDiligenceAmount: 'Nominal uang kerajinan (Rp)',
   payrollLoanDeduction: 'Potongan pinjaman',
   payrollLoanDeductionHint: 'Otomatis dari pinjaman aktif yang disetujui untuk bulan ini.',
+  payrollActiveLoanHint: 'Pinjaman aktif — {{monthly}}/bln · sisa Rp {{remaining}}',
+  payrollLoanPreview: 'Akan dipotong Rp {{amount}} saat simpan/generate',
   payrollOtherDeductions: 'Potongan lainnya',
   payrollDaysAttended: 'Hari hadir',
   payrollUpahHarian: 'Upah harian',
