@@ -41,6 +41,11 @@ export default {
   longitude: 'Bujur',
   updatedAt: 'Diperbarui pada',
   locating: 'Mencari lokasi…',
+  locationRefresh: 'Perbarui lokasi',
+  locationReady: 'GPS siap (±{{accuracy}} m)',
+  locationDistance: 'Sekitar {{distance}} m dari kantor (diizinkan hingga ~{{allowed}} m dengan buffer GPS)',
+  locationDistanceUnknown: 'Pin peta kantor belum ada — minta admin memperbaiki lokasi kantor.',
+  locationHint: 'Izinkan lokasi untuk situs ini. Jika absen gagal, coba di luar ruangan atau aktifkan kerja jarak jauh.',
   noOfficesAvailable: 'Tidak ada kantor',
   dashboardLoadFailed: 'Sebagian data dasbor tidak dimuat. Muat ulang halaman.',
   geoPermissionDenied: 'Akses lokasi ditolak. Izinkan lokasi untuk situs ini agar bisa absen.',
@@ -52,7 +57,10 @@ export default {
   noHistory: 'Belum ada riwayat',
   notCheckedOut: 'Belum absen keluar',
   officeAdded: 'Kantor ditambahkan',
+  officeUpdated: 'Kantor diperbarui',
   officeDeleted: 'Kantor dihapus',
+  editOffice: 'Ubah',
+  saveOffice: 'Simpan kantor',
   locationLink: 'Tautan Google Maps',
   mapLink: 'Tautan peta',
   adminOnly: 'Hanya admin',
@@ -302,10 +310,12 @@ export default {
     FIELD_CODE_ACCEPTED: 'Kata kunci checkout diterima untuk hari ini.',
     FIELD_CODE_REQUIRED:
       'Masukkan frasa checkout (min. {{min}} karakter) sebelum absen keluar.',
-    OFFICE_NOT_FOUND: 'Kantor yang dipilih tidak ditemukan.',
+    OFFICE_NOT_FOUND: 'Kantor tidak ditemukan.',
     OFFICE_COORDS:
       'Kantor ini tidak punya koordinat peta. Minta admin membuat ulang kantor dari tautan Google Maps yang valid.',
     RADIUS:
+      'Anda sekitar {{distance}} m dari {{office}} (diizinkan ~{{allowed}} m). Tunggu sinyal GPS lebih baik, mendekat ke kantor, aktifkan kerja jarak jauh jika diizinkan, atau minta admin menyesuaikan pin atau radius kantor.',
+    RADIUS_GENERIC:
       'Anda di luar radius kantor yang ditetapkan. Tunggu sinyal GPS lebih baik atau minta admin menyesuaikan pin peta atau radius kantor.',
     NO_OPEN: 'Tidak ada absen masuk hari ini.',
     CHECKOUT_CONFLICT: 'Tidak bisa menyelesaikan absen keluar.',

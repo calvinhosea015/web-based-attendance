@@ -95,6 +95,8 @@ export const paths = {
   refresh: '/v1/auth/refresh',
   logout: '/v1/auth/logout',
   offices: '/v1/offices',
+  /** @param {string|number} id */
+  office: (id) => `/v1/offices/${id}`,
   checkIn: '/v1/attendance/check-in',
   checkOut: '/v1/attendance/check-out',
   attendanceMe: '/v1/attendance/me',

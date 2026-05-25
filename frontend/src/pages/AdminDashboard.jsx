@@ -61,6 +61,7 @@ export default function AdminDashboard() {
     birthday: '',
   });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
+  const [editingOffice, setEditingOffice] = useState(null);
   const [message, setMessage] = useState('');
   const [changingPasswordFor, setChangingPasswordFor] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -116,8 +117,35 @@ export default function AdminDashboard() {
 
   const handleDeleteOffice = async (id) => {
     try {
-      await api.delete(`${paths.offices}/${id}`);
+      await api.delete(paths.office(id));
+      if (editingOffice != null && Number(editingOffice.id) === Number(id)) {
+        setEditingOffice(null);
+      }
       setMessage(t('officeDeleted'));
+      refresh();
+    } catch (err) {
+      setMessage(translateApiMessage(err));
+    }
+  };
+
+  const openEditOffice = (office) => {
+    setEditingOffice({
+      id: office.id,
+      name: office.name || '',
+      locationLink: office.link || '',
+    });
+  };
+
+  const handleSaveOffice = async (e) => {
+    e.preventDefault();
+    if (!editingOffice) return;
+    try {
+      await api.patch(paths.office(editingOffice.id), {
+        name: editingOffice.name,
+        locationLink: editingOffice.locationLink,
+      });
+      setMessage(t('officeUpdated'));
+      setEditingOffice(null);
       refresh();
     } catch (err) {
       setMessage(translateApiMessage(err));
@@ -645,23 +673,79 @@ export default function AdminDashboard() {
             {offices.map((office) => (
               <li
                 key={office.id}
-                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2"
+                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2"
               >
-                <div>
-                  <div className="font-medium text-slate-900">{office.name}</div>
-                  {office.link && (
-                    <a className="text-xs text-brand-600 hover:underline" href={office.link} target="_blank" rel="noreferrer">
-                      {t('mapLink')}
-                    </a>
-                  )}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-medium text-slate-900">{office.name}</div>
+                    {office.link && (
+                      <a
+                        className="text-xs text-brand-600 hover:underline"
+                        href={office.link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t('mapLink')}
+                      </a>
+                    )}
+                    {office.lat != null && office.lng != null && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {Number(office.lat).toFixed(5)}, {Number(office.lng).toFixed(5)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                      onClick={() => openEditOffice(office)}
+                    >
+                      {t('editOffice')}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700"
+                      onClick={() => handleDeleteOffice(office.id)}
+                    >
+                      {t('delete')}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700"
-                  onClick={() => handleDeleteOffice(office.id)}
-                >
-                  {t('delete')}
-                </button>
+                {editingOffice != null && Number(editingOffice.id) === Number(office.id) && (
+                  <form className="space-y-2 rounded-lg border border-slate-200 bg-white p-3" onSubmit={handleSaveOffice}>
+                    <input
+                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      placeholder={t('officeName')}
+                      value={editingOffice.name}
+                      onChange={(e) => setEditingOffice({ ...editingOffice, name: e.target.value })}
+                      required
+                    />
+                    <input
+                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      placeholder={t('locationLink')}
+                      value={editingOffice.locationLink}
+                      onChange={(e) =>
+                        setEditingOffice({ ...editingOffice, locationLink: e.target.value })
+                      }
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500"
+                      >
+                        {t('saveOffice')}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                        onClick={() => setEditingOffice(null)}
+                      >
+                        {t('cancel')}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </li>
             ))}
           </ul>

@@ -7,23 +7,10 @@ import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
 import { isAttendanceRole } from '../roles.js';
+import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 
 /** Must match backend FIELD_OFFICER_CHECKOUT_MIN_LENGTH */
 const FIELD_CHECKOUT_MIN_LEN = 42;
-
-function readPosition() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(Object.assign(new Error('unsupported'), { code: 0 }));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 0,
-    });
-  });
-}
 
 function formatApiError(err) {
   if (!err.response && (err.message === 'Network Error' || err.code === 'ERR_NETWORK')) {
@@ -33,12 +20,9 @@ function formatApiError(err) {
 }
 
 function geoMessage(err) {
-  if (!err) return i18n.t('geoUnavailable');
-  if (err.code === 0) return i18n.t('geoUnsupported');
-  if (err.code === 1) return i18n.t('geoPermissionDenied');
-  if (err.code === 2) return i18n.t('geoUnavailable');
-  if (err.code === 3) return i18n.t('geoTimeout');
-  return err.message || i18n.t('geoUnavailable');
+  const key = geoMessageKey(err);
+  if (key) return i18n.t(key);
+  return err?.message || i18n.t('geoUnavailable');
 }
 
 function formatTimePart(t) {
@@ -79,6 +63,8 @@ export default function EmployeeDashboard() {
     notes: '',
   });
   const [loanSubmitting, setLoanSubmitting] = useState(false);
+  const [geoPreview, setGeoPreview] = useState(null);
+  const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -127,6 +113,34 @@ export default function EmployeeDashboard() {
       setRemoteWork(false);
     }
   }, [summary]);
+
+  const refreshGeoPreview = async () => {
+    setGeoPreviewLoading(true);
+    try {
+      const pos = await readPosition();
+      const { latitude, longitude, accuracy } = pos.coords;
+      if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        setGeoPreview(null);
+        return;
+      }
+      setGeoPreview({
+        lat: latitude,
+        lng: longitude,
+        accuracy_m: accuracy && accuracy > 0 ? accuracy : null,
+        at: Date.now(),
+      });
+    } catch {
+      setGeoPreview(null);
+    } finally {
+      setGeoPreviewLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!summary?.assigned_office?.id) return;
+    refreshGeoPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when office assignment loads
+  }, [summary?.assigned_office?.id]);
 
   const refreshEmployee = async () => {
     try {
@@ -327,6 +341,18 @@ export default function EmployeeDashboard() {
       : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
+  const office = assignedOffice;
+  const baseRadius = summary?.check_in_radius_meters ?? 500;
+  const gpsBufferCap = summary?.check_in_gps_buffer_cap_meters ?? 200;
+  const maxAllowedPreview =
+    office?.lat != null && office?.lng != null
+      ? baseRadius + Math.min(geoPreview?.accuracy_m ?? 0, gpsBufferCap)
+      : null;
+  const distancePreview =
+    geoPreview && office?.lat != null && office?.lng != null
+      ? Math.round(haversineMeters(geoPreview.lat, geoPreview.lng, office.lat, office.lng))
+      : null;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -441,6 +467,53 @@ export default function EmployeeDashboard() {
               <div className="text-sm text-amber-800">{t('noOfficeAssigned')}</div>
             )}
           </div>
+          {assignedOffice?.id && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {t('currentLocation')}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                  disabled={geoPreviewLoading || clockPending}
+                  onClick={refreshGeoPreview}
+                >
+                  {geoPreviewLoading ? t('locating') : t('locationRefresh')}
+                </button>
+              </div>
+              {geoPreview ? (
+                <div className="mt-2 space-y-1">
+                  <p>
+                    {t('latitude')}: {geoPreview.lat.toFixed(5)} · {t('longitude')}:{' '}
+                    {geoPreview.lng.toFixed(5)}
+                  </p>
+                  {geoPreview.accuracy_m != null && (
+                    <p>{t('locationReady', { accuracy: Math.round(geoPreview.accuracy_m) })}</p>
+                  )}
+                  {distancePreview != null && maxAllowedPreview != null ? (
+                    <p
+                      className={
+                        distancePreview > maxAllowedPreview ? 'text-amber-800' : 'text-emerald-800'
+                      }
+                    >
+                      {t('locationDistance', {
+                        distance: distancePreview,
+                        allowed: Math.round(maxAllowedPreview),
+                      })}
+                    </p>
+                  ) : (
+                    <p className="text-amber-800">{t('locationDistanceUnknown')}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-amber-800">
+                  {geoPreviewLoading ? t('locating') : t('geoUnavailable')}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-slate-500">{t('locationHint')}</p>
+            </div>
+          )}
           {nextAction === 'check_in' && canRemote ? (
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" checked={remoteWork} onChange={(e) => setRemoteWork(e.target.checked)} />

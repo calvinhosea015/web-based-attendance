@@ -1,4 +1,5 @@
 const { AppError } = require('../utils/errors');
+const config = require('../config/env');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
 const { isFieldOfficer, isUmum } = require('../constants/roles');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
@@ -74,7 +75,14 @@ class EmployeePortalService {
 
     const assignedOffice =
       userRow && userRow.office_id != null
-        ? { id: userRow.office_id, name: userRow.assigned_office_name || '' }
+        ? {
+            id: userRow.office_id,
+            name: userRow.assigned_office_name || '',
+            lat:
+              userRow.assigned_office_lat != null ? Number(userRow.assigned_office_lat) : null,
+            lng:
+              userRow.assigned_office_lng != null ? Number(userRow.assigned_office_lng) : null,
+          }
         : null;
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
 
@@ -101,6 +109,8 @@ class EmployeePortalService {
       role: auth.role,
       employee,
       assigned_office: assignedOffice,
+      check_in_radius_meters: config.officeRadiusMeters,
+      check_in_gps_buffer_cap_meters: config.officeRadiusGpsBufferCapMeters,
       remote_work_allowed: remoteWorkAllowed,
       field_officer_mode: fieldOfficer,
       umum_mode: umum,

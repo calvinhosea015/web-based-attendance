@@ -119,6 +119,8 @@ const officeCreateValidators = [
   body('locationLink').trim().notEmpty(),
 ];
 
+const officeUpdateValidators = [...officeCreateValidators];
+
 const departmentCreateValidators = [body('name').trim().notEmpty()];
 
 const employeeUpdateValidators = [
@@ -189,6 +191,7 @@ module.exports = {
   idParamValidator,
   userAttendanceQueryValidators,
   officeCreateValidators,
+  officeUpdateValidators,
   departmentCreateValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,

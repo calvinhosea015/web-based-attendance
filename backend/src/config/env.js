@@ -14,8 +14,8 @@ module.exports = {
   databaseUrl: process.env.DATABASE_URL,
   officeRadiusMeters: parseInt(process.env.OFFICE_RADIUS_METERS || '500', 10),
   /** Extra meters allowed toward reported GPS uncertainty (capped so accuracy cannot be abused). */
-  officeRadiusGpsBufferCapMeters: parseFloat(process.env.OFFICE_RADIUS_GPS_BUFFER_CAP_METERS || '120'),
-  maxGpsAccuracyMeters: parseFloat(process.env.MAX_GPS_ACCURACY_METERS || '250'),
+  officeRadiusGpsBufferCapMeters: parseFloat(process.env.OFFICE_RADIUS_GPS_BUFFER_CAP_METERS || '200'),
+  maxGpsAccuracyMeters: parseFloat(process.env.MAX_GPS_ACCURACY_METERS || '400'),
   maxClientClockSkewMs: parseInt(process.env.MAX_CLIENT_CLOCK_SKEW_MS || String(5 * 60 * 1000), 10),
   maxImpossibleSpeedMps: parseFloat(process.env.MAX_IMPOSSIBLE_SPEED_MPS || '50'),
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),

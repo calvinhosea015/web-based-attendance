@@ -207,7 +207,12 @@ class AttendanceService {
         throw new AppError(
           'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.',
           400,
-          'RADIUS'
+          'RADIUS',
+          {
+            distance_m: Math.round(dist),
+            allowed_m: Math.round(allowed),
+            office_name: office.name || '',
+          }
         );
       }
     }

@@ -47,6 +47,7 @@ const MESSAGE_CODE = {
   'Check-out is not required for your role.': 'CHECKOUT_NOT_REQUIRED',
   'Checkout code is required to check out.': 'CHECKOUT_CODE_REQUIRED',
   'Selected office not found.': 'OFFICE_NOT_FOUND',
+  'Office not found.': 'OFFICE_NOT_FOUND',
   'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.':
     'OFFICE_COORDS',
   'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.':
@@ -89,8 +90,20 @@ function apiKey(code) {
 
 function translateByCode(code, params = {}) {
   const key = apiKey(code);
+  if (code === 'RADIUS' && params.distance == null && i18n.exists('api.RADIUS_GENERIC')) {
+    return i18n.t('api.RADIUS_GENERIC');
+  }
   if (i18n.exists(key)) return i18n.t(key, params);
   return null;
+}
+
+function paramsFromResponse(data) {
+  if (!data || typeof data !== 'object') return {};
+  const out = {};
+  if (data.distance_m != null) out.distance = data.distance_m;
+  if (data.allowed_m != null) out.allowed = data.allowed_m;
+  if (data.office_name) out.office = data.office_name;
+  return out;
 }
 
 function paramsFromMessage(message) {
@@ -146,7 +159,10 @@ export function translateApiMessage(input) {
   }
 
   if (code) {
-    const translated = translateByCode(code, paramsFromMessage(message));
+    const translated = translateByCode(code, {
+      ...paramsFromMessage(message),
+      ...paramsFromResponse(data),
+    });
     if (translated) {
       if (Array.isArray(errors) && errors.length) {
         const details = errors

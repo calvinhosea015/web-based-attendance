@@ -14,7 +14,9 @@ class UserRepository {
     const r = await query(
       `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
-              o.name AS assigned_office_name
+              o.name AS assigned_office_name,
+              o.lat AS assigned_office_lat,
+              o.lng AS assigned_office_lng
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
        LEFT JOIN offices o ON o.id = u.office_id
@@ -31,7 +33,9 @@ class UserRepository {
     const r = await query(
       `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
-              o.name AS assigned_office_name
+              o.name AS assigned_office_name,
+              o.lat AS assigned_office_lat,
+              o.lng AS assigned_office_lng
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
        LEFT JOIN offices o ON o.id = u.office_id

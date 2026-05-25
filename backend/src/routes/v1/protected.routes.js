@@ -12,6 +12,7 @@ const {
   idParamValidator,
   userAttendanceQueryValidators,
   officeCreateValidators,
+  officeUpdateValidators,
   departmentCreateValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,
@@ -49,6 +50,14 @@ function buildProtectedRoutes(deps) {
     officeCreateValidators,
     validateRequest,
     officeController.create
+  );
+  r.patch(
+    '/offices/:id',
+    requireRole('admin'),
+    idParamValidator,
+    officeUpdateValidators,
+    validateRequest,
+    officeController.update
   );
   r.delete('/offices/:id', requireRole('admin'), idParamValidator, validateRequest, officeController.remove);
 

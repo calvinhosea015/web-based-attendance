@@ -475,7 +475,8 @@ The current app does **not** persist files to object storage (payroll/attendance
 1. Change demo passwords (`admin` / `employee`) immediately.
 2. Open the **Vercel** URL on a phone, allow **location**, test check-in.
 3. If login returns **403 CSRF** (“security token”), refresh the page, redeploy the latest API, and confirm `ALLOWED_ORIGINS` matches the Vercel URL. `COOKIE_SAME_SITE=none` is still recommended but login works via **`X-CSRF-Token`** when cookies are blocked (common on phones).
-4. Swagger: `https://<railway-host>/api-docs`
+4. If check-in says you are outside the office radius, set Railway **`OFFICE_RADIUS_METERS=500`** (or higher), redeploy the API, and verify the office **Google Maps pin** matches the real site. The employee page shows live GPS distance when location permission is allowed.
+5. Swagger: `https://<railway-host>/api-docs`
 
 #### Updates (split stack)
 

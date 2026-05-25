@@ -41,6 +41,11 @@ export default {
   longitude: 'Longitude',
   updatedAt: 'Updated at',
   locating: 'Locating…',
+  locationRefresh: 'Refresh location',
+  locationReady: 'GPS ready (±{{accuracy}} m)',
+  locationDistance: 'About {{distance}} m from office (allowed up to ~{{allowed}} m with GPS buffer)',
+  locationDistanceUnknown: 'Office map pin is missing — ask admin to fix the office location.',
+  locationHint: 'Allow location for this site. If check-in fails, move outdoors or enable remote work.',
   noOfficesAvailable: 'No offices available',
   dashboardLoadFailed: 'Could not load part of your dashboard. Try refreshing the page.',
   geoPermissionDenied: 'Location access is blocked. Allow location for this site to clock in or out.',
@@ -52,7 +57,10 @@ export default {
   noHistory: 'No history yet',
   notCheckedOut: 'Not checked out',
   officeAdded: 'Office added',
+  officeUpdated: 'Office updated',
   officeDeleted: 'Office deleted',
+  editOffice: 'Edit',
+  saveOffice: 'Save office',
   locationLink: 'Google Maps link',
   mapLink: 'Map link',
   adminOnly: 'Admin only',
@@ -300,10 +308,12 @@ export default {
     FIELD_CODE_ACCEPTED: 'Checkout keyword accepted for today.',
     FIELD_CODE_REQUIRED:
       'Enter the checkout phrase (at least {{min}} characters) before you can check out.',
-    OFFICE_NOT_FOUND: 'Selected office not found.',
+    OFFICE_NOT_FOUND: 'Office not found.',
     OFFICE_COORDS:
       'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.',
     RADIUS:
+      'You are about {{distance}} m from {{office}} (allowed ~{{allowed}} m). Wait for a better GPS fix, move closer, enable remote work if allowed, or ask an admin to adjust the office pin or radius.',
+    RADIUS_GENERIC:
       'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or radius.',
     NO_OPEN: 'No check-in found for today.',
     CHECKOUT_CONFLICT: 'Could not complete checkout.',
