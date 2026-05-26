@@ -109,6 +109,7 @@ export default {
   payrollLoanPreview: 'Akan dipotong Rp {{amount}} saat simpan/generate',
   payrollOtherDeductions: 'Potongan lainnya',
   payrollDaysAttended: 'Hari hadir',
+  payrollDaysFromAttendance: 'Dihitung dari data absen masuk dalam periode gaji ini (tidak dapat diubah manual).',
   payrollUpahHarian: 'Upah harian',
   payrollMonthlyBasic: 'Gaji pokok bulanan',
   payrollExpectedWorkDays: 'Hari wajib masuk (Sen–Sab)',

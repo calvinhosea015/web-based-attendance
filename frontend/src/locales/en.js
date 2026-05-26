@@ -109,6 +109,7 @@ export default {
   payrollLoanPreview: 'Will deduct Rp {{amount}} on save/generate',
   payrollOtherDeductions: 'Other deductions',
   payrollDaysAttended: 'Days attended',
+  payrollDaysFromAttendance: 'Counted from check-in records in this pay period (not editable).',
   payrollUpahHarian: 'Daily wage',
   payrollMonthlyBasic: 'Monthly basic wage',
   payrollExpectedWorkDays: 'Required days (Mon–Sat)',

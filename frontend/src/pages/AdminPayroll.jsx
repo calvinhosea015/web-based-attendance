@@ -490,17 +490,15 @@ export default function AdminPayroll() {
                 onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
               />
             </CompactField>
-            <CompactField label={t('payrollDaysAttended')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.days_attended}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, days_attended: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('payrollDaysAttended')}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+                {editForm.days_attended ?? 0}
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-500">{t('payrollDaysFromAttendance')}</p>
+            </div>
             {editForm.payroll_mode === 'monthly' ? (
               <>
                 <CompactField label={t('payrollMonthlyBasic')}>

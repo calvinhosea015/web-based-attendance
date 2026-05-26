@@ -230,7 +230,15 @@ class PayrollService {
 
   async listPayrollForEmployee(employeeId) {
     const rows = await this.payrollRepository.listForEmployee(employeeId);
-    return this.enrichPayrollRows(rows);
+    const role = await this.payrollRepository.getRoleForEmployee(employeeId);
+    const synced = [];
+    for (const row of rows) {
+      const bounds = parsePeriod(row.payroll_period);
+      synced.push(
+        await this.syncPayrollRowFromAttendance({ ...row, user_role: role }, bounds)
+      );
+    }
+    return this.enrichPayrollRows(synced);
   }
 
   buildFieldsFromSources({
@@ -291,6 +299,94 @@ class PayrollService {
     };
   }
 
+  /** Days attended = distinct check-in dates from attendance for the pay period. */
+  async resolveDaysAttended(employeeId, periodStart, periodEnd, role) {
+    const monSatOnly = isMonthlyOfficeStaff(role);
+    return this.payrollRepository.countDaysAttendedFromAttendance(
+      employeeId,
+      periodStart,
+      periodEnd,
+      monSatOnly
+    );
+  }
+
+  /** Refresh days_attended and gaji pokok from attendance; keep other payroll fields. */
+  async syncPayrollRowFromAttendance(row, bounds) {
+    const empId = row.employee_id;
+    let role = row.user_role;
+    if (!role) role = await this.payrollRepository.getRoleForEmployee(empId);
+
+    const days = await this.resolveDaysAttended(
+      empId,
+      bounds.period_start,
+      bounds.period_end,
+      role
+    );
+    const employee = await this.employeeRepository.findById(empId);
+    if (!employee) return row;
+
+    const settings = await this.payrollRepository.getSettings();
+    const monthlyStaff = isMonthlyOfficeStaff(role);
+    const upahHarian = monthlyStaff ? 0 : num(row.upah_harian ?? employee.upah_harian);
+    let gajiPokok;
+
+    if (monthlyStaff) {
+      const expectedDays = countWorkingDaysMonSatInCycle(bounds.payroll_period);
+      gajiPokok = computeMonthlyStaffPayroll({
+        monthlyBasic: num(employee.basic_salary),
+        expectedDays,
+        daysAttended: days,
+      }).basic_salary;
+    } else {
+      gajiPokok = computeGajiPokok(days, upahHarian);
+    }
+
+    const fields = {
+      basic_salary: gajiPokok,
+      tunjangan_masa_kerja: num(row.tunjangan_masa_kerja),
+      transport_eligible: Boolean(row.transport_eligible),
+      transport_allowance_amount: row.transport_eligible
+        ? num(row.transport_allowance)
+        : num(employee.transport_allowance_amount ?? settings.transport_amount),
+      overtime_pay: num(row.overtime_pay),
+      insentif: num(row.insentif),
+      diligence_eligible: Boolean(row.diligence_eligible),
+      diligence_allowance_amount: row.diligence_eligible
+        ? num(row.diligence_bonus)
+        : num(employee.diligence_allowance_amount ?? settings.diligence_amount),
+      bonus_omset: num(row.bonus_omset),
+      other_deductions: num(row.other_deductions ?? row.deductions),
+      loan_deduction: num(row.loan_deduction),
+    };
+
+    const totals = computeTotals(fields, employee, settings);
+    const saved = await this.payrollRepository.upsertRow({
+      employee_id: empId,
+      payroll_period: bounds.payroll_period,
+      period_start: bounds.period_start,
+      period_end: bounds.period_end,
+      upah_harian: upahHarian,
+      basic_salary: gajiPokok,
+      days_attended: days,
+      tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
+      transport_eligible: fields.transport_eligible,
+      transport_allowance: totals.transport_allowance,
+      overtime_pay: fields.overtime_pay,
+      insentif: fields.insentif,
+      diligence_eligible: fields.diligence_eligible,
+      diligence_bonus: totals.diligence_bonus,
+      bonus_omset: fields.bonus_omset,
+      loan_deduction: totals.loan_deduction,
+      other_deductions: totals.other_deductions,
+      deductions: totals.deductions,
+      allowances: totals.allowances,
+      final_salary: totals.final_salary,
+      keterangan: row.keterangan ?? '',
+    });
+
+    return { ...saved, user_role: role };
+  }
+
   async getSettings() {
     return this.payrollRepository.getSettings();
   }
@@ -317,6 +413,7 @@ class PayrollService {
   }
 
   async getPeriod(period) {
+    const bounds = parsePeriod(period);
     const meta = this.periodMeta(period);
     const settings = await this.payrollRepository.getSettings();
     const employees = await this.payrollRepository.listActiveEmployeesForPayroll();
@@ -324,9 +421,11 @@ class PayrollService {
       meta.period,
       employees.map((e) => e.id)
     );
-    const rows = await this.enrichPayrollRows(
-      await this.payrollRepository.listByPeriod(meta.period)
+    const listed = await this.payrollRepository.listByPeriod(meta.period);
+    const synced = await Promise.all(
+      listed.map((row) => this.syncPayrollRowFromAttendance(row, bounds))
     );
+    const rows = await this.enrichPayrollRows(synced);
     return { ...meta, settings, rows };
   }
 
@@ -340,17 +439,12 @@ class PayrollService {
     const rows = [];
     for (const emp of employees) {
       const role = emp.user_role;
-      const days = isMonthlyOfficeStaff(role)
-        ? await this.payrollRepository.countDaysAttendedMonSat(
-            emp.id,
-            bounds.period_start,
-            bounds.period_end
-          )
-        : await this.payrollRepository.countDaysAttended(
-            emp.id,
-            bounds.period_start,
-            bounds.period_end
-          );
+      const days = await this.resolveDaysAttended(
+        emp.id,
+        bounds.period_start,
+        bounds.period_end,
+        role
+      );
       const prev = existingByEmp.get(emp.id);
       const upahHarian = isMonthlyOfficeStaff(role)
         ? 0
@@ -425,17 +519,12 @@ class PayrollService {
     const settings = await this.payrollRepository.getSettings();
     let existing = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
     if (!existing) {
-      const days = monthlyStaff
-        ? await this.payrollRepository.countDaysAttendedMonSat(
-            empId,
-            bounds.period_start,
-            bounds.period_end
-          )
-        : await this.payrollRepository.countDaysAttended(
-            empId,
-            bounds.period_start,
-            bounds.period_end
-          );
+      const days = await this.resolveDaysAttended(
+        empId,
+        bounds.period_start,
+        bounds.period_end,
+        role
+      );
       existing = {
         employee_id: empId,
         payroll_period: bounds.payroll_period,
@@ -458,9 +547,12 @@ class PayrollService {
       : payload.upah_harian != null
         ? num(payload.upah_harian)
         : num(existing.upah_harian ?? employee.upah_harian);
-    const days =
-      payload.days_attended != null ? Number(payload.days_attended) : Number(existing.days_attended);
-    const daysN = Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 0;
+    const daysN = await this.resolveDaysAttended(
+      empId,
+      bounds.period_start,
+      bounds.period_end,
+      role
+    );
     let gajiPokok;
     let monthlyBasicGross = num(employee.basic_salary);
     if (monthlyStaff) {
@@ -591,12 +683,12 @@ class PayrollService {
   }
 
   async getSlipRow(period, employeeId) {
-    const { payroll_period } = parsePeriod(period);
+    const bounds = parsePeriod(period);
     const empId = Number(employeeId);
     if (!Number.isFinite(empId) || empId < 1) {
       throw new AppError('Invalid employee id.', 400, 'VALIDATION');
     }
-    const row = await this.payrollRepository.findByPeriodAndEmployee(payroll_period, empId);
+    let row = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
     if (!row) {
       throw new AppError(
         'No payroll record for this employee in this period. Generate payroll first.',
@@ -604,7 +696,9 @@ class PayrollService {
         'PAYROLL_NOT_FOUND'
       );
     }
-    return { period: payroll_period, row };
+    const role = await this.payrollRepository.getRoleForEmployee(empId);
+    row = await this.syncPayrollRowFromAttendance({ ...row, user_role: role }, bounds);
+    return { period: bounds.payroll_period, row };
   }
 
   async exportEmployeeSlip(period, employeeId) {
@@ -617,22 +711,25 @@ class PayrollService {
   }
 
   async exportAllSlips(period) {
-    const { payroll_period } = parsePeriod(period);
-    const rows = await this.payrollRepository.listByPeriod(payroll_period);
-    if (!rows.length) {
+    const bounds = parsePeriod(period);
+    const listed = await this.payrollRepository.listByPeriod(bounds.payroll_period);
+    if (!listed.length) {
       throw new AppError(
         'No payroll records for this period. Generate payroll first.',
         404,
         'PAYROLL_NOT_FOUND'
       );
     }
-    const slipRows = await Promise.all(
-      rows.map((row) => this.enrichSlipRow(row, payroll_period))
+    const rows = await Promise.all(
+      listed.map((row) => this.syncPayrollRowFromAttendance(row, bounds))
     );
-    const wb = slipWorkbookFromRows(slipRows, payroll_period);
+    const slipRows = await Promise.all(
+      rows.map((row) => this.enrichSlipRow(row, bounds.payroll_period))
+    );
+    const wb = slipWorkbookFromRows(slipRows, bounds.payroll_period);
     const buffer = await writeSlipBuffer(wb);
-    const label = periodLabel(payroll_period).replace(/\s+/g, '_');
-    const filename = `slip_gaji_semua_${payroll_period.replace('-', '')}.xlsx`;
+    const label = periodLabel(bounds.payroll_period).replace(/\s+/g, '_');
+    const filename = `slip_gaji_semua_${bounds.payroll_period.replace('-', '')}.xlsx`;
     return { buffer, filename, count: rows.length, label };
   }
 }

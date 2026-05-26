@@ -143,7 +143,6 @@ const payrollSettingsValidators = [
 const payrollPeriodParamValidator = [param('period').matches(/^\d{4}-\d{2}$/)];
 
 const payrollEntryValidators = [
-  body('days_attended').optional().isInt({ min: 0 }),
   body('upah_harian').optional().isFloat({ min: 0 }),
   body('monthly_basic_gross').optional().isFloat({ min: 0 }),
   body('basic_salary').optional().isFloat({ min: 0 }),

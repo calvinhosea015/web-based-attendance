@@ -100,31 +100,33 @@ class PayrollRepository {
     return r.rows[0] || null;
   }
 
-  async countDaysAttended(employeeId, periodStart, periodEnd) {
-    const r = await query(
-      `SELECT COUNT(DISTINCT check_in::date)::int AS days_n
-       FROM attendance
-       WHERE employee_id = $1
-         AND check_in::date >= $2::date
-         AND check_in::date <= $3::date`,
-      [employeeId, periodStart, periodEnd]
-    );
-    return r.rows[0]?.days_n ?? 0;
-  }
-
-  /** Distinct Mon–Sat check-in dates in period (office calendar TZ). */
-  async countDaysAttendedMonSat(employeeId, periodStart, periodEnd) {
+  /**
+   * Distinct check-in calendar days from attendance in the pay period.
+   * @param {boolean} [monSatOnly] — Staff Kantor: count Mon–Sat only (matches required-day rules).
+   */
+  async countDaysAttendedFromAttendance(employeeId, periodStart, periodEnd, monSatOnly = false) {
     const tz = config.attendanceCalendarTz || 'Asia/Jakarta';
+    const dowClause = monSatOnly
+      ? 'AND EXTRACT(DOW FROM check_in AT TIME ZONE $4) BETWEEN 1 AND 6'
+      : '';
     const r = await query(
       `SELECT COUNT(DISTINCT (check_in AT TIME ZONE $4)::date)::int AS days_n
        FROM attendance
        WHERE employee_id = $1
          AND (check_in AT TIME ZONE $4)::date >= $2::date
          AND (check_in AT TIME ZONE $4)::date <= $3::date
-         AND EXTRACT(DOW FROM check_in AT TIME ZONE $4) BETWEEN 1 AND 6`,
+         ${dowClause}`,
       [employeeId, periodStart, periodEnd, tz]
     );
     return r.rows[0]?.days_n ?? 0;
+  }
+
+  async countDaysAttended(employeeId, periodStart, periodEnd) {
+    return this.countDaysAttendedFromAttendance(employeeId, periodStart, periodEnd, false);
+  }
+
+  async countDaysAttendedMonSat(employeeId, periodStart, periodEnd) {
+    return this.countDaysAttendedFromAttendance(employeeId, periodStart, periodEnd, true);
   }
 
   async getRoleForEmployee(employeeId) {
