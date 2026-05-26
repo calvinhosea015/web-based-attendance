@@ -13,4 +13,11 @@ const ATTENDANCE_STATUSES = Object.freeze({
 /** One attendance segment per day: single check-in, single check-out. */
 const CLOCK_SEGMENTS_PER_DAY = 1;
 
-module.exports = { ATTENDANCE_STATUSES, CLOCK_SEGMENTS_PER_DAY };
+/** Grace minutes before late (check-in) or early leave (check-out) vs shift bounds. */
+const ATTENDANCE_STATUS_BUFFER_MINUTES = 5;
+
+module.exports = {
+  ATTENDANCE_STATUSES,
+  CLOCK_SEGMENTS_PER_DAY,
+  ATTENDANCE_STATUS_BUFFER_MINUTES,
+};

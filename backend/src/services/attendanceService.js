@@ -1,7 +1,13 @@
 const { haversineMeters } = require('../utils/geo');
 const { validateClockGeoOrThrow } = require('../utils/geoTrust');
 const { AppError } = require('../utils/errors');
-const { ATTENDANCE_STATUSES, CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
+const {
+  ATTENDANCE_STATUSES,
+  CLOCK_SEGMENTS_PER_DAY,
+  ATTENDANCE_STATUS_BUFFER_MINUTES,
+} = require('../constants/attendance');
+
+const STATUS_BUFFER_MS = ATTENDANCE_STATUS_BUFFER_MINUTES * 60 * 1000;
 const { isAttendanceRole, isFieldOfficer, isUmum } = require('../constants/roles');
 const config = require('../config/env');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
@@ -37,7 +43,7 @@ function computeLateAndStatus(checkInIso, shift) {
   const ci = new Date(checkInIso);
   const start = parseShiftTimeOnDate(ci, shift.start_time);
   const diffMs = ci.getTime() - start.getTime();
-  if (diffMs <= 0) {
+  if (diffMs <= STATUS_BUFFER_MS) {
     return { lateMinutes: 0, status: ATTENDANCE_STATUSES.PRESENT };
   }
   return {
@@ -75,7 +81,7 @@ function computeSegmentCheckout(checkInIso, checkOutIso, segmentStartTime, segme
   const workHours = Math.max(0, rawHours);
   let status = previousStatus || ATTENDANCE_STATUSES.PRESENT;
   const end = parseShiftTimeOnDate(co, segmentEndTime);
-  if (co.getTime() < end.getTime() - 60 * 1000) {
+  if (co.getTime() < end.getTime() - STATUS_BUFFER_MS) {
     status = ATTENDANCE_STATUSES.EARLY_LEAVE;
   }
   const scheduledMs =
@@ -100,7 +106,7 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
   let status = previousStatus || ATTENDANCE_STATUSES.PRESENT;
   if (shift) {
     const end = parseShiftTimeOnDate(co, shift.end_time);
-    if (co.getTime() < end.getTime() - 60 * 1000) {
+    if (co.getTime() < end.getTime() - STATUS_BUFFER_MS) {
       status = ATTENDANCE_STATUSES.EARLY_LEAVE;
     }
   }
