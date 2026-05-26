@@ -384,7 +384,9 @@ class PayrollService {
       keterangan: row.keterangan ?? '',
     });
 
-    return { ...saved, user_role: role };
+    // Keep any join fields from the original row (e.g. full_name/employee_code from listByPeriod)
+    // while still refreshing payroll numeric fields from `saved`.
+    return { ...row, ...saved, user_role: role };
   }
 
   async getSettings() {
