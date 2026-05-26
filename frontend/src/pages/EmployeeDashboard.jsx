@@ -613,6 +613,16 @@ export default function EmployeeDashboard() {
                       </dt>
                       <dd className="font-medium text-slate-800">Rp {formatIdr(row.basic_salary)}</dd>
                     </div>
+                    {row.payroll_mode === 'monthly' && Number(row.absence_deduction || 0) > 0 && (
+                      <div>
+                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                          {t('payrollAbsenceDeduction')}
+                        </dt>
+                        <dd className="font-medium text-rose-700">
+                          Rp {formatIdr(row.absence_deduction)}
+                        </dd>
+                      </div>
+                    )}
                     {loanDeduction > 0 && (
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-slate-500">

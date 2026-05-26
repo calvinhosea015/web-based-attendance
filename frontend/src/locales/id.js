@@ -110,6 +110,15 @@ export default {
   payrollOtherDeductions: 'Potongan lainnya',
   payrollDaysAttended: 'Hari hadir',
   payrollUpahHarian: 'Upah harian',
+  payrollMonthlyBasic: 'Gaji pokok bulanan',
+  payrollExpectedWorkDays: 'Hari wajib masuk (Sen–Sab)',
+  payrollDaysAbsent: 'Hari tidak hadir',
+  payrollAbsenceDeduction: 'Potongan absensi',
+  payrollMonthlyNetBasic: 'Gaji pokok bersih (setelah potongan)',
+  payrollMonthlyFormula:
+    'Potongan = gaji bulanan ÷ hari wajib × hari tidak hadir. Gaji penuh jika hadir semua hari wajib. Hari wajib = Sen–Sab dikurangi libur nasional Indonesia dalam periode gaji ini.',
+  payrollHolidaysExcluded:
+    '{{count}} hari libur nasional Indonesia dalam periode ini tidak dihitung sebagai hari wajib masuk.',
   payrollGajiPokokFormula: 'Gaji pokok = hari kerja × upah harian',
   payrollBasicSalary: 'Gaji pokok',
   payrollTunjanganMasaKerja: 'Tunjangan masa kerja',
@@ -189,9 +198,6 @@ export default {
   roleFieldOfficer: 'Petugas Lapangan',
   roleUmum: 'Umum',
   roleAdmin: 'Admin',
-  loginRolesHint: 'Admin, Staff Kantor, Petugas Lapangan, atau Umum',
-  loginUsernameHint:
-    'Gunakan nama pengguna atau ID karyawan (mis. NIKE atau EMP000003). Kata sandi diatur admin — akun demo: employee / Employee123456',
   employeeCode: 'ID karyawan',
   employeeCodeOptional: 'ID karyawan (opsional — dibuat otomatis jika kosong)',
   fullName: 'Nama lengkap',

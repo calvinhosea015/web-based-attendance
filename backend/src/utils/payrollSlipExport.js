@@ -148,9 +148,15 @@ function slipAsOfDate(row, period) {
 function slipAmounts(row) {
   const transport = row.transport_eligible ? num(row.transport_allowance) : 0;
   const kerajinan = row.diligence_eligible ? num(row.diligence_bonus) : 0;
+  const monthlyStaff = row.payroll_mode === 'monthly';
+  const monthlyGross =
+    row.monthly_basic_gross != null
+      ? num(row.monthly_basic_gross)
+      : num(row.employee_basic_salary);
+  const absenceDeduction = monthlyStaff ? num(row.absence_deduction) : 0;
 
   return {
-    gaji_harian: num(row.upah_harian),
+    gaji_harian: monthlyStaff ? monthlyGross : num(row.upah_harian),
     tunjangan_jabatan: 0,
     tunjangan_masa_kerja: num(row.tunjangan_masa_kerja),
     tunjangan_transport: transport,
@@ -162,7 +168,7 @@ function slipAmounts(row) {
     bpjs_kes: 0,
     pph21: 0,
     kasbon: num(row.loan_deduction),
-    potongan_lain: num(row.other_deductions),
+    potongan_lain: num(row.other_deductions) + absenceDeduction,
   };
 }
 
@@ -352,13 +358,17 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   for (let i = 0; i < EARNINGS.length; i += 1) {
     const r = ROW.TABLE_FIRST + i;
     const earning = EARNINGS[i];
+    const earningLabel =
+      earning.key === 'gaji_harian' && row.payroll_mode === 'monthly'
+        ? 'Gaji Pokok Bulanan'
+        : earning.label;
     fillTableLine(
       ws,
       r,
       L_LABEL,
       L_COLON,
       L_VALUE,
-      earning.label,
+      earningLabel,
       amounts[earning.key]
     );
     ws.getRow(r).height = 17;

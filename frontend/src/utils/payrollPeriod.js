@@ -59,6 +59,32 @@ export function periodLabelCalendar(period) {
 }
 
 /** Active payroll period for a given date (cycle switches on the 25th). */
+/** Mon–Sat working days in the payroll cycle (25th–24th). */
+export function countWorkingDaysMonSatInCycle(period) {
+  const bounds = payrollCycleBounds(period);
+  if (!bounds) return 0;
+  const start = new Date(bounds.startYear, bounds.startMonth - 1, 25);
+  const end = new Date(bounds.endYear, bounds.endMonth - 1, 24);
+  let count = 0;
+  const cur = new Date(start);
+  while (cur <= end) {
+    if (cur.getDay() !== 0) count += 1;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+export function previewMonthlyStaffPayroll({ monthlyBasic, expectedDays, daysAttended }) {
+  const basic = Math.max(0, Number(monthlyBasic) || 0);
+  const expected = Math.max(0, Math.floor(Number(expectedDays) || 0));
+  const attended = Math.max(0, Math.floor(Number(daysAttended) || 0));
+  const absent = Math.max(0, expected - attended);
+  const perDay = expected > 0 ? basic / expected : 0;
+  const absenceDeduction = Math.round(perDay * absent);
+  const netBasic = Math.max(0, Math.round(basic) - absenceDeduction);
+  return { absent, absenceDeduction, netBasic, expected };
+}
+
 export function currentPayrollPeriodKey(date = new Date()) {
   let year = date.getFullYear();
   let month = date.getMonth() + 1;

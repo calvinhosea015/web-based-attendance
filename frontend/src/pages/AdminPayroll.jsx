@@ -20,6 +20,8 @@ import {
   currentPayrollPeriodKey,
   payrollCycleLabel,
   periodLabelCalendar,
+  countWorkingDaysMonSatInCycle,
+  previewMonthlyStaffPayroll,
 } from '../utils/payrollPeriod.js';
 
 function formatIdr(n) {
@@ -41,6 +43,8 @@ export default function AdminPayroll() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [exportingSlips, setExportingSlips] = useState(false);
+  const [requiredWorkDays, setRequiredWorkDays] = useState(null);
+  const [payrollHolidays, setPayrollHolidays] = useState([]);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -94,6 +98,10 @@ export default function AdminPayroll() {
       const { data } = await api.get(paths.adminPayrollPeriod(period));
       setSettings(data.settings || settings);
       setRows(data.rows || []);
+      setRequiredWorkDays(
+        data.required_work_days != null ? Number(data.required_work_days) : null
+      );
+      setPayrollHolidays(Array.isArray(data.payroll_holidays) ? data.payroll_holidays : []);
       if (data.period_cycle_label) setPeriodCycleLabel(data.period_cycle_label);
       else setPeriodCycleLabel(payrollCycleLabel(period));
     } catch (err) {
@@ -145,6 +153,10 @@ export default function AdminPayroll() {
       const { data } = await api.post(paths.adminPayrollGenerate(period));
       setSettings(data.settings || settings);
       setRows(data.rows || []);
+      setRequiredWorkDays(
+        data.required_work_days != null ? Number(data.required_work_days) : null
+      );
+      setPayrollHolidays(Array.isArray(data.payroll_holidays) ? data.payroll_holidays : []);
       notify(t('payrollGenerated', { count: data.generated ?? 0 }), 'success');
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
@@ -156,7 +168,10 @@ export default function AdminPayroll() {
   const openEdit = (row) => {
     setEditingId(row.employee_id);
     setEditForm({
+      payroll_mode: row.payroll_mode || 'daily',
       days_attended: row.days_attended ?? 0,
+      monthly_basic_gross:
+        row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary ?? 0,
       upah_harian: row.upah_harian ?? row.employee_upah_harian ?? 0,
       tunjangan_masa_kerja: row.tunjangan_masa_kerja ?? 0,
       transport_eligible: Boolean(row.transport_eligible),
@@ -179,7 +194,14 @@ export default function AdminPayroll() {
     notify('');
     try {
       await ensureCsrf();
-      const { data } = await api.put(paths.adminPayrollEntry(period, editingId), editForm);
+      const payload = { ...editForm };
+      delete payload.payroll_mode;
+      if (editForm.payroll_mode === 'monthly') {
+        delete payload.upah_harian;
+      } else {
+        delete payload.monthly_basic_gross;
+      }
+      const { data } = await api.put(paths.adminPayrollEntry(period, editingId), payload);
       setRows((prev) => prev.map((r) => (r.employee_id === data.employee_id ? { ...r, ...data } : r)));
       setEditingId(null);
       setEditForm(null);
@@ -197,6 +219,15 @@ export default function AdminPayroll() {
   }, [rows]);
 
   const editingRow = rows.find((r) => r.employee_id === editingId);
+  const editMonthlyPreview = useMemo(() => {
+    if (!editForm || editForm.payroll_mode !== 'monthly') return null;
+    const expected = requiredWorkDays ?? countWorkingDaysMonSatInCycle(period);
+    return previewMonthlyStaffPayroll({
+      monthlyBasic: editForm.monthly_basic_gross,
+      expectedDays: expected,
+      daysAttended: editForm.days_attended,
+    });
+  }, [editForm, period, requiredWorkDays]);
 
   return (
     <AdminLayout
@@ -217,6 +248,18 @@ export default function AdminPayroll() {
           <Alert tone={messageTone} onDismiss={() => notify('')}>
             {message}
           </Alert>
+        )}
+
+        {payrollHolidays.length > 0 && (
+          <p className="text-sm text-slate-600">
+            {t('payrollHolidaysExcluded', { count: payrollHolidays.length })}
+            {requiredWorkDays != null && (
+              <span className="text-slate-500">
+                {' '}
+                · {t('payrollExpectedWorkDays')}: {requiredWorkDays}
+              </span>
+            )}
+          </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -333,16 +376,37 @@ export default function AdminPayroll() {
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{row.days_attended ?? 0}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {row.payroll_mode === 'monthly' ? (
+                          <div>
+                            <div>{row.days_attended ?? 0}</div>
+                            <div className="text-xs text-slate-400">
+                              / {row.expected_work_days ?? requiredWorkDays ?? countWorkingDaysMonSatInCycle(period)}
+                            </div>
+                          </div>
+                        ) : (
+                          row.days_attended ?? 0
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-                        {formatIdr(row.upah_harian)}
+                        {row.payroll_mode === 'monthly' ? (
+                          <div>
+                            <div>{formatIdr(row.monthly_basic_gross ?? row.employee_basic_salary)}</div>
+                            <div className="text-xs text-slate-400">{t('payrollMonthlyBasic')}</div>
+                          </div>
+                        ) : (
+                          formatIdr(row.upah_harian)
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="tabular-nums font-medium text-slate-900">
                           {formatIdr(row.basic_salary)}
                         </div>
                         <div className="text-xs text-slate-400">
-                          {row.days_attended ?? 0} × {formatIdr(row.upah_harian)}
+                          {row.payroll_mode === 'monthly'
+                            ? t('payrollAbsenceDeduction') +
+                              `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
+                            : `${row.days_attended ?? 0} × ${formatIdr(row.upah_harian)}`}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-rose-600">
@@ -437,29 +501,73 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <CompactField label={t('payrollUpahHarian')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.upah_harian}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, upah_harian: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
-            <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
-                {t('payrollBasicSalary')}
-              </p>
-              <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
-                Rp{' '}
-                {formatIdr(
-                  Math.max(0, Math.floor(editForm.days_attended || 0)) *
-                    Number(editForm.upah_harian || 0)
-                )}
-              </p>
-            </div>
+            {editForm.payroll_mode === 'monthly' ? (
+              <>
+                <CompactField label={t('payrollMonthlyBasic')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.monthly_basic_gross}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        monthly_basic_gross: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </CompactField>
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
+                  <p>
+                    {t('payrollExpectedWorkDays')}: {editMonthlyPreview?.expected ?? 0}
+                  </p>
+                  <p>
+                    {t('payrollDaysAbsent')}: {editMonthlyPreview?.absent ?? 0}
+                  </p>
+                  <p>
+                    {t('payrollAbsenceDeduction')}: Rp{' '}
+                    {formatIdr(editMonthlyPreview?.absenceDeduction ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                    {t('payrollMonthlyNetBasic')}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+                    Rp {formatIdr(editMonthlyPreview?.netBasic ?? 0)}
+                  </p>
+                </div>
+                <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
+                  {t('payrollMonthlyFormula')}
+                </p>
+              </>
+            ) : (
+              <>
+                <CompactField label={t('payrollUpahHarian')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.upah_harian}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, upah_harian: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+                <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                    {t('payrollBasicSalary')}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+                    Rp{' '}
+                    {formatIdr(
+                      Math.max(0, Math.floor(editForm.days_attended || 0)) *
+                        Number(editForm.upah_harian || 0)
+                    )}
+                  </p>
+                </div>
+              </>
+            )}
             <CompactField label={t('payrollTunjanganMasaKerja')}>
               <input
                 type="number"

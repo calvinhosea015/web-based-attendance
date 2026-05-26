@@ -1,4 +1,5 @@
 const { query } = require('../db/pool');
+const config = require('../config/env');
 
 class PayrollRepository {
   async getSettings() {
@@ -53,10 +54,12 @@ class PayrollRepository {
         e.full_name,
         e.join_date,
         e.upah_harian AS employee_upah_harian,
+        e.basic_salary AS employee_basic_salary,
         e.tunjangan_masa_kerja AS employee_tunjangan_masa_kerja,
         e.transport_eligible AS employee_transport_eligible,
         e.transport_allowance_amount AS employee_transport_allowance_amount,
-        e.diligence_allowance_amount AS employee_diligence_allowance_amount
+        e.diligence_allowance_amount AS employee_diligence_allowance_amount,
+        u.role AS user_role
        FROM payroll p
        JOIN employees e ON e.id = p.employee_id
        INNER JOIN users u ON u.employee_id = e.id
@@ -107,6 +110,26 @@ class PayrollRepository {
       [employeeId, periodStart, periodEnd]
     );
     return r.rows[0]?.days_n ?? 0;
+  }
+
+  /** Distinct Mon–Sat check-in dates in period (office calendar TZ). */
+  async countDaysAttendedMonSat(employeeId, periodStart, periodEnd) {
+    const tz = config.attendanceCalendarTz || 'Asia/Jakarta';
+    const r = await query(
+      `SELECT COUNT(DISTINCT (check_in AT TIME ZONE $4)::date)::int AS days_n
+       FROM attendance
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $4)::date >= $2::date
+         AND (check_in AT TIME ZONE $4)::date <= $3::date
+         AND EXTRACT(DOW FROM check_in AT TIME ZONE $4) BETWEEN 1 AND 6`,
+      [employeeId, periodStart, periodEnd, tz]
+    );
+    return r.rows[0]?.days_n ?? 0;
+  }
+
+  async getRoleForEmployee(employeeId) {
+    const r = await query(`SELECT role FROM users WHERE employee_id = $1 LIMIT 1`, [employeeId]);
+    return r.rows[0]?.role || null;
   }
 
   async upsertRow(row, exec = query) {
@@ -170,9 +193,10 @@ class PayrollRepository {
 
   async listActiveEmployeesForPayroll() {
     const r = await query(
-      `SELECT e.id, e.employee_id AS employee_code, e.full_name, e.upah_harian,
+      `SELECT e.id, e.employee_id AS employee_code, e.full_name, e.upah_harian, e.basic_salary,
               e.tunjangan_masa_kerja, e.transport_eligible,
-              e.transport_allowance_amount, e.diligence_allowance_amount, e.join_date
+              e.transport_allowance_amount, e.diligence_allowance_amount, e.join_date,
+              u.role AS user_role
        FROM employees e
        INNER JOIN users u ON u.employee_id = e.id
        WHERE e.status = 'active'

@@ -64,7 +64,7 @@ class UserService {
         positionId,
         salaryType: payload.salary_type || 'monthly',
         basicSalary: payload.basic_salary ?? 0,
-        upahHarian: payload.upah_harian ?? 0,
+        upahHarian: role === ROLES.EMPLOYEE ? 0 : payload.upah_harian ?? 0,
         joinDate: payload.join_date,
         birthday: payload.birthday || null,
         status: 'active',

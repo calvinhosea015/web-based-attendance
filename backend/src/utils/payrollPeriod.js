@@ -1,3 +1,5 @@
+const { isIndonesiaPayrollHoliday } = require('./indonesiaHolidays');
+
 /** Payroll month YYYY-MM = cycle 25 (prev month) through 24 (that month). */
 
 const ID_MONTHS = [
@@ -71,6 +73,7 @@ function periodLabelCalendar(period) {
   return `${ID_MONTHS[parsed.month - 1]} ${parsed.year}`;
 }
 
+/** Mon–Sat workdays in the pay cycle, excluding Indonesian national holidays. */
 function countWorkingDaysMonSatInCycle(period) {
   const bounds = payrollCycleBounds(period);
   if (!bounds) return 0;
@@ -79,10 +82,20 @@ function countWorkingDaysMonSatInCycle(period) {
   let count = 0;
   const cur = new Date(start);
   while (cur <= end) {
-    if (cur.getDay() !== 0) count += 1;
+    if (cur.getDay() !== 0) {
+      const ymd = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+      if (!isIndonesiaPayrollHoliday(ymd)) count += 1;
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return count;
+}
+
+function listPayrollHolidaysInCycle(period) {
+  const bounds = payrollCycleBounds(period);
+  if (!bounds) return [];
+  const { listIndonesiaHolidaysBetween } = require('./indonesiaHolidays');
+  return listIndonesiaHolidaysBetween(bounds.period_start, bounds.period_end);
 }
 
 function cycleEndDate(period) {
@@ -99,5 +112,6 @@ module.exports = {
   payrollCycleLabelShort,
   periodLabelCalendar,
   countWorkingDaysMonSatInCycle,
+  listPayrollHolidaysInCycle,
   cycleEndDate,
 };

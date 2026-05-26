@@ -110,6 +110,15 @@ export default {
   payrollOtherDeductions: 'Other deductions',
   payrollDaysAttended: 'Days attended',
   payrollUpahHarian: 'Daily wage',
+  payrollMonthlyBasic: 'Monthly basic wage',
+  payrollExpectedWorkDays: 'Required days (Mon–Sat)',
+  payrollDaysAbsent: 'Absent days',
+  payrollAbsenceDeduction: 'Absence deduction',
+  payrollMonthlyNetBasic: 'Net basic pay (after absence)',
+  payrollMonthlyFormula:
+    'Deduction = monthly wage ÷ required days × absent days. Full wage when all required days are attended. Required days are Mon–Sat minus Indonesian national holidays in this pay cycle.',
+  payrollHolidaysExcluded:
+    '{{count}} Indonesian national holiday(s) in this period are excluded from required work days.',
   payrollGajiPokokFormula: 'Basic pay = days attended × daily wage',
   payrollBasicSalary: 'Basic pay (gaji pokok)',
   payrollTunjanganMasaKerja: 'Tenure allowance',
@@ -188,9 +197,6 @@ export default {
   roleFieldOfficer: 'Petugas Lapangan',
   roleUmum: 'Umum',
   roleAdmin: 'Admin',
-  loginRolesHint: 'Admin, Staff Kantor, Petugas Lapangan, or Umum',
-  loginUsernameHint:
-    'Use your account username or employee ID (e.g. NIKE or EMP000003). Passwords are set by your admin — demo account only: employee / Employee123456',
   employeeCode: 'Employee ID',
   employeeCodeOptional: 'Employee ID (optional — auto-generated if empty)',
   fullName: 'Full name',

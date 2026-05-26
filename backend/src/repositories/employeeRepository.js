@@ -200,6 +200,7 @@ class EmployeeRepository {
       tunjangan_masa_kerja,
       transport_eligible,
       upah_harian,
+      basic_salary,
       transport_allowance_amount,
       diligence_allowance_amount,
     }
@@ -210,6 +211,10 @@ class EmployeeRepository {
     if (tunjangan_masa_kerja !== undefined) {
       sets.push(`tunjangan_masa_kerja = $${i++}`);
       vals.push(Number(tunjangan_masa_kerja) || 0);
+    }
+    if (basic_salary !== undefined) {
+      sets.push(`basic_salary = $${i++}`);
+      vals.push(Math.max(0, Number(basic_salary) || 0));
     }
     if (upah_harian !== undefined) {
       sets.push(`upah_harian = $${i++}`);

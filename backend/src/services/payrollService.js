@@ -10,7 +10,10 @@ const {
   payrollCycleBounds,
   payrollCycleLabel,
   periodLabelCalendar,
+  countWorkingDaysMonSatInCycle,
+  listPayrollHolidaysInCycle,
 } = require('../utils/payrollPeriod');
+const { ROLES } = require('../constants/roles');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -32,10 +35,63 @@ function normalizeKeterangan(value) {
   return String(value).trim().slice(0, 500);
 }
 
-/** Gaji pokok = hari kerja × upah harian */
+/** Gaji pokok = hari kerja × upah harian (Petugas Lapangan / Umum). */
 function computeGajiPokok(daysAttended, upahHarian) {
   const days = Math.max(0, Math.floor(num(daysAttended)));
   return days * num(upahHarian);
+}
+
+function isMonthlyOfficeStaff(role) {
+  return role === ROLES.EMPLOYEE;
+}
+
+/** Staff Kantor: monthly basic minus absence (Mon–Sat expected days in pay cycle). */
+function computeMonthlyStaffPayroll({ monthlyBasic, expectedDays, daysAttended }) {
+  const basic = Math.max(0, num(monthlyBasic));
+  const expected = Math.max(0, Math.floor(num(expectedDays)));
+  const attended = Math.max(0, Math.floor(num(daysAttended)));
+  const absent = Math.max(0, expected - attended);
+  const perDay = expected > 0 ? basic / expected : 0;
+  const absenceDeduction = Math.round(perDay * absent);
+  const netBasic = Math.max(0, Math.round(basic) - absenceDeduction);
+  return {
+    monthly_basic_gross: basic,
+    expected_work_days: expected,
+    days_attended: attended,
+    days_absent: absent,
+    absence_deduction: absenceDeduction,
+    basic_salary: netBasic,
+    upah_harian: 0,
+  };
+}
+
+function attachPayrollMode(row) {
+  const role = row.user_role;
+  const payroll_mode = isMonthlyOfficeStaff(role) ? 'monthly' : 'daily';
+  if (payroll_mode !== 'monthly') {
+    return { ...row, payroll_mode };
+  }
+  const expected =
+    row.expected_work_days != null
+      ? row.expected_work_days
+      : countWorkingDaysMonSatInCycle(row.payroll_period);
+  const monthlyGross =
+    row.monthly_basic_gross != null
+      ? num(row.monthly_basic_gross)
+      : num(row.employee_basic_salary);
+  const calc = computeMonthlyStaffPayroll({
+    monthlyBasic: monthlyGross,
+    expectedDays: expected,
+    daysAttended: row.days_attended,
+  });
+  return {
+    ...row,
+    payroll_mode,
+    monthly_basic_gross: calc.monthly_basic_gross,
+    expected_work_days: calc.expected_work_days,
+    days_absent: calc.days_absent,
+    absence_deduction: calc.absence_deduction,
+  };
 }
 
 function resolveAllowanceAmounts(fields, employee, settings) {
@@ -144,12 +200,17 @@ class PayrollService {
   }
 
   async enrichPayrollRow(row) {
-    const preview = await this.previewLoanDeduction(row.employee_id, row.payroll_period);
-    return {
-      ...row,
+    let base = row;
+    if (!base.user_role && base.employee_id) {
+      const role = await this.payrollRepository.getRoleForEmployee(base.employee_id);
+      base = { ...base, user_role: role };
+    }
+    const preview = await this.previewLoanDeduction(base.employee_id, base.payroll_period);
+    return attachPayrollMode({
+      ...base,
       ...this.loanContextFromPreview(preview),
       loan_deduction_preview: preview.amount,
-    };
+    });
   }
 
   async enrichPayrollRows(rows) {
@@ -172,10 +233,35 @@ class PayrollService {
     return this.enrichPayrollRows(rows);
   }
 
-  buildFieldsFromSources({ prev, emp, employee, settings, days, upahHarian, payrollPeriod }) {
+  buildFieldsFromSources({
+    prev,
+    emp,
+    employee,
+    settings,
+    days,
+    upahHarian,
+    payrollPeriod,
+    role,
+    monthlyBasicGross,
+  }) {
     const transportEligible = prev?.transport_eligible ?? Boolean(emp.transport_eligible);
     const diligenceEligible = prev?.diligence_eligible ?? false;
-    const gajiPokok = computeGajiPokok(days, upahHarian);
+    let gajiPokok;
+    let resolvedUpahHarian = upahHarian;
+    let resolvedDays = days;
+    if (isMonthlyOfficeStaff(role)) {
+      const expectedDays = countWorkingDaysMonSatInCycle(payrollPeriod);
+      const monthlyCalc = computeMonthlyStaffPayroll({
+        monthlyBasic: monthlyBasicGross,
+        expectedDays,
+        daysAttended: days,
+      });
+      gajiPokok = monthlyCalc.basic_salary;
+      resolvedUpahHarian = 0;
+      resolvedDays = monthlyCalc.days_attended;
+    } else {
+      gajiPokok = computeGajiPokok(days, upahHarian);
+    }
     const transportAmount =
       prev?.transport_allowance != null && transportEligible
         ? num(prev.transport_allowance)
@@ -200,6 +286,8 @@ class PayrollService {
       _employee: employee,
       _payrollPeriod: payrollPeriod,
       _prev: prev,
+      _resolvedUpahHarian: resolvedUpahHarian,
+      _resolvedDays: resolvedDays,
     };
   }
 
@@ -216,12 +304,15 @@ class PayrollService {
 
   periodMeta(period) {
     const bounds = parsePeriod(period);
+    const payroll_period = bounds.payroll_period;
     return {
-      period: bounds.payroll_period,
+      period: payroll_period,
       period_start: bounds.period_start,
       period_end: bounds.period_end,
-      period_label: periodLabelCalendar(bounds.payroll_period),
-      period_cycle_label: payrollCycleLabel(bounds.payroll_period),
+      period_label: periodLabelCalendar(payroll_period),
+      period_cycle_label: payrollCycleLabel(payroll_period),
+      required_work_days: countWorkingDaysMonSatInCycle(payroll_period),
+      payroll_holidays: listPayrollHolidaysInCycle(payroll_period),
     };
   }
 
@@ -248,13 +339,25 @@ class PayrollService {
 
     const rows = [];
     for (const emp of employees) {
-      const days = await this.payrollRepository.countDaysAttended(
-        emp.id,
-        bounds.period_start,
-        bounds.period_end
-      );
+      const role = emp.user_role;
+      const days = isMonthlyOfficeStaff(role)
+        ? await this.payrollRepository.countDaysAttendedMonSat(
+            emp.id,
+            bounds.period_start,
+            bounds.period_end
+          )
+        : await this.payrollRepository.countDaysAttended(
+            emp.id,
+            bounds.period_start,
+            bounds.period_end
+          );
       const prev = existingByEmp.get(emp.id);
-      const upahHarian = prev?.upah_harian != null ? num(prev.upah_harian) : num(emp.upah_harian);
+      const upahHarian = isMonthlyOfficeStaff(role)
+        ? 0
+        : prev?.upah_harian != null
+          ? num(prev.upah_harian)
+          : num(emp.upah_harian);
+      const monthlyBasicGross = num(emp.basic_salary);
       const fields = this.buildFieldsFromSources({
         prev,
         emp,
@@ -263,6 +366,8 @@ class PayrollService {
         days,
         upahHarian,
         payrollPeriod: bounds.payroll_period,
+        role,
+        monthlyBasicGross,
       });
       fields.loan_deduction = await this.resolveLoanDeduction(emp.id, bounds.payroll_period);
 
@@ -272,9 +377,9 @@ class PayrollService {
         payroll_period: bounds.payroll_period,
         period_start: bounds.period_start,
         period_end: bounds.period_end,
-        upah_harian: upahHarian,
+        upah_harian: fields._resolvedUpahHarian ?? upahHarian,
         basic_salary: fields.basic_salary,
-        days_attended: days,
+        days_attended: fields._resolvedDays ?? days,
         tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
         transport_eligible: fields.transport_eligible,
         transport_allowance: totals.transport_allowance,
@@ -313,21 +418,30 @@ class PayrollService {
     }
     const employee = await this.employeeRepository.findById(empId);
     if (!employee) throw new AppError('Employee not found.', 404, 'EMPLOYEE_NOT_FOUND');
+    const role =
+      (await this.payrollRepository.getRoleForEmployee(empId)) || ROLES.EMPLOYEE;
+    const monthlyStaff = isMonthlyOfficeStaff(role);
 
     const settings = await this.payrollRepository.getSettings();
     let existing = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
     if (!existing) {
-      const days = await this.payrollRepository.countDaysAttended(
-        empId,
-        bounds.period_start,
-        bounds.period_end
-      );
+      const days = monthlyStaff
+        ? await this.payrollRepository.countDaysAttendedMonSat(
+            empId,
+            bounds.period_start,
+            bounds.period_end
+          )
+        : await this.payrollRepository.countDaysAttended(
+            empId,
+            bounds.period_start,
+            bounds.period_end
+          );
       existing = {
         employee_id: empId,
         payroll_period: bounds.payroll_period,
         period_start: bounds.period_start,
         period_end: bounds.period_end,
-        upah_harian: num(employee.upah_harian),
+        upah_harian: monthlyStaff ? 0 : num(employee.upah_harian),
         days_attended: days,
         tunjangan_masa_kerja: num(employee.tunjangan_masa_kerja),
         transport_eligible: Boolean(employee.transport_eligible),
@@ -339,14 +453,31 @@ class PayrollService {
       };
     }
 
-    const upahHarian =
-      payload.upah_harian != null
+    const upahHarian = monthlyStaff
+      ? 0
+      : payload.upah_harian != null
         ? num(payload.upah_harian)
         : num(existing.upah_harian ?? employee.upah_harian);
     const days =
       payload.days_attended != null ? Number(payload.days_attended) : Number(existing.days_attended);
     const daysN = Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 0;
-    const gajiPokok = computeGajiPokok(daysN, upahHarian);
+    let gajiPokok;
+    let monthlyBasicGross = num(employee.basic_salary);
+    if (monthlyStaff) {
+      if (payload.monthly_basic_gross != null) {
+        monthlyBasicGross = num(payload.monthly_basic_gross);
+      } else if (payload.basic_salary != null) {
+        monthlyBasicGross = num(payload.basic_salary);
+      }
+      const expectedDays = countWorkingDaysMonSatInCycle(bounds.payroll_period);
+      gajiPokok = computeMonthlyStaffPayroll({
+        monthlyBasic: monthlyBasicGross,
+        expectedDays,
+        daysAttended: daysN,
+      }).basic_salary;
+    } else {
+      gajiPokok = computeGajiPokok(daysN, upahHarian);
+    }
 
     const transportEligible =
       payload.transport_eligible != null
@@ -436,6 +567,9 @@ class PayrollService {
       defaultsPayload.transport_eligible = fields.transport_eligible;
     }
     if (payload.upah_harian != null) defaultsPayload.upah_harian = upahHarian;
+    if (monthlyStaff && (payload.monthly_basic_gross != null || payload.basic_salary != null)) {
+      defaultsPayload.basic_salary = monthlyBasicGross;
+    }
     if (payload.transport_allowance_amount != null) {
       defaultsPayload.transport_allowance_amount = transportAmount;
     }
@@ -503,4 +637,11 @@ class PayrollService {
   }
 }
 
-module.exports = { PayrollService, parsePeriod, computeTotals, computeGajiPokok };
+module.exports = {
+  PayrollService,
+  parsePeriod,
+  computeTotals,
+  computeGajiPokok,
+  computeMonthlyStaffPayroll,
+  isMonthlyOfficeStaff,
+};

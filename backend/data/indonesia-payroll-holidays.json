@@ -1,0 +1,5 @@
+{
+  "comment": "Optional extra national holidays (e.g. cuti bersama) not in date-holidays. Use YYYY-MM-DD.",
+  "dates": [],
+  "byYear": {}
+}
