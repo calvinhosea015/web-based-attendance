@@ -62,7 +62,7 @@ class PayrollRepository {
         u.role AS user_role
        FROM payroll p
        JOIN employees e ON e.id = p.employee_id
-       INNER JOIN users u ON u.employee_id = e.id
+       LEFT JOIN users u ON u.employee_id = e.id
        WHERE p.payroll_period = $1 AND e.status = 'active'
        ORDER BY e.full_name ASC`,
       [payrollPeriod]
