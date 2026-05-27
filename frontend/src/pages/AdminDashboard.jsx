@@ -831,7 +831,7 @@ export default function AdminDashboard() {
 
 function StatCard({ label, value, tone }) {
   const tones = {
-    blue: 'from-sky-500 to-indigo-600',
+    blue: 'from-amber-400 to-orange-500',
     emerald: 'from-emerald-500 to-teal-600',
     amber: 'from-amber-500 to-orange-600',
     rose: 'from-rose-500 to-red-600',
