@@ -8,24 +8,29 @@ import AdminPayroll from './pages/AdminPayroll.jsx';
 import AdminLoans from './pages/AdminLoans.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
 
-function PublicHeader({ showName = true }) {
+function PublicHeader({ showName = true, monochrome = false }) {
   const { t, i18n } = useTranslation();
+  const headerClass = monochrome
+    ? 'border-b border-slate-300/90 bg-white'
+    : 'border-b border-brand-100/80 bg-white/90 backdrop-blur-md';
+  const logoClass = monochrome
+    ? 'h-8 w-auto rounded-md border border-slate-300 bg-white p-0.5 grayscale'
+    : 'h-8 w-auto rounded-md border border-brand-100 bg-white p-0.5';
+  const groupClass = monochrome
+    ? 'flex rounded-lg border border-slate-300 bg-slate-100 p-0.5'
+    : 'flex rounded-lg border border-brand-100 bg-brand-50/60 p-0.5';
   return (
-    <header className="border-b border-brand-100/80 bg-white/90 backdrop-blur-md">
+    <header className={headerClass}>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
           <img
             src="/company-logo.png"
             alt={t('appName')}
-            className="h-8 w-auto rounded-md border border-brand-100 bg-white p-0.5"
+            className={logoClass}
           />
           {showName ? t('appName') : null}
         </span>
-        <div
-          className="flex rounded-lg border border-brand-100 bg-brand-50/60 p-0.5"
-          role="group"
-          aria-label={t('language')}
-        >
+        <div className={groupClass} role="group" aria-label={t('language')}>
           {['en', 'id'].map((lng) => (
             <button
               key={lng}
@@ -64,7 +69,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen font-sans">
-      {!isAdminRoute && <PublicHeader showName={!isLoginRoute} />}
+      {!isAdminRoute && <PublicHeader showName={!isLoginRoute} monochrome={isLoginRoute} />}
       <main>
         <Routes>
           <Route path="/login" element={<Login />} />
