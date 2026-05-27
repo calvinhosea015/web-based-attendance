@@ -349,7 +349,7 @@ export default function EmployeeDashboard() {
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
+          <p className="text-xs font-medium uppercase tracking-wider text-brand-500">
             {translateRole(localStorage.getItem('role'))}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">

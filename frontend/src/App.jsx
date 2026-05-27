@@ -11,18 +11,18 @@ import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
 function PublicHeader() {
   const { t, i18n } = useTranslation();
   return (
-    <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+    <header className="border-b border-amber-100/80 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
+        <span className="flex items-center gap-2.5 text-sm font-semibold text-amber-950">
           <img
             src="/company-logo.png"
             alt={t('appName')}
-            className="h-8 w-auto rounded-md border border-slate-200 bg-white p-0.5"
+            className="h-8 w-auto rounded-md border border-amber-100 bg-white p-0.5"
           />
           {t('appName')}
         </span>
         <div
-          className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+          className="flex rounded-lg border border-amber-100 bg-amber-50 p-0.5"
           role="group"
           aria-label={t('language')}
         >
@@ -32,8 +32,8 @@ function PublicHeader() {
               type="button"
               className={`rounded-md px-2.5 py-1 text-xs font-medium uppercase transition ${
                 i18n.language?.startsWith(lng)
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white text-amber-950 shadow-sm'
+                  : 'text-amber-700 hover:text-amber-900'
               }`}
               onClick={() => i18n.changeLanguage(lng)}
             >

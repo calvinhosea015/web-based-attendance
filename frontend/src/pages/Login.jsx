@@ -35,7 +35,7 @@ export default function Login() {
 
   return (
     <div className="flex min-h-[calc(100vh-57px)] flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col justify-center bg-gradient-to-br from-brand-600 via-brand-600 to-slate-900 px-8 py-12 text-white lg:px-16">
+      <div className="flex flex-1 flex-col justify-center bg-gradient-to-br from-brand-600 via-brand-500 to-brand-900 px-8 py-12 text-white lg:px-16">
         <div className="mx-auto max-w-md lg:mx-0">
           <img
             src="/company-logo.png"
@@ -48,9 +48,9 @@ export default function Login() {
       </div>
       <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-8">
         <div className="w-full max-w-md">
-          <h2 className="text-xl font-semibold text-slate-900">{t('login')}</h2>
+          <h2 className="text-xl font-semibold text-amber-950">{t('login')}</h2>
           <form
-            className="mt-8 space-y-5 rounded-xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/40"
+            className="mt-8 space-y-5 rounded-xl border border-amber-100/80 bg-white p-6 shadow-lg shadow-amber-100/40"
             onSubmit={handleLogin}
           >
             <Field label={t('username')}>
