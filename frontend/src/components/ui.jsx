@@ -36,9 +36,9 @@ export function Button({
   };
   const variants = {
     primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-500',
-    secondary: 'border border-brand-100 bg-white text-slate-700 shadow-sm hover:bg-brand-50',
+    secondary: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50',
     success: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-500',
-    ghost: 'text-slate-700 hover:bg-brand-50',
+    ghost: 'text-slate-600 hover:bg-slate-100',
     danger: 'border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100',
   };
   return (
@@ -108,7 +108,7 @@ export function Field({ label, hint, children, className = '' }) {
 }
 
 export const inputClass =
-  'w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20';
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20';
 
 export function PasswordInput({ className = '', inputClassName = inputClass, ...props }) {
   const { t } = useTranslation();
@@ -176,7 +176,7 @@ export function Modal({ title, subtitle, onClose, children, footer, size = 'md',
 }
 
 export const inputClassCompact =
-  'w-full rounded-md border border-brand-100 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20';
+  'w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20';
 
 export function CompactField({ label, hint, children, className = '' }) {
   return (
