@@ -14,9 +14,11 @@ function PublicHeader() {
     <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-            A
-          </span>
+          <img
+            src="/company-logo.png"
+            alt={t('appName')}
+            className="h-8 w-auto rounded-md border border-slate-200 bg-white p-0.5"
+          />
           {t('appName')}
         </span>
         <div
