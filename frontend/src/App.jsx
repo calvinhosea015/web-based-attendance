@@ -8,7 +8,7 @@ import AdminPayroll from './pages/AdminPayroll.jsx';
 import AdminLoans from './pages/AdminLoans.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
 
-function PublicHeader({ showName = true, monochrome = false }) {
+function PublicHeader({ showName = true, showLogo = true, monochrome = false }) {
   const { t, i18n } = useTranslation();
   const headerClass = monochrome
     ? 'border-b border-slate-300/90 bg-white'
@@ -23,11 +23,13 @@ function PublicHeader({ showName = true, monochrome = false }) {
     <header className={headerClass}>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
-          <img
-            src="/company-logo.png"
-            alt={t('appName')}
-            className={logoClass}
-          />
+          {showLogo ? (
+            <img
+              src="/company-logo.png"
+              alt={t('appName')}
+              className={logoClass}
+            />
+          ) : null}
           {showName ? t('appName') : null}
         </span>
         <div className={groupClass} role="group" aria-label={t('language')}>
@@ -69,7 +71,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen font-sans">
-      {!isAdminRoute && <PublicHeader showName={!isLoginRoute} monochrome={isLoginRoute} />}
+      {!isAdminRoute && (
+        <PublicHeader
+          showName={!isLoginRoute}
+          showLogo={!isLoginRoute}
+          monochrome={isLoginRoute}
+        />
+      )}
       <main>
         <Routes>
           <Route path="/login" element={<Login />} />
