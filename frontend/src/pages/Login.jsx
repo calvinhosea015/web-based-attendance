@@ -35,15 +35,14 @@ export default function Login() {
 
   return (
     <div className="flex min-h-[calc(100vh-57px)] flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col justify-center bg-gradient-to-br from-brand-600 via-brand-600 to-slate-900 px-8 py-12 text-white lg:px-16">
+      <div className="flex flex-1 flex-col justify-center bg-gradient-to-br from-brand-900 via-brand-600 to-[#1f1a16] px-8 py-12 text-white lg:px-16">
         <div className="mx-auto max-w-md lg:mx-0">
           <img
             src="/company-logo.png"
             alt={t('appName')}
             className="h-14 w-auto rounded-xl border border-white/30 bg-white/90 p-1 shadow-lg"
           />
-          <h1 className="mt-6 text-3xl font-semibold tracking-tight">{t('appName')}</h1>
-          <p className="mt-3 text-sm leading-relaxed text-brand-100">{t('loginSubtitle')}</p>
+          <p className="mt-6 text-sm leading-relaxed text-amber-100/90">{t('loginSubtitle')}</p>
         </div>
       </div>
       <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-8">

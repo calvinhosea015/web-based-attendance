@@ -5,7 +5,7 @@
 @layer base {
   body {
     margin: 0;
-    @apply font-sans text-slate-900 antialiased;
+    @apply bg-stone-50 font-sans text-slate-900 antialiased;
   }
 }
 
