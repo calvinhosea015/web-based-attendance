@@ -17,7 +17,7 @@ function makePayrollController(payrollService) {
       res.json(await payrollService.getPeriod(req.params.period));
     }),
     generatePeriod: asyncHandler(async (req, res) => {
-      res.json(await payrollService.generatePeriod(req.params.period));
+      res.json(await payrollService.generatePeriod(req.params.period, req.body || {}));
     }),
     updateEntry: asyncHandler(async (req, res) => {
       res.json(

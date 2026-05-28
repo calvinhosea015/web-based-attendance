@@ -138,12 +138,12 @@ class PayrollRepository {
     const r = await exec(
       `INSERT INTO payroll (
         employee_id, payroll_period, period_start, period_end,
-        upah_harian, basic_salary, days_attended,
+        upah_harian, basic_salary, days_attended, expected_work_days,
         tunjangan_masa_kerja, transport_eligible, transport_allowance,
         overtime_pay, insentif, diligence_eligible, diligence_bonus,
         bonus_omset, loan_deduction, other_deductions, deductions, allowances, final_salary, keterangan
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
       )
       ON CONFLICT (employee_id, payroll_period) DO UPDATE SET
         period_start = EXCLUDED.period_start,
@@ -151,6 +151,7 @@ class PayrollRepository {
         upah_harian = EXCLUDED.upah_harian,
         basic_salary = EXCLUDED.basic_salary,
         days_attended = EXCLUDED.days_attended,
+        expected_work_days = EXCLUDED.expected_work_days,
         tunjangan_masa_kerja = EXCLUDED.tunjangan_masa_kerja,
         transport_eligible = EXCLUDED.transport_eligible,
         transport_allowance = EXCLUDED.transport_allowance,
@@ -174,6 +175,7 @@ class PayrollRepository {
         row.upah_harian,
         row.basic_salary,
         row.days_attended,
+        row.expected_work_days ?? null,
         row.tunjangan_masa_kerja,
         row.transport_eligible,
         row.transport_allowance,

@@ -141,6 +141,7 @@ const payrollSettingsValidators = [
 ];
 
 const payrollPeriodParamValidator = [param('period').matches(/^\d{4}-\d{2}$/)];
+const payrollGenerateValidators = [body('required_work_days').optional().isInt({ min: 0, max: 31 })];
 
 const payrollEntryValidators = [
   body('upah_harian').optional().isFloat({ min: 0 }),
@@ -199,6 +200,7 @@ module.exports = {
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
+  payrollGenerateValidators,
   payrollEntryValidators,
   payrollEmployeeDefaultsValidators,
   loanSubmitValidators,

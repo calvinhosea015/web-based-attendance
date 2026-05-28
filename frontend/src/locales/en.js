@@ -91,7 +91,7 @@ export default {
   payrollRefresh: 'Reload',
   payrollGenerate: 'Generate / refresh from attendance',
   payrollGenerateHint:
-    'Creates or updates payroll rows for all active employees. Each period is 25th (previous month) to 24th (selected month). Days attended are counted from check-ins in that range.',
+    'Creates or updates payroll rows for all active employees. Each period is 25th (previous month) to 24th (selected month). Days attended are counted from check-ins in that range. You can manually set required work days before generating.',
   payrollGenerated: 'Payroll updated for {{count}} employee(s).',
   payrollGlobalSettings: 'Default allowance amounts',
   payrollTransportNominal: 'Default transport allowance (IDR)',
@@ -113,6 +113,7 @@ export default {
   payrollUpahHarian: 'Daily wage',
   payrollMonthlyBasic: 'Monthly basic wage',
   payrollExpectedWorkDays: 'Required days (Mon–Sat)',
+  payrollExpectedWorkDaysManual: 'Set required days manually (for generate/refresh)',
   payrollDaysAbsent: 'Absent days',
   payrollAbsenceDeduction: 'Absence deduction',
   payrollMonthlyNetBasic: 'Net basic pay (after absence)',

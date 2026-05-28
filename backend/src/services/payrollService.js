@@ -35,6 +35,13 @@ function normalizeKeterangan(value) {
   return String(value).trim().slice(0, 500);
 }
 
+function normalizeRequiredWorkDays(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.floor(n));
+}
+
 /** Gaji pokok = hari kerja × upah harian (Petugas Lapangan / Umum). */
 function computeGajiPokok(daysAttended, upahHarian) {
   const days = Math.max(0, Math.floor(num(daysAttended)));
@@ -258,7 +265,10 @@ class PayrollService {
     let resolvedUpahHarian = upahHarian;
     let resolvedDays = days;
     if (isMonthlyOfficeStaff(role)) {
-      const expectedDays = countWorkingDaysMonSatInCycle(payrollPeriod);
+      const expectedDays = this.resolveExpectedWorkDays({
+        payrollPeriod,
+        existing: prev?.expected_work_days,
+      });
       const monthlyCalc = computeMonthlyStaffPayroll({
         monthlyBasic: monthlyBasicGross,
         expectedDays,
@@ -310,6 +320,14 @@ class PayrollService {
     );
   }
 
+  resolveExpectedWorkDays({ payrollPeriod, explicit, existing }) {
+    const fromExplicit = normalizeRequiredWorkDays(explicit);
+    if (fromExplicit != null) return fromExplicit;
+    const fromExisting = normalizeRequiredWorkDays(existing);
+    if (fromExisting != null) return fromExisting;
+    return countWorkingDaysMonSatInCycle(payrollPeriod);
+  }
+
   /** Refresh days_attended and gaji pokok from attendance; keep other payroll fields. */
   async syncPayrollRowFromAttendance(row, bounds) {
     const empId = row.employee_id;
@@ -331,7 +349,10 @@ class PayrollService {
     let gajiPokok;
 
     if (monthlyStaff) {
-      const expectedDays = countWorkingDaysMonSatInCycle(bounds.payroll_period);
+      const expectedDays = this.resolveExpectedWorkDays({
+        payrollPeriod: bounds.payroll_period,
+        existing: row.expected_work_days,
+      });
       gajiPokok = computeMonthlyStaffPayroll({
         monthlyBasic: num(employee.basic_salary),
         expectedDays,
@@ -368,6 +389,12 @@ class PayrollService {
       upah_harian: upahHarian,
       basic_salary: gajiPokok,
       days_attended: days,
+      expected_work_days: monthlyStaff
+        ? this.resolveExpectedWorkDays({
+            payrollPeriod: bounds.payroll_period,
+            existing: row.expected_work_days,
+          })
+        : null,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
       transport_eligible: fields.transport_eligible,
       transport_allowance: totals.transport_allowance,
@@ -400,23 +427,24 @@ class PayrollService {
     });
   }
 
-  periodMeta(period) {
+  periodMeta(period, requiredWorkDays = null) {
     const bounds = parsePeriod(period);
     const payroll_period = bounds.payroll_period;
+    const required =
+      normalizeRequiredWorkDays(requiredWorkDays) ?? countWorkingDaysMonSatInCycle(payroll_period);
     return {
       period: payroll_period,
       period_start: bounds.period_start,
       period_end: bounds.period_end,
       period_label: periodLabelCalendar(payroll_period),
       period_cycle_label: payrollCycleLabel(payroll_period),
-      required_work_days: countWorkingDaysMonSatInCycle(payroll_period),
+      required_work_days: required,
       payroll_holidays: listPayrollHolidaysInCycle(payroll_period),
     };
   }
 
   async getPeriod(period) {
     const bounds = parsePeriod(period);
-    const meta = this.periodMeta(period);
     const settings = await this.payrollRepository.getSettings();
     const employees = await this.payrollRepository.listActiveEmployeesForPayroll();
     await this.payrollRepository.deleteForPeriodExceptEmployees(
@@ -427,12 +455,18 @@ class PayrollService {
     const synced = await Promise.all(
       listed.map((row) => this.syncPayrollRowFromAttendance(row, bounds))
     );
+    const persistedRequired = synced.find((row) => row.expected_work_days != null)?.expected_work_days;
+    const meta = this.periodMeta(period, persistedRequired);
     const rows = await this.enrichPayrollRows(synced);
     return { ...meta, settings, rows };
   }
 
-  async generatePeriod(period) {
+  async generatePeriod(period, payload = {}) {
     const bounds = parsePeriod(period);
+    const requiredWorkDays = this.resolveExpectedWorkDays({
+      payrollPeriod: bounds.payroll_period,
+      explicit: payload.required_work_days,
+    });
     const settings = await this.payrollRepository.getSettings();
     const employees = await this.payrollRepository.listActiveEmployeesForPayroll();
     const existing = await this.payrollRepository.listByPeriod(bounds.payroll_period);
@@ -465,6 +499,20 @@ class PayrollService {
         role,
         monthlyBasicGross,
       });
+      const expectedDays = isMonthlyOfficeStaff(role)
+        ? this.resolveExpectedWorkDays({
+            payrollPeriod: bounds.payroll_period,
+            explicit: requiredWorkDays,
+            existing: prev?.expected_work_days,
+          })
+        : null;
+      if (expectedDays != null) {
+        fields.basic_salary = computeMonthlyStaffPayroll({
+          monthlyBasic: monthlyBasicGross,
+          expectedDays,
+          daysAttended: fields._resolvedDays ?? days,
+        }).basic_salary;
+      }
       fields.loan_deduction = await this.resolveLoanDeduction(emp.id, bounds.payroll_period);
 
       const totals = computeTotals(fields, emp, settings);
@@ -476,6 +524,7 @@ class PayrollService {
         upah_harian: fields._resolvedUpahHarian ?? upahHarian,
         basic_salary: fields.basic_salary,
         days_attended: fields._resolvedDays ?? days,
+        expected_work_days: expectedDays,
         tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
         transport_eligible: fields.transport_eligible,
         transport_allowance: totals.transport_allowance,
@@ -499,7 +548,7 @@ class PayrollService {
     );
     const enrichedRows = await this.enrichPayrollRows(rows);
     return {
-      ...this.periodMeta(bounds.payroll_period),
+      ...this.periodMeta(bounds.payroll_period, requiredWorkDays),
       settings,
       rows: enrichedRows,
       generated: enrichedRows.length,
@@ -534,6 +583,9 @@ class PayrollService {
         period_end: bounds.period_end,
         upah_harian: monthlyStaff ? 0 : num(employee.upah_harian),
         days_attended: days,
+        expected_work_days: monthlyStaff
+          ? this.resolveExpectedWorkDays({ payrollPeriod: bounds.payroll_period })
+          : null,
         tunjangan_masa_kerja: num(employee.tunjangan_masa_kerja),
         transport_eligible: Boolean(employee.transport_eligible),
         overtime_pay: 0,
@@ -563,7 +615,10 @@ class PayrollService {
       } else if (payload.basic_salary != null) {
         monthlyBasicGross = num(payload.basic_salary);
       }
-      const expectedDays = countWorkingDaysMonSatInCycle(bounds.payroll_period);
+      const expectedDays = this.resolveExpectedWorkDays({
+        payrollPeriod: bounds.payroll_period,
+        existing: existing.expected_work_days,
+      });
       gajiPokok = computeMonthlyStaffPayroll({
         monthlyBasic: monthlyBasicGross,
         expectedDays,
@@ -637,6 +692,12 @@ class PayrollService {
       upah_harian: upahHarian,
       basic_salary: gajiPokok,
       days_attended: daysN,
+      expected_work_days: monthlyStaff
+        ? this.resolveExpectedWorkDays({
+            payrollPeriod: bounds.payroll_period,
+            existing: existing.expected_work_days,
+          })
+        : null,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
       transport_eligible: fields.transport_eligible,
       transport_allowance: totals.transport_allowance,

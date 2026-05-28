@@ -220,6 +220,7 @@ async function migratePayrollColumns() {
     `ALTER TABLE employees ADD COLUMN IF NOT EXISTS upah_harian NUMERIC(14,2) NOT NULL DEFAULT 0`
   );
   await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS upah_harian NUMERIC(14,2) NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS expected_work_days INTEGER`);
 }
 
 async function migrateLoanRequests() {

@@ -91,7 +91,7 @@ export default {
   payrollRefresh: 'Muat ulang',
   payrollGenerate: 'Buat / perbarui dari kehadiran',
   payrollGenerateHint:
-    'Membuat atau memperbarui baris gaji untuk semua karyawan aktif. Periode: tgl 25 (bulan sebelumnya) s.d. tgl 24 (bulan dipilih). Hari hadir dihitung dari absen masuk dalam rentang itu.',
+    'Membuat atau memperbarui baris gaji untuk semua karyawan aktif. Periode: tgl 25 (bulan sebelumnya) s.d. tgl 24 (bulan dipilih). Hari hadir dihitung dari absen masuk dalam rentang itu. Anda bisa mengatur manual hari wajib masuk sebelum generate.',
   payrollGenerated: 'Gaji diperbarui untuk {{count}} karyawan.',
   payrollGlobalSettings: 'Nominal tunjangan default',
   payrollTransportNominal: 'Default tunjangan transport (Rp)',
@@ -113,6 +113,7 @@ export default {
   payrollUpahHarian: 'Upah harian',
   payrollMonthlyBasic: 'Gaji pokok bulanan',
   payrollExpectedWorkDays: 'Hari wajib masuk (Sen–Sab)',
+  payrollExpectedWorkDaysManual: 'Atur manual hari wajib masuk (untuk generate/perbarui)',
   payrollDaysAbsent: 'Hari tidak hadir',
   payrollAbsenceDeduction: 'Potongan absensi',
   payrollMonthlyNetBasic: 'Gaji pokok bersih (setelah potongan)',

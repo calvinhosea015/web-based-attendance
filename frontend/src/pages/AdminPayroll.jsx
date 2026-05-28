@@ -45,6 +45,7 @@ export default function AdminPayroll() {
   const [exportingSlips, setExportingSlips] = useState(false);
   const [requiredWorkDays, setRequiredWorkDays] = useState(null);
   const [payrollHolidays, setPayrollHolidays] = useState([]);
+  const [manualRequiredDays, setManualRequiredDays] = useState('');
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -101,6 +102,9 @@ export default function AdminPayroll() {
       setRequiredWorkDays(
         data.required_work_days != null ? Number(data.required_work_days) : null
       );
+      setManualRequiredDays(
+        data.required_work_days != null ? String(Number(data.required_work_days)) : ''
+      );
       setPayrollHolidays(Array.isArray(data.payroll_holidays) ? data.payroll_holidays : []);
       if (data.period_cycle_label) setPeriodCycleLabel(data.period_cycle_label);
       else setPeriodCycleLabel(payrollCycleLabel(period));
@@ -150,11 +154,16 @@ export default function AdminPayroll() {
     notify('');
     try {
       await ensureCsrf();
-      const { data } = await api.post(paths.adminPayrollGenerate(period));
+      const payload = {};
+      if (manualRequiredDays !== '') payload.required_work_days = Number(manualRequiredDays);
+      const { data } = await api.post(paths.adminPayrollGenerate(period), payload);
       setSettings(data.settings || settings);
       setRows(data.rows || []);
       setRequiredWorkDays(
         data.required_work_days != null ? Number(data.required_work_days) : null
+      );
+      setManualRequiredDays(
+        data.required_work_days != null ? String(Number(data.required_work_days)) : ''
       );
       setPayrollHolidays(Array.isArray(data.payroll_holidays) ? data.payroll_holidays : []);
       notify(t('payrollGenerated', { count: data.generated ?? 0 }), 'success');
@@ -290,6 +299,17 @@ export default function AdminPayroll() {
                     className={inputClass}
                     value={period}
                     onChange={(e) => setPeriod(e.target.value)}
+                  />
+                </Field>
+                <Field label={t('payrollExpectedWorkDaysManual')}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="31"
+                    className={inputClass}
+                    value={manualRequiredDays}
+                    onChange={(e) => setManualRequiredDays(e.target.value)}
+                    placeholder={String(requiredWorkDays ?? countWorkingDaysMonSatInCycle(period))}
                   />
                 </Field>
                 <div className="flex flex-wrap gap-2">

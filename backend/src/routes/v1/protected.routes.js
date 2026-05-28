@@ -17,6 +17,7 @@ const {
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
+  payrollGenerateValidators,
   payrollEntryValidators,
   payrollEmployeeDefaultsValidators,
   loanSubmitValidators,
@@ -220,6 +221,7 @@ function buildProtectedRoutes(deps) {
     '/admin/payroll/periods/:period/generate',
     requireRole('admin'),
     ...payrollPeriodParamValidator,
+    ...payrollGenerateValidators,
     validateRequest,
     payrollController.generatePeriod
   );
