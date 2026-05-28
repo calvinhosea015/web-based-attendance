@@ -62,8 +62,8 @@ function zonedTimeToUtcDate({ year, month, day, hour, minute, second }, timeZone
   // Start from UTC guess, then correct by tz offset at that instant.
   const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second, 0);
   const first = utcGuess - offsetAtInstantMs(new Date(utcGuess), timeZone);
-  const second = utcGuess - offsetAtInstantMs(new Date(first), timeZone);
-  return new Date(second);
+  const corrected = utcGuess - offsetAtInstantMs(new Date(first), timeZone);
+  return new Date(corrected);
 }
 
 function parseShiftTimeOnDate(baseDate, timeStr) {
