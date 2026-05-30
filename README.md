@@ -408,7 +408,7 @@ Good default for a small team (low cost, minimal ops):
 | Piece | Service | Role |
 |-------|---------|------|
 | **Frontend** | [Vercel](https://vercel.com) (free tier) | Hosts the React SPA (`frontend/`) |
-| **Backend** | [Railway](https://railway.app) | Runs the Node API (`backend/`) |
+| **Backend** | [Railway](https://railway.app) **or your PC** | Runs the Node API (`backend/`) |
 | **Database** | [Neon](https://neon.tech) | Serverless PostgreSQL |
 | **Storage** | [Cloudflare R2](https://developers.cloudflare.com/r2/) | Optional — not required today (Excel exports are generated in memory) |
 
@@ -452,6 +452,50 @@ On first successful API start, **migrations and seed data** run (same as local d
 
 `backend/railway.toml` sets the start command and health check.
 
+#### Step 2b — Local API instead of Railway (same Neon database)
+
+Use this when you want the backend on **your machine** and the UI still on **Vercel**, without changing or resetting the database.
+
+```mermaid
+flowchart LR
+  User[Browser] --> Vercel[Vercel SPA]
+  Vercel -->|HTTPS /api| Tunnel[Cloudflare Tunnel or ngrok]
+  Tunnel --> Local[Local API port 5001]
+  Local --> Neon[(Neon Postgres — unchanged)]
+```
+
+**Keep your data:** copy the **exact** `DATABASE_URL` from Railway (Neon). Do **not** start local Docker Postgres for this setup — that would be a separate empty database.
+
+1. **Stop Railway API** (pause or delete the Railway service) so only one backend talks to Neon.
+2. **Create `backend/.env`:**
+   ```bash
+   cp backend/.env.production-local.example backend/.env
+   ```
+3. **From Railway → Variables**, paste into `backend/.env`:
+   - `DATABASE_URL` (Neon — same string as production)
+   - `JWT_SECRET`, `COOKIE_SECRET` (keeps existing logins valid)
+   - Any other production vars you customized (`OFFICE_RADIUS_METERS`, etc.)
+4. Set **`ALLOWED_ORIGINS`** to your Vercel URL, e.g. `https://your-app.vercel.app`.
+5. Keep **`COOKIE_SAME_SITE=none`** and **`SERVE_FRONTEND=false`**.
+6. **Install and start the API locally:**
+   ```powershell
+   # Windows
+   .\scripts\start-local-api.ps1
+   ```
+   ```bash
+   # Mac / Linux
+   cd backend && npm install && npm start
+   ```
+7. **Expose port 5001 to the internet** (Vercel cannot call `localhost`):
+   - **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)** (free, stable hostname), or
+   - **[ngrok](https://ngrok.com/)**: `ngrok http 5001`
+8. **Vercel → Environment Variables** → set **`VITE_API_BASE`** to `https://<your-tunnel-host>/api` and **redeploy** the frontend.
+9. Check **`https://<tunnel-host>/health`** → `{ "ok": true }`, then open your Vercel URL and log in.
+
+**Migrations on startup:** the API only applies additive schema changes and skips demo seed rows that already exist (`ON CONFLICT DO NOTHING`). Your attendance and user data stay intact.
+
+**Local dev (optional):** run `cd frontend && npm run dev` with the API on port 5001; Vite proxies `/api` to localhost (no tunnel needed for that workflow).
+
 #### Step 3 — Vercel (frontend)
 
 1. Import the repo → set **Root Directory** to **`frontend`**.
@@ -460,11 +504,11 @@ On first successful API start, **migrations and seed data** run (same as local d
 
 | Variable | Value |
 |----------|--------|
-| `VITE_API_BASE` | `https://<railway-host>/api` (must include **`https://`** and **`/api`** — not just the hostname) |
+| `VITE_API_BASE` | `https://<api-host>/api` — Railway URL, tunnel URL, or other public API host (must include **`https://`** and **`/api`**) |
 
 4. Deploy. `frontend/vercel.json` rewrites all routes to the SPA for React Router.
 
-**Login shows “405”:** the UI is posting to Vercel instead of Railway. Fix `VITE_API_BASE` as above and **redeploy** (Vite bakes env vars at build time).
+**Login shows “405”:** the UI is posting to Vercel instead of the API. Fix `VITE_API_BASE` as above and **redeploy** (Vite bakes env vars at build time).
 
 #### Step 4 — Cloudflare R2 (optional)
 
@@ -475,13 +519,14 @@ The current app does **not** persist files to object storage (payroll/attendance
 1. Change demo passwords (`admin` / `employee`) immediately.
 2. Open the **Vercel** URL on a phone, allow **location**, test check-in.
 3. If login returns **403 CSRF** (“security token”), refresh the page, redeploy the latest API, and confirm `ALLOWED_ORIGINS` matches the Vercel URL. `COOKIE_SAME_SITE=none` is still recommended but login works via **`X-CSRF-Token`** when cookies are blocked (common on phones).
-4. If check-in says you are outside the office radius, set Railway **`OFFICE_RADIUS_METERS=500`** (or higher), redeploy the API, and verify the office **Google Maps pin** matches the real site. The employee page shows live GPS distance when location permission is allowed.
-5. Swagger: `https://<railway-host>/api-docs`
+4. If check-in says you are outside the office radius, set **`OFFICE_RADIUS_METERS=500`** (or higher) on the API, restart/redeploy, and verify the office **Google Maps pin** matches the real site. The employee page shows live GPS distance when location permission is allowed.
+5. Swagger: `https://<api-host>/api-docs`
 
 #### Updates (split stack)
 
 - **Frontend**: push to `main` → Vercel redeploys.
-- **Backend**: push to `main` → Railway redeploys.
+- **Backend (Railway)**: push to `main` → Railway redeploys.
+- **Backend (local)**: restart `npm start` on your machine after code changes; keep the tunnel running.
 - **Schema**: migrations run on API startup; no separate migrate job.
 
 ---
