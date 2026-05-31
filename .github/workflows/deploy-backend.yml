@@ -1,0 +1,34 @@
+# Deploy backend to your Windows server when backend/ changes on main.
+# Frontend on Vercel already redeploys on its own.
+#
+# Required GitHub repo secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST       — public IP or hostname of the server
+#   DEPLOY_USER       — Windows username (e.g. calvin)
+#   DEPLOY_SSH_KEY    — private key for SSH (see README §16.1c)
+#   DEPLOY_REPO_PATH  — absolute path on server (e.g. D:\Calvin\web-based-attendance)
+
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'scripts/deploy-backend.ps1'
+      - 'scripts/install-backend-service.ps1'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            powershell -NoProfile -ExecutionPolicy Bypass -File "${{ secrets.DEPLOY_REPO_PATH }}\scripts\deploy-backend.ps1" -RepoRoot "${{ secrets.DEPLOY_REPO_PATH }}"

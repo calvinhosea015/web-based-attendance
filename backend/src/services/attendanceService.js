@@ -342,10 +342,8 @@ class AttendanceService {
     if (fieldOfficer && this.fieldCheckoutCodeService) {
       await this.fieldCheckoutCodeService.assertReadyForCheckout(auth, checkoutCodeRaw);
     } else if (fieldOfficer) {
-      const code = checkoutCodeRaw != null ? String(checkoutCodeRaw).trim() : '';
-      if (!code) {
-        throw new AppError('Checkout code is required to check out.', 400, 'CHECKOUT_CODE_REQUIRED');
-      }
+      const { validateFieldCheckoutCode } = require('../utils/fieldCheckoutPayload');
+      validateFieldCheckoutCode(checkoutCodeRaw);
     }
     const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
     const geo = validateClockGeoOrThrow(

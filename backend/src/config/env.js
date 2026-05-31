@@ -28,8 +28,6 @@ module.exports = {
   allowedOrigins: parseList(process.env.ALLOWED_ORIGINS),
   csrfEnabled: process.env.CSRF_ENABLED !== 'false',
   activityLogEnabled: process.env.ACTIVITY_LOG_ENABLED !== 'false',
-  /** Shared keyword petugas lapangan must enter to check out (not set by admin in the app). */
-  fieldOfficerCheckoutKeyword: (process.env.FIELD_OFFICER_CHECKOUT_KEYWORD || '').trim(),
   /** Calendar day for attendance (check-in/out “today”) — use office local TZ. */
   attendanceCalendarTz: process.env.ATTENDANCE_CALENDAR_TZ || 'Asia/Jakarta',
 };

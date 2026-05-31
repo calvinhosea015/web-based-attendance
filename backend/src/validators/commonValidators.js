@@ -1,10 +1,25 @@
 const { body, param, query } = require('express-validator');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
 const { VALID_ROLES, isAttendanceRole } = require('../constants/roles');
-const {
-  FIELD_OFFICER_CHECKOUT_MIN_LENGTH,
-  FIELD_OFFICER_CHECKOUT_MAX_LENGTH,
-} = require('../constants/fieldOfficer');
+const { FIELD_OFFICER_CHECKOUT_MAX_LENGTH } = require('../constants/fieldOfficer');
+const { validateFieldCheckoutCode } = require('../utils/fieldCheckoutPayload');
+
+function fieldCheckoutCodeBodyValidator(field) {
+  return body(field)
+    .optional()
+    .trim()
+    .isString()
+    .isLength({ max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH })
+    .custom((value) => {
+      if (value === '' || value == null) return true;
+      try {
+        validateFieldCheckoutCode(value);
+        return true;
+      } catch (e) {
+        throw new Error(e.message);
+      }
+    });
+}
 
 const loginValidators = [
   body('username').trim().notEmpty().withMessage('username required'),
@@ -41,21 +56,22 @@ const checkInValidators = [
   body('remote_work').optional().isBoolean({ strict: true }),
 ];
 
-const checkOutValidators = [
-  ...clockValidators,
-  body('checkout_code')
-    .optional()
-    .trim()
-    .isString()
-    .isLength({ min: FIELD_OFFICER_CHECKOUT_MIN_LENGTH, max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH }),
-];
+const checkOutValidators = [...clockValidators, fieldCheckoutCodeBodyValidator('checkout_code')];
 
 const fieldCodeSubmitValidators = [
   body('code')
     .trim()
     .notEmpty()
     .isString()
-    .isLength({ min: FIELD_OFFICER_CHECKOUT_MIN_LENGTH, max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH }),
+    .isLength({ max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH })
+    .custom((value) => {
+      try {
+        validateFieldCheckoutCode(value);
+        return true;
+      } catch (e) {
+        throw new Error(e.message);
+      }
+    }),
 ];
 
 function passwordPolicyValidator() {
@@ -181,6 +197,11 @@ const loanDecideValidators = [
   body('rejection_reason').optional().trim().isLength({ max: 500 }),
 ];
 
+const fieldDeliveryQueryValidators = [
+  query('limit').optional().isInt({ min: 1, max: 200 }),
+  query('days').optional().isInt({ min: 1, max: 365 }),
+];
+
 module.exports = {
   loginValidators,
   refreshValidators,
@@ -205,4 +226,5 @@ module.exports = {
   payrollEmployeeDefaultsValidators,
   loanSubmitValidators,
   loanDecideValidators,
+  fieldDeliveryQueryValidators,
 };

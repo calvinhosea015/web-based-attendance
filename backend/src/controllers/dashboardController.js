@@ -14,6 +14,13 @@ function makeDashboardController(dashboardService, employeePortalService) {
     employeePayroll: asyncHandler(async (req, res) => {
       res.json(await employeePortalService.mePayroll(req.auth));
     }),
+    employeeFieldDeliveries: asyncHandler(async (req, res) => {
+      const limit = req.query.limit != null ? Number(req.query.limit) : 100;
+      const days = req.query.days != null ? Number(req.query.days) : 60;
+      res.json(
+        await employeePortalService.listFieldOfficerDeliveries(req.auth, { limit, days })
+      );
+    }),
   };
 }
 

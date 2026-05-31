@@ -207,6 +207,34 @@ class AttendanceRepository {
     return r.rows[0];
   }
 
+  /**
+   * Completed check-outs with delivery data from petugas lapangan at the given office.
+   */
+  async listFieldOfficerDeliveriesByOffice(officeId, { limit = 100, days = 60 } = {}) {
+    const r = await query(
+      `SELECT
+        a.id,
+        a.check_in,
+        a.check_out,
+        a.checkout_code,
+        e.full_name,
+        e.employee_id AS employee_code,
+        o.name AS office_name
+       FROM attendance a
+       JOIN employees e ON e.id = a.employee_id
+       JOIN users u ON u.employee_id = e.id AND u.role = 'field_officer'
+       JOIN offices o ON o.id = a.office_id
+       WHERE a.office_id = $1
+         AND a.check_out IS NOT NULL
+         AND NULLIF(TRIM(a.checkout_code), '') IS NOT NULL
+         AND a.check_out >= (CURRENT_TIMESTAMP - ($3::int || ' days')::interval)
+       ORDER BY a.check_out DESC
+       LIMIT $2`,
+      [officeId, limit, days]
+    );
+    return r.rows;
+  }
+
   async sumWorkHoursThisWeek(employeeId) {
     const r = await query(
       `SELECT COALESCE(SUM(work_hours), 0)::numeric AS total

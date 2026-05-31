@@ -3,7 +3,7 @@ const ROLES = {
   ADMIN: 'admin',
   /** Pegawai — office staff with attendance */
   EMPLOYEE: 'employee',
-  /** Petugas lapangan — flexible hours; multiple in/out; checkout requires a code string */
+  /** Petugas lapangan — flexible hours; multiple in/out; checkout requires structured delivery data */
   FIELD_OFFICER: 'field_officer',
   /** Umum — one check-in per day; no checkout; remote + geolocation on check-in */
   UMUM: 'umum',
@@ -26,6 +26,11 @@ function isFieldOfficer(role) {
   return role === ROLES.FIELD_OFFICER;
 }
 
+/** Staff Kantor — office employee (not field officer or umum). */
+function isStaffKantor(role) {
+  return role === ROLES.EMPLOYEE;
+}
+
 function isUmum(role) {
   return role === ROLES.UMUM;
 }
@@ -42,6 +47,7 @@ module.exports = {
   isValidRole,
   isAttendanceRole,
   isFieldOfficer,
+  isStaffKantor,
   isUmum,
   requiresFullName,
 };

@@ -23,6 +23,7 @@ const {
   loanSubmitValidators,
   loanDecideValidators,
   fieldCodeSubmitValidators,
+  fieldDeliveryQueryValidators,
 } = require('../../validators/commonValidators');
 const { body, param } = require('express-validator');
 
@@ -265,6 +266,13 @@ function buildProtectedRoutes(deps) {
   r.get('/employee/me/summary', requireAttendanceRole, dashboardController.employeeSummary);
   r.get('/employee/me/attendance', requireAttendanceRole, dashboardController.employeeHistory);
   r.get('/employee/me/payroll', requireAttendanceRole, dashboardController.employeePayroll);
+  r.get(
+    '/employee/field-deliveries',
+    requireRole('employee'),
+    fieldDeliveryQueryValidators,
+    validateRequest,
+    dashboardController.employeeFieldDeliveries
+  );
   r.post(
     '/employee/me/field-code',
     requireAttendanceRole,

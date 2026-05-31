@@ -46,6 +46,7 @@ const MESSAGE_CODE = {
   'Attendance for today is already complete.': 'DAY_COMPLETE',
   'Check-out is not required for your role.': 'CHECKOUT_NOT_REQUIRED',
   'Checkout code is required to check out.': 'CHECKOUT_CODE_REQUIRED',
+  'Checkout data is required to check out.': 'CHECKOUT_CODE_REQUIRED',
   'Selected office not found.': 'OFFICE_NOT_FOUND',
   'Office not found.': 'OFFICE_NOT_FOUND',
   'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.':
@@ -55,11 +56,15 @@ const MESSAGE_CODE = {
   'No check-in found for today.': 'NO_OPEN',
   'Could not complete checkout.': 'CHECKOUT_CONFLICT',
   'Invalid checkout keyword.': 'INVALID_CHECKOUT_CODE',
-  'Checkout keyword is not configured. Contact IT or admin.': 'FIELD_KEYWORD_NOT_CONFIGURED',
   'Checkout keyword already recorded for today.': 'FIELD_CODE_ALREADY',
   'Checkout keyword accepted for today.': 'FIELD_CODE_ACCEPTED',
+  'Checkout data already recorded for today.': 'FIELD_CODE_ALREADY',
+  'Checkout data accepted for today.': 'FIELD_CODE_ACCEPTED',
   'Only field officers can submit the checkout keyword.': 'NOT_FIELD_OFFICER',
+  'Only field officers can submit checkout data.': 'NOT_FIELD_OFFICER',
   'Checkout phrase is too long.': 'CHECKOUT_CODE_TOO_LONG',
+  'Checkout data is too long.': 'CHECKOUT_CODE_TOO_LONG',
+  'Enter checkout data (9 fields separated by *) before you can check out.': 'FIELD_CODE_REQUIRED',
   'Username cannot be empty.': 'USERNAME_EMPTY',
   'Username already exists.': 'USERNAME_EXISTS',
   'Invalid office_id.': 'OFFICE_ID_INVALID',
@@ -112,12 +117,12 @@ function paramsFromMessage(message) {
   if (m) return { meters: m[1] };
   m = message.match(/^Password must be at least (\d+) characters\.$/);
   if (m) return { min: m[1] };
-  m = message.match(/^Checkout phrase must be at least (\d+) characters\.$/);
-  if (m) return { min: m[1] };
+  m = message.match(/^Invalid checkout field: (.+)$/);
+  if (m) return { detail: m[1] };
   m = message.match(
-    /^Enter the checkout phrase \(at least (\d+) characters\) before you can check out\.$/
+    /^Checkout data must have 9 fields separated by \* \(pabrik\*norek\*.*\)\.$/
   );
-  if (m) return { min: m[1] };
+  if (m) return {};
   m = message.match(/^Validation failed: (.+)$/);
   if (m) return { detail: m[1] };
   if (message === 'Validation failed') return { detail: '' };

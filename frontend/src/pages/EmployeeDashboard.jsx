@@ -6,12 +6,13 @@ import LoanProgress from '../components/LoanProgress.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
-import { isAttendanceRole } from '../roles.js';
+import { isAttendanceRole, ROLE_EMPLOYEE } from '../roles.js';
+import {
+  isFieldCheckoutFormatValid,
+  parseFieldCheckoutDisplay,
+} from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
-
-/** Must match backend FIELD_OFFICER_CHECKOUT_MIN_LENGTH */
-const FIELD_CHECKOUT_MIN_LEN = 42;
 
 function formatApiError(err) {
   if (!err.response && (err.message === 'Network Error' || err.code === 'ERR_NETWORK')) {
@@ -57,6 +58,7 @@ export default function EmployeeDashboard() {
   const [loanSubmitting, setLoanSubmitting] = useState(false);
   const [geoPreview, setGeoPreview] = useState(null);
   const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
+  const [fieldDeliveries, setFieldDeliveries] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -81,16 +83,21 @@ export default function EmployeeDashboard() {
         return;
       }
       try {
-        const [s, h, ln, pr] = await Promise.all([
+        const isStaffKantor = role === ROLE_EMPLOYEE;
+        const [s, h, ln, pr, fd] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
           api.get(paths.employeeLoans).catch(() => ({ data: [] })),
           api.get(paths.employeePayroll).catch(() => ({ data: [] })),
+          isStaffKantor
+            ? api.get(paths.employeeFieldDeliveries).catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
         ]);
         setSummary(s.data);
         setHistory(h.data);
         setLoans(ln.data || []);
         setPayroll(pr.data || []);
+        setFieldDeliveries(fd.data || []);
       } catch (e) {
         console.error(e);
         setMessage((prev) => (prev ? `${prev} ${i18n.t('dashboardLoadFailed')}` : formatApiError(e)));
@@ -202,8 +209,8 @@ export default function EmployeeDashboard() {
       setMessage(t('checkoutCodeRequired'));
       return;
     }
-    if (code.length < FIELD_CHECKOUT_MIN_LEN) {
-      setMessage(t('checkoutCodeTooShort', { min: FIELD_CHECKOUT_MIN_LEN }));
+    if (!isFieldCheckoutFormatValid(code)) {
+      setMessage(t('checkoutCodeInvalidFormat'));
       return;
     }
     setMessage('');
@@ -227,8 +234,8 @@ export default function EmployeeDashboard() {
       setMessage(t('checkoutCodeRequired'));
       return;
     }
-    if (isFieldOfficer && checkoutCode.trim().length < FIELD_CHECKOUT_MIN_LEN) {
-      setMessage(t('checkoutCodeTooShort', { min: FIELD_CHECKOUT_MIN_LEN }));
+    if (isFieldOfficer && !isFieldCheckoutFormatValid(checkoutCode)) {
+      setMessage(t('checkoutCodeInvalidFormat'));
       return;
     }
     setMessage('');
@@ -308,6 +315,7 @@ export default function EmployeeDashboard() {
   const canClockIn = Boolean(assignedOffice?.id);
   const isFieldOfficer = summary?.field_officer_mode === true;
   const isUmum = summary?.umum_mode === true;
+  const isStaffKantor = summary?.role === ROLE_EMPLOYEE;
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
   const shiftLabel = isFieldOfficer
@@ -322,12 +330,12 @@ export default function EmployeeDashboard() {
     !canClockIn ||
     clockPending ||
     (!isFieldOfficer && nextAction === 'done') ||
-    (isFieldOfficer && nextAction === 'check_out' && !checkoutCode.trim());
+    (isFieldOfficer && nextAction === 'check_out' && !isFieldCheckoutFormatValid(checkoutCode));
 
   const primaryClockLabel =
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
   const scheduleHint = isFieldOfficer
-    ? t('fieldOnceInOnceOut', { min: FIELD_CHECKOUT_MIN_LEN })
+    ? t('fieldOnceInOnceOut')
     : isUmum
       ? t('umumOncePerDay')
       : t('onceInOnceOut');
@@ -392,7 +400,7 @@ export default function EmployeeDashboard() {
           <p className="mt-1 text-xs font-medium text-slate-600">{scheduleHint}</p>
           {isFieldOfficer && summary?.has_checkout_code_today === false && (
             <p className="mt-1 text-xs text-amber-700">
-              {t('fieldCodeRequiredToday', { min: FIELD_CHECKOUT_MIN_LEN })}
+              {t('fieldCodeRequiredToday')}
             </p>
           )}
           {isFieldOfficer && summary?.has_checkout_code_today === true && (
@@ -517,7 +525,7 @@ export default function EmployeeDashboard() {
           {isFieldOfficer && summary?.has_checkout_code_today === false && (
             <Field
               label={t('fieldCheckoutCode')}
-              hint={t('fieldCodeSubmitHint', { min: FIELD_CHECKOUT_MIN_LEN })}
+              hint={t('fieldCodeSubmitHint')}
             >
               <input
                 type="text"
@@ -525,22 +533,13 @@ export default function EmployeeDashboard() {
                 value={fieldCodeDraft}
                 onChange={(e) => setFieldCodeDraft(e.target.value)}
                 autoComplete="off"
-                placeholder={t('fieldCheckoutCodePlaceholder', { min: FIELD_CHECKOUT_MIN_LEN })}
+                placeholder={t('fieldCheckoutCodePlaceholder')}
               />
-              <p className="mt-1 text-xs text-slate-500">
-                {t('fieldCheckoutCharCount', {
-                  count: fieldCodeDraft.trim().length,
-                  min: FIELD_CHECKOUT_MIN_LEN,
-                })}
-              </p>
               <Button
                 type="button"
                 variant="primary"
                 className="mt-2 w-full sm:w-auto"
-                disabled={
-                  fieldCodeSubmitting ||
-                  fieldCodeDraft.trim().length < FIELD_CHECKOUT_MIN_LEN
-                }
+                disabled={fieldCodeSubmitting || !isFieldCheckoutFormatValid(fieldCodeDraft)}
                 onClick={handleSubmitFieldCode}
               >
                 {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
@@ -550,7 +549,7 @@ export default function EmployeeDashboard() {
           {isFieldOfficer && nextAction === 'check_out' && (
             <Field
               label={t('fieldCheckoutCodeForOut')}
-              hint={t('fieldCodeSubmitHint', { min: FIELD_CHECKOUT_MIN_LEN })}
+              hint={t('fieldCodeSubmitHint')}
             >
               <input
                 type="text"
@@ -558,14 +557,8 @@ export default function EmployeeDashboard() {
                 value={checkoutCode}
                 onChange={(e) => setCheckoutCode(e.target.value)}
                 autoComplete="off"
-                placeholder={t('fieldCheckoutCodePlaceholder', { min: FIELD_CHECKOUT_MIN_LEN })}
+                placeholder={t('fieldCheckoutCodePlaceholder')}
               />
-              <p className="mt-1 text-xs text-slate-500">
-                {t('fieldCheckoutCharCount', {
-                  count: checkoutCode.trim().length,
-                  min: FIELD_CHECKOUT_MIN_LEN,
-                })}
-              </p>
             </Field>
           )}
           <Button
@@ -754,6 +747,52 @@ export default function EmployeeDashboard() {
           </ul>
         )}
       </Card>
+
+      {isStaffKantor && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">{t('fieldDeliveryTitle')}</h2>
+          <p className="mt-1 text-sm text-slate-600">{t('fieldDeliveryHint')}</p>
+          {fieldDeliveries.length ? (
+            <ul className="mt-4 space-y-4 text-sm">
+              {fieldDeliveries.map((row) => {
+                const parsed = parseFieldCheckoutDisplay(row.checkout_code);
+                return (
+                  <li
+                    key={row.id}
+                    className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-3"
+                  >
+                    <div className="font-medium text-slate-900">
+                      {row.full_name}
+                      {row.employee_code ? ` · ${row.employee_code}` : ''}
+                    </div>
+                    <div className="mt-1 text-slate-600">
+                      {t('checkOut')}:{' '}
+                      {row.check_out ? new Date(row.check_out).toLocaleString() : t('emDash')}
+                    </div>
+                    <p className="mt-2 font-mono text-xs text-slate-800 break-all">
+                      {row.checkout_code}
+                    </p>
+                    {parsed ? (
+                      <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {Object.entries(parsed).map(([key, value]) => (
+                          <div key={key}>
+                            <dt className="text-xs uppercase tracking-wide text-slate-500">
+                              {t(`fieldDelivery_${key}`, key)}
+                            </dt>
+                            <dd className="font-medium text-slate-800">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">{t('fieldDeliveryEmpty')}</p>
+          )}
+        </section>
+      )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">{t('history')}</h2>

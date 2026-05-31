@@ -1,7 +1,7 @@
 const { AppError } = require('../utils/errors');
 const config = require('../config/env');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
-const { isFieldOfficer, isUmum } = require('../constants/roles');
+const { isFieldOfficer, isUmum, isStaffKantor } = require('../constants/roles');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 
 class EmployeePortalService {
@@ -153,6 +153,35 @@ class EmployeePortalService {
       return this.payrollService.listPayrollForEmployee(auth.employeeId);
     }
     return this.payrollRepository.listForEmployee(auth.employeeId);
+  }
+
+  async listFieldOfficerDeliveries(auth, { limit = 100, days = 60 } = {}) {
+    if (!isStaffKantor(auth.role)) {
+      throw new AppError('Only Staff Kantor can view field delivery data.', 403, 'FORBIDDEN');
+    }
+    const userRow = await this.userRepository.findById(auth.userId);
+    if (!userRow?.office_id) {
+      throw new AppError(
+        'No office is assigned to your account. Ask an admin to assign an office.',
+        400,
+        'NO_OFFICE'
+      );
+    }
+    const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
+    const safeDays = Math.min(365, Math.max(1, Number(days) || 60));
+    const rows = await this.attendanceRepository.listFieldOfficerDeliveriesByOffice(
+      userRow.office_id,
+      { limit: safeLimit, days: safeDays }
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      full_name: row.full_name,
+      employee_code: row.employee_code,
+      office_name: row.office_name,
+      check_in: row.check_in,
+      check_out: row.check_out,
+      checkout_code: row.checkout_code,
+    }));
   }
 }
 

@@ -125,6 +125,7 @@ export const paths = {
   adminPayrollSlipsAll: (period) => `/v1/admin/payroll/periods/${period}/slips/export`,
   employeeLoans: '/v1/employee/me/loans',
   employeeFieldCode: '/v1/employee/me/field-code',
+  employeeFieldDeliveries: '/v1/employee/field-deliveries',
   adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
   adminLoanRequests: '/v1/admin/loan-requests',
   /** @param {string|number} id */
