@@ -1,6 +1,3 @@
-# One-time: register the attendance API with pm2 so deploys can restart it cleanly.
-# Run on the Windows server from the repo root:
-#   .\scripts\install-backend-service.ps1
 
 $ErrorActionPreference = "Stop"
 $Backend = Join-Path $PSScriptRoot ".." "backend" | Resolve-Path
@@ -29,7 +26,19 @@ pm2 delete $ServiceName 2>$null
 pm2 start server.js --name $ServiceName --cwd $Backend --interpreter $NodeExe
 pm2 save
 
-if (Get-Command pm2-startup -ErrorAction SilentlyContinue) {
+$BootInstaller = Join-Path $PSScriptRoot "install-backend-boot-task.ps1"
+if (Test-Path $BootInstaller) {
+    $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator
+    )
+    if ($IsAdmin) {
+        & $BootInstaller
+    } else {
+        Write-Host ""
+        Write-Host "For boot without login, run PowerShell as Administrator:"
+        Write-Host "  .\scripts\install-backend-boot-task.ps1"
+    }
+} elseif (Get-Command pm2-startup -ErrorAction SilentlyContinue) {
     pm2-startup install
     pm2 save
 }
