@@ -30,7 +30,22 @@ async function parseBlobError(blob) {
 export async function openLeaveDocument(client, url) {
   closeLeaveDocumentPreview();
 
-  const res = await client.get(url, { responseType: 'blob' });
+  let res;
+  try {
+    res = await client.get(url, { responseType: 'blob' });
+  } catch (err) {
+    const blob = err.response?.data;
+    if (blob instanceof Blob) {
+      throw new Error(await parseBlobError(blob));
+    }
+    if (err.response?.status === 404) {
+      throw new Error(
+        'Document file not found. Please submit the leave request again with the document.'
+      );
+    }
+    throw err;
+  }
+
   const contentType = (res.headers['content-type'] || '').toLowerCase();
 
   if (contentType.includes('application/json') || contentType.includes('text/html')) {

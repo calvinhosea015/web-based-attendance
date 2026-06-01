@@ -469,6 +469,8 @@ async function migrateLeaveFeatures() {
     `UPDATE leave_requests SET is_paid = false
      WHERE approval_status = 'approved' AND leave_type = 'paternity' AND is_paid IS NULL`
   );
+  await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_data BYTEA`);
+  await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_mime VARCHAR(128)`);
 }
 
 async function migrateFieldCheckoutTables() {

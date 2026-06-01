@@ -1,5 +1,6 @@
 const { AppError } = require('../utils/errors');
 const { isStaffKantor } = require('../constants/roles');
+const { buildStoredFilename, writeDiskCopy } = require('../middleware/leaveUpload');
 const {
   LEAVE_TYPES,
   VALID_LEAVE_TYPES,
@@ -151,7 +152,15 @@ class LeaveService {
     }
 
     const reason = payload.reason ? String(payload.reason).trim().slice(0, 2000) : null;
-    const attachmentPath = file ? file.filename : null;
+    let attachmentPath = null;
+    let attachmentData = null;
+    let attachmentMime = null;
+    if (file?.buffer?.length) {
+      attachmentPath = buildStoredFilename(file.originalname);
+      attachmentData = file.buffer;
+      attachmentMime = file.mimetype;
+      writeDiskCopy(attachmentPath, file.buffer);
+    }
 
     return this.leaveRequestRepository.create({
       employeeId: auth.employeeId,
@@ -160,6 +169,8 @@ class LeaveService {
       endDate,
       daysCount,
       attachmentPath,
+      attachmentData,
+      attachmentMime,
       reason,
     });
   }
@@ -229,18 +240,30 @@ class LeaveService {
     return row;
   }
 
-  async getAttachment(auth, filename) {
-    const safe = pathBasename(filename);
-    if (!safe || safe !== filename) {
-      throw new AppError('Invalid file.', 400, 'NOT_FOUND');
+  assertCanViewAttachment(auth, row) {
+    if (!row?.attachment_path) {
+      throw new AppError('File not found.', 404, 'NOT_FOUND');
     }
+    if (auth.role === 'admin') return;
+    if (isStaffKantor(auth.role) && auth.employeeId === row.employee_id) return;
+    throw new AppError('Forbidden', 403, 'FORBIDDEN');
+  }
+
+  async getAttachmentByRequestId(auth, requestId) {
+    const row = await this.leaveRequestRepository.findById(Number(requestId));
+    if (!row) throw new AppError('File not found.', 404, 'NOT_FOUND');
+    this.assertCanViewAttachment(auth, row);
+    return row;
+  }
+
+  async getAttachmentByFilename(auth, filenameParam) {
+    const safe = pathBasename(decodeURIComponent(String(filenameParam || '')));
+    if (!safe) throw new AppError('Invalid file.', 400, 'NOT_FOUND');
 
     const row = await this.leaveRequestRepository.findByAttachment(safe);
     if (!row) throw new AppError('File not found.', 404, 'NOT_FOUND');
-
-    if (auth.role === 'admin') return safe;
-    if (isStaffKantor(auth.role) && auth.employeeId === row.employee_id) return safe;
-    throw new AppError('Forbidden', 403, 'FORBIDDEN');
+    this.assertCanViewAttachment(auth, row);
+    return row;
   }
 }
 

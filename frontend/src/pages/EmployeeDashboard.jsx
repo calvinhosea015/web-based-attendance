@@ -357,10 +357,10 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const openLeaveAttachment = async (filename) => {
-    if (!filename) return;
+  const openLeaveAttachment = async (requestId) => {
+    if (!requestId) return;
     try {
-      await openLeaveDocument(api, paths.leaveAttachment(filename));
+      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId));
     } catch (err) {
       setMessage(err.message ? err.message : formatApiError(err));
     }
@@ -867,7 +867,7 @@ export default function EmployeeDashboard() {
                       size="sm"
                       type="button"
                       className="mt-2"
-                      onClick={() => openLeaveAttachment(req.attachment_path)}
+                      onClick={() => openLeaveAttachment(req.id)}
                     >
                       {t('leaveViewDocument')}
                     </Button>

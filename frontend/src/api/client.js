@@ -140,6 +140,8 @@ export const paths = {
   adminLeaveRequest: (id) => `/v1/admin/leave-requests/${id}`,
   employeeLeaveBalances: '/v1/employee/me/leave-balances',
   employeeLeaveRequests: '/v1/employee/me/leave-requests',
+  /** @param {string|number} requestId */
+  leaveRequestAttachment: (requestId) => `/v1/leave-requests/${requestId}/attachment`,
   /** @param {string} filename */
   leaveAttachment: (filename) =>
     `/v1/leave-attachments/${encodeURIComponent(String(filename || ''))}`,

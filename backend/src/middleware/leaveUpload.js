@@ -12,19 +12,24 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
-const storage = multer.diskStorage({
-  destination(_req, _file, cb) {
-    cb(null, UPLOAD_DIR);
-  },
-  filename(_req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
-    cb(null, `${crypto.randomUUID()}${safeExt}`);
-  },
-});
+function buildStoredFilename(originalname) {
+  const ext = path.extname(originalname || '').toLowerCase() || '.jpg';
+  const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
+  return `${crypto.randomUUID()}${safeExt}`;
+}
+
+/** Keep a disk copy when possible (local dev); primary store is PostgreSQL. */
+function writeDiskCopy(filename, buffer) {
+  if (!buffer?.length) return;
+  try {
+    fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+  } catch {
+    /* ephemeral hosting may be read-only — DB blob is authoritative */
+  }
+}
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter(_req, file, cb) {
     if (!ALLOWED_MIME.has(file.mimetype)) {
@@ -45,4 +50,10 @@ function leaveDocumentUpload(req, res, next) {
   });
 }
 
-module.exports = { leaveDocumentUpload, UPLOAD_DIR };
+module.exports = {
+  leaveDocumentUpload,
+  UPLOAD_DIR,
+  buildStoredFilename,
+  writeDiskCopy,
+  ALLOWED_MIME,
+};

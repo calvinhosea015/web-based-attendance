@@ -298,9 +298,12 @@ function buildProtectedRoutes(deps) {
     leaveController.submit
   );
   r.get(
-    '/leave-attachments/:filename',
-    leaveController.getAttachment
+    '/leave-requests/:id/attachment',
+    idParamValidator,
+    validateRequest,
+    leaveController.getAttachmentByRequestId
   );
+  r.get('/leave-attachments/:filename', leaveController.getAttachmentByFilename);
 
   r.get('/employee/me/summary', requireAttendanceRole, dashboardController.employeeSummary);
   r.get('/employee/me/attendance', requireAttendanceRole, dashboardController.employeeHistory);

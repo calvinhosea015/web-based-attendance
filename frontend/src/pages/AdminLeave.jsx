@@ -117,10 +117,10 @@ export default function AdminLeave() {
     }
   };
 
-  const openAttachment = async (filename) => {
-    if (!filename) return;
+  const openAttachment = async (requestId) => {
+    if (!requestId) return;
     try {
-      await openLeaveDocument(api, paths.leaveAttachment(filename));
+      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId));
     } catch (err) {
       notify(err.message || translateApiMessage(err) || String(err), 'error');
     }
@@ -272,7 +272,7 @@ export default function AdminLeave() {
                             variant="ghost"
                             size="sm"
                             type="button"
-                            onClick={() => openAttachment(row.attachment_path)}
+                            onClick={() => openAttachment(row.id)}
                           >
                             {t('leaveViewDocument')}
                           </Button>

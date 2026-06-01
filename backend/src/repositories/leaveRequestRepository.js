@@ -1,13 +1,34 @@
 const { query } = require('../db/pool');
 
 class LeaveRequestRepository {
-  async create({ employeeId, leaveType, startDate, endDate, daysCount, attachmentPath, reason }) {
+  async create({
+    employeeId,
+    leaveType,
+    startDate,
+    endDate,
+    daysCount,
+    attachmentPath,
+    attachmentData,
+    attachmentMime,
+    reason,
+  }) {
     const r = await query(
       `INSERT INTO leave_requests
-        (employee_id, leave_type, start_date, end_date, days_count, attachment_path, reason)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (employee_id, leave_type, start_date, end_date, days_count,
+         attachment_path, attachment_data, attachment_mime, reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [employeeId, leaveType, startDate, endDate, daysCount, attachmentPath || null, reason || null]
+      [
+        employeeId,
+        leaveType,
+        startDate,
+        endDate,
+        daysCount,
+        attachmentPath || null,
+        attachmentData || null,
+        attachmentMime || null,
+        reason || null,
+      ]
     );
     return r.rows[0];
   }

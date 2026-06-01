@@ -15,6 +15,28 @@ function contentTypeForFilename(filename) {
   return MIME_BY_EXT[ext] || 'application/octet-stream';
 }
 
+function sendAttachmentRow(res, row, next) {
+  const mime = row.attachment_mime || contentTypeForFilename(row.attachment_path);
+  res.type(mime);
+  res.setHeader('Content-Disposition', 'inline');
+
+  if (row.attachment_data) {
+    return res.send(Buffer.from(row.attachment_data));
+  }
+
+  const filePath = path.join(UPLOAD_DIR, row.attachment_path);
+  return res.sendFile(filePath, (err) => {
+    if (!err) return;
+    if (err.code === 'ENOENT') {
+      return res.status(404).json({
+        message: 'File not found. Please submit the leave request again with the document.',
+        code: 'NOT_FOUND',
+      });
+    }
+    return next(err);
+  });
+}
+
 function makeLeaveController(leaveService) {
   return {
     getSettings: asyncHandler(async (_req, res) => {
@@ -42,18 +64,13 @@ function makeLeaveController(leaveService) {
     decide: asyncHandler(async (req, res) => {
       res.json(await leaveService.decide(req.params.id, req.auth, req.body));
     }),
-    getAttachment: asyncHandler(async (req, res, next) => {
-      const filename = await leaveService.getAttachment(req.auth, req.params.filename);
-      const filePath = path.join(UPLOAD_DIR, filename);
-      res.type(contentTypeForFilename(filename));
-      res.setHeader('Content-Disposition', 'inline');
-      res.sendFile(filePath, (err) => {
-        if (!err) return;
-        if (err.code === 'ENOENT') {
-          return res.status(404).json({ message: 'File not found.', code: 'NOT_FOUND' });
-        }
-        return next(err);
-      });
+    getAttachmentByRequestId: asyncHandler(async (req, res, next) => {
+      const row = await leaveService.getAttachmentByRequestId(req.auth, req.params.id);
+      sendAttachmentRow(res, row, next);
+    }),
+    getAttachmentByFilename: asyncHandler(async (req, res, next) => {
+      const row = await leaveService.getAttachmentByFilename(req.auth, req.params.filename);
+      sendAttachmentRow(res, row, next);
     }),
   };
 }
