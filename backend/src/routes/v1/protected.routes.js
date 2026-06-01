@@ -24,8 +24,12 @@ const {
   loanDecideValidators,
   fieldCodeSubmitValidators,
   fieldDeliveryQueryValidators,
+  leaveSettingsValidators,
+  leaveSubmitValidators,
+  leaveDecideValidators,
 } = require('../../validators/commonValidators');
 const { body, param } = require('express-validator');
+const { leaveDocumentUpload } = require('../../middleware/leaveUpload');
 
 function buildProtectedRoutes(deps) {
   const r = Router();
@@ -39,6 +43,7 @@ function buildProtectedRoutes(deps) {
     payrollController,
     loanController,
     fieldCheckoutCodeController,
+    leaveController,
   } = deps;
 
   r.use(authenticate);
@@ -261,6 +266,40 @@ function buildProtectedRoutes(deps) {
     loanDecideValidators,
     validateRequest,
     loanController.decide
+  );
+
+  r.get('/admin/leave/settings', requireRole('admin'), leaveController.getSettings);
+  r.put(
+    '/admin/leave/settings',
+    requireRole('admin'),
+    leaveSettingsValidators,
+    validateRequest,
+    leaveController.updateSettings
+  );
+  r.get('/admin/leave-requests/pending', requireRole('admin'), leaveController.listPending);
+  r.get('/admin/leave-requests', requireRole('admin'), leaveController.listAll);
+  r.put(
+    '/admin/leave-requests/:id',
+    requireRole('admin'),
+    idParamValidator,
+    leaveDecideValidators,
+    validateRequest,
+    leaveController.decide
+  );
+
+  r.get('/employee/me/leave-balances', requireRole('employee'), leaveController.getBalances);
+  r.get('/employee/me/leave-requests', requireRole('employee'), leaveController.listMine);
+  r.post(
+    '/employee/me/leave-requests',
+    requireRole('employee'),
+    leaveDocumentUpload,
+    leaveSubmitValidators,
+    validateRequest,
+    leaveController.submit
+  );
+  r.get(
+    '/leave-attachments/:filename',
+    leaveController.getAttachment
   );
 
   r.get('/employee/me/summary', requireAttendanceRole, dashboardController.employeeSummary);

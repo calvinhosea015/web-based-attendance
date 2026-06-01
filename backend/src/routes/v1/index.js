@@ -21,7 +21,10 @@ const { EnterpriseAdminService } = require('../../services/enterpriseAdminServic
 const { AnalyticsService } = require('../../services/analyticsService');
 const { PayrollService } = require('../../services/payrollService');
 const { LoanRequestRepository } = require('../../repositories/loanRequestRepository');
+const { LeaveRequestRepository } = require('../../repositories/leaveRequestRepository');
+const { LeaveSettingsRepository } = require('../../repositories/leaveSettingsRepository');
 const { LoanService } = require('../../services/loanService');
+const { LeaveService } = require('../../services/leaveService');
 const { FieldCodeEntryRepository } = require('../../repositories/fieldCodeEntryRepository');
 const { FieldCheckoutCodeService } = require('../../services/fieldCheckoutCodeService');
 const { makeAuthController } = require('../../controllers/authController');
@@ -33,6 +36,7 @@ const { makeAdminEnterpriseController } = require('../../controllers/adminEnterp
 const { makeAnalyticsController } = require('../../controllers/analyticsController');
 const { makePayrollController } = require('../../controllers/payrollController');
 const { makeLoanController } = require('../../controllers/loanController');
+const { makeLeaveController } = require('../../controllers/leaveController');
 const { makeFieldCheckoutCodeController } = require('../../controllers/fieldCheckoutCodeController');
 const { buildAuthRoutes } = require('./auth.routes');
 const { buildProtectedRoutes } = require('./protected.routes');
@@ -69,10 +73,13 @@ function buildV1Router() {
     payrollRepository
   );
   const loanRequestRepository = new LoanRequestRepository();
+  const leaveSettingsRepository = new LeaveSettingsRepository();
+  const leaveRequestRepository = new LeaveRequestRepository();
   const payrollService = new PayrollService(
     payrollRepository,
     employeeRepository,
-    loanRequestRepository
+    loanRequestRepository,
+    leaveRequestRepository
   );
   const employeePortalService = new EmployeePortalService(
     userRepository,
@@ -91,6 +98,7 @@ function buildV1Router() {
   );
   const analyticsService = new AnalyticsService(analyticsRepository);
   const loanService = new LoanService(loanRequestRepository);
+  const leaveService = new LeaveService(leaveRequestRepository, leaveSettingsRepository);
 
   const authController = makeAuthController(authService);
   const officeController = makeOfficeController(officeService);
@@ -101,6 +109,7 @@ function buildV1Router() {
   const analyticsController = makeAnalyticsController(analyticsService);
   const payrollController = makePayrollController(payrollService);
   const loanController = makeLoanController(loanService);
+  const leaveController = makeLeaveController(leaveService);
   const fieldCheckoutCodeController = makeFieldCheckoutCodeController(fieldCheckoutCodeService);
 
   const v1 = Router();
@@ -116,6 +125,7 @@ function buildV1Router() {
       analyticsController,
       payrollController,
       loanController,
+      leaveController,
       fieldCheckoutCodeController,
     })
   );

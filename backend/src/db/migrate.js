@@ -431,6 +431,46 @@ async function migrateAttendanceCheckoutCode() {
   await query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS checkout_code TEXT`);
 }
 
+async function migrateLeaveFeatures() {
+  await query(
+    `CREATE TABLE IF NOT EXISTS leave_settings (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      medical_days_per_year NUMERIC(8,2) NOT NULL DEFAULT 12,
+      unpaid_days_per_year NUMERIC(8,2) NOT NULL DEFAULT 0,
+      paternity_days_per_year NUMERIC(8,2) NOT NULL DEFAULT 2,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`
+  );
+  await query(
+    `INSERT INTO leave_settings (id, medical_days_per_year, unpaid_days_per_year, paternity_days_per_year)
+     VALUES (1, 12, 0, 2)
+     ON CONFLICT (id) DO NOTHING`
+  );
+  await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_path TEXT`);
+  await query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS reason TEXT`);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_leave_requests_employee ON leave_requests(employee_id, created_at DESC)`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_leave_requests_pending ON leave_requests(approval_status) WHERE approval_status = 'pending'`
+  );
+  await query(
+    `ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS is_paid BOOLEAN`
+  );
+  await query(
+    `UPDATE leave_requests SET is_paid = true
+     WHERE approval_status = 'approved' AND leave_type = 'medical' AND is_paid IS NULL`
+  );
+  await query(
+    `UPDATE leave_requests SET is_paid = false
+     WHERE approval_status = 'approved' AND leave_type = 'unpaid' AND is_paid IS NULL`
+  );
+  await query(
+    `UPDATE leave_requests SET is_paid = false
+     WHERE approval_status = 'approved' AND leave_type = 'paternity' AND is_paid IS NULL`
+  );
+}
+
 async function migrateFieldCheckoutTables() {
   await query(`
     CREATE TABLE IF NOT EXISTS field_code_entries (
@@ -455,6 +495,7 @@ async function migrate() {
   await migrateEnterpriseColumns();
   await migrateAttendanceCheckoutCode();
   await migrateFieldCheckoutTables();
+  await migrateLeaveFeatures();
   await normalizeEmployeeClockMode();
   await migratePayrollColumns();
   await migrateLoanRequests();

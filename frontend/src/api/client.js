@@ -130,6 +130,15 @@ export const paths = {
   adminLoanRequests: '/v1/admin/loan-requests',
   /** @param {string|number} id */
   adminLoanRequest: (id) => `/v1/admin/loan-requests/${id}`,
+  adminLeaveSettings: '/v1/admin/leave/settings',
+  adminLeaveRequestsPending: '/v1/admin/leave-requests/pending',
+  adminLeaveRequests: '/v1/admin/leave-requests',
+  /** @param {string|number} id */
+  adminLeaveRequest: (id) => `/v1/admin/leave-requests/${id}`,
+  employeeLeaveBalances: '/v1/employee/me/leave-balances',
+  employeeLeaveRequests: '/v1/employee/me/leave-requests',
+  /** @param {string} filename */
+  leaveAttachment: (filename) => `/v1/leave-attachments/${filename}`,
 };
 
 /** Download an axios blob response as a file (same pattern as attendance export). */

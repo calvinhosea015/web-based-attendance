@@ -14,6 +14,7 @@ const {
   listPayrollHolidaysInCycle,
 } = require('../utils/payrollPeriod');
 const { ROLES } = require('../constants/roles');
+const { countEffectiveDaysAttended } = require('../utils/leavePayrollDays');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -142,10 +143,11 @@ function computeTotals(fields, employee, settings) {
 }
 
 class PayrollService {
-  constructor(payrollRepository, employeeRepository, loanRequestRepository) {
+  constructor(payrollRepository, employeeRepository, loanRequestRepository, leaveRequestRepository) {
     this.payrollRepository = payrollRepository;
     this.employeeRepository = employeeRepository;
     this.loanRequestRepository = loanRequestRepository;
+    this.leaveRequestRepository = leaveRequestRepository;
   }
 
   async previewLoanDeduction(employeeId, payrollPeriod) {
@@ -309,15 +311,35 @@ class PayrollService {
     };
   }
 
-  /** Days attended = distinct check-in dates from attendance for the pay period. */
+  /** Days attended = check-ins plus approved paid leave workdays (Staff Kantor). */
   async resolveDaysAttended(employeeId, periodStart, periodEnd, role) {
     const monSatOnly = isMonthlyOfficeStaff(role);
-    return this.payrollRepository.countDaysAttendedFromAttendance(
-      employeeId,
+    if (!monSatOnly || !this.leaveRequestRepository) {
+      return this.payrollRepository.countDaysAttendedFromAttendance(
+        employeeId,
+        periodStart,
+        periodEnd,
+        monSatOnly
+      );
+    }
+
+    const [attendanceDates, paidLeaves] = await Promise.all([
+      this.payrollRepository.listAttendanceDatesInPeriod(
+        employeeId,
+        periodStart,
+        periodEnd,
+        true
+      ),
+      this.leaveRequestRepository.listApprovedPaidInPeriod(employeeId, periodStart, periodEnd),
+    ]);
+
+    return countEffectiveDaysAttended({
       periodStart,
       periodEnd,
-      monSatOnly
-    );
+      attendanceDates,
+      paidLeaveRanges: paidLeaves,
+      monSatOnly: true,
+    });
   }
 
   resolveExpectedWorkDays({ payrollPeriod, explicit, existing }) {

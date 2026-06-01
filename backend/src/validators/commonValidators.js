@@ -202,6 +202,25 @@ const fieldDeliveryQueryValidators = [
   query('days').optional().isInt({ min: 1, max: 365 }),
 ];
 
+const leaveSettingsValidators = [
+  body('medical_days_per_year').isFloat({ min: 0 }),
+  body('unpaid_days_per_year').isFloat({ min: 0 }),
+  body('paternity_days_per_year').isFloat({ min: 0 }),
+];
+
+const leaveSubmitValidators = [
+  body('leave_type').isIn(['medical', 'unpaid', 'paternity']),
+  body('start_date').matches(/^\d{4}-\d{2}-\d{2}$/),
+  body('end_date').matches(/^\d{4}-\d{2}-\d{2}$/),
+  body('reason').optional().trim().isLength({ max: 2000 }),
+];
+
+const leaveDecideValidators = [
+  body('status').isIn(['approved', 'rejected']),
+  body('rejection_reason').optional().trim().isLength({ max: 500 }),
+  body('is_paid').optional().isBoolean(),
+];
+
 module.exports = {
   loginValidators,
   refreshValidators,
@@ -227,4 +246,7 @@ module.exports = {
   loanSubmitValidators,
   loanDecideValidators,
   fieldDeliveryQueryValidators,
+  leaveSettingsValidators,
+  leaveSubmitValidators,
+  leaveDecideValidators,
 };

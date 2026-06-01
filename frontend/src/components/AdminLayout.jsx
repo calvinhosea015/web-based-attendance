@@ -7,6 +7,7 @@ const NAV = [
   { to: '/admin', labelKey: 'adminDashboard', match: (p) => p === '/admin' },
   { to: '/admin/payroll', labelKey: 'payrollTitle', match: (p) => p.startsWith('/admin/payroll') },
   { to: '/admin/loans', labelKey: 'loanAdminTitle', match: (p) => p.startsWith('/admin/loans') },
+  { to: '/admin/leave', labelKey: 'leaveAdminTitle', match: (p) => p.startsWith('/admin/leave') },
 ];
 
 export default function AdminLayout({ title, subtitle, actions, children }) {

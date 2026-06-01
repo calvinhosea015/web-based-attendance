@@ -6,6 +6,7 @@ import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPayroll from './pages/AdminPayroll.jsx';
 import AdminLoans from './pages/AdminLoans.jsx';
+import AdminLeave from './pages/AdminLeave.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
 
 function PublicHeader({ showName = true, showLogo = true, monochrome = false }) {
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/payroll" element={<AdminPayroll />} />
           <Route path="/admin/loans" element={<AdminLoans />} />
+          <Route path="/admin/leave" element={<AdminLeave />} />
           <Route path="/employee" element={<EmployeeDashboard />} />
           <Route path="/user" element={<Navigate to="/employee" replace />} />
           <Route path="/" element={<Navigate to="/login" replace />} />

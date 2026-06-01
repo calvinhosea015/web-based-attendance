@@ -129,6 +129,32 @@ class PayrollRepository {
     return this.countDaysAttendedFromAttendance(employeeId, periodStart, periodEnd, true);
   }
 
+  /** Distinct check-in dates (YYYY-MM-DD) in the pay period. */
+  async listAttendanceDatesInPeriod(employeeId, periodStart, periodEnd, monSatOnly = false) {
+    const tz = config.attendanceCalendarTz || 'Asia/Jakarta';
+    const dowClause = monSatOnly
+      ? 'AND EXTRACT(DOW FROM check_in AT TIME ZONE $4) BETWEEN 1 AND 6'
+      : '';
+    const r = await query(
+      `SELECT DISTINCT (check_in AT TIME ZONE $4)::date AS d
+       FROM attendance
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $4)::date >= $2::date
+         AND (check_in AT TIME ZONE $4)::date <= $3::date
+         ${dowClause}
+       ORDER BY d`,
+      [employeeId, periodStart, periodEnd, tz]
+    );
+    return r.rows.map((row) => {
+      const d = row.d;
+      if (typeof d === 'string') return d.slice(0, 10);
+      if (d instanceof Date) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+      return String(d).slice(0, 10);
+    });
+  }
+
   async getRoleForEmployee(employeeId) {
     const r = await query(`SELECT role FROM users WHERE employee_id = $1 LIMIT 1`, [employeeId]);
     return r.rows[0]?.role || null;

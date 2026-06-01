@@ -56,6 +56,16 @@ export default function EmployeeDashboard() {
     notes: '',
   });
   const [loanSubmitting, setLoanSubmitting] = useState(false);
+  const [leaveBalances, setLeaveBalances] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveForm, setLeaveForm] = useState({
+    leave_type: 'medical',
+    start_date: '',
+    end_date: '',
+    reason: '',
+  });
+  const [leaveDocument, setLeaveDocument] = useState(null);
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [geoPreview, setGeoPreview] = useState(null);
   const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
   const [fieldDeliveries, setFieldDeliveries] = useState([]);
@@ -84,7 +94,7 @@ export default function EmployeeDashboard() {
       }
       try {
         const isStaffKantor = role === ROLE_EMPLOYEE;
-        const [s, h, ln, pr, fd] = await Promise.all([
+        const [s, h, ln, pr, fd, lb, lr] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
           api.get(paths.employeeLoans).catch(() => ({ data: [] })),
@@ -92,12 +102,20 @@ export default function EmployeeDashboard() {
           isStaffKantor
             ? api.get(paths.employeeFieldDeliveries).catch(() => ({ data: [] }))
             : Promise.resolve({ data: [] }),
+          isStaffKantor
+            ? api.get(paths.employeeLeaveBalances).catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
+          isStaffKantor
+            ? api.get(paths.employeeLeaveRequests).catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
         ]);
         setSummary(s.data);
         setHistory(h.data);
         setLoans(ln.data || []);
         setPayroll(pr.data || []);
         setFieldDeliveries(fd.data || []);
+        setLeaveBalances(lb.data || []);
+        setLeaveRequests(lr.data || []);
       } catch (e) {
         console.error(e);
         setMessage((prev) => (prev ? `${prev} ${i18n.t('dashboardLoadFailed')}` : formatApiError(e)));
@@ -292,6 +310,64 @@ export default function EmployeeDashboard() {
   };
 
   const hasPendingLoan = loans.some((l) => l.approval_status === 'pending');
+
+  const hasPendingLeave = leaveRequests.some((l) => l.approval_status === 'pending');
+  const leaveNeedsDocument = leaveForm.leave_type === 'medical';
+
+  const refreshLeave = async () => {
+    try {
+      const [lb, lr] = await Promise.all([
+        api.get(paths.employeeLeaveBalances),
+        api.get(paths.employeeLeaveRequests),
+      ]);
+      setLeaveBalances(lb.data || []);
+      setLeaveRequests(lr.data || []);
+    } catch {
+      setLeaveBalances([]);
+      setLeaveRequests([]);
+    }
+  };
+
+  const handleLeaveSubmit = async (e) => {
+    e.preventDefault();
+    if (leaveNeedsDocument && !leaveDocument) {
+      setMessage(t('leaveDocumentRequired'));
+      return;
+    }
+    setLeaveSubmitting(true);
+    setMessage('');
+    try {
+      await ensureCsrf();
+      const form = new FormData();
+      form.append('leave_type', leaveForm.leave_type);
+      form.append('start_date', leaveForm.start_date);
+      form.append('end_date', leaveForm.end_date);
+      if (leaveForm.reason) form.append('reason', leaveForm.reason);
+      if (leaveDocument) form.append('document', leaveDocument);
+      await rawApi.post(paths.employeeLeaveRequests, form);
+      setLeaveForm({ leave_type: 'medical', start_date: '', end_date: '', reason: '' });
+      setLeaveDocument(null);
+      setMessage(t('leaveSubmitted'));
+      await refreshLeave();
+    } catch (err) {
+      setMessage(formatApiError(err));
+    } finally {
+      setLeaveSubmitting(false);
+    }
+  };
+
+  const openLeaveAttachment = async (filename) => {
+    if (!filename) return;
+    try {
+      await ensureCsrf();
+      const res = await api.get(paths.leaveAttachment(filename), { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      setMessage(formatApiError(err));
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -657,6 +733,154 @@ export default function EmployeeDashboard() {
           <p className="text-sm text-slate-600">{t('payrollEmployeeEmpty')}</p>
         )}
       </Card>
+
+      {isStaffKantor && (
+        <Card title={t('leaveTitle')} description={t('leaveEmployeeHint')}>
+          {leaveBalances.length > 0 && (
+            <div className="mb-6 grid gap-3 sm:grid-cols-3">
+              {leaveBalances.map((b) => (
+                <div
+                  key={b.leave_type}
+                  className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {t(`leaveType_${b.leave_type}`)}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {b.remaining_days} / {b.quota_days} {t('leaveDaysUnit')}
+                  </p>
+                  <p className="text-xs text-slate-500">{t('leaveBalanceRemaining')}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLeaveSubmit}>
+            <Field label={t('leaveType')}>
+              <select
+                className={inputClass}
+                value={leaveForm.leave_type}
+                onChange={(e) => {
+                  setLeaveForm((f) => ({ ...f, leave_type: e.target.value }));
+                  if (e.target.value !== 'medical') setLeaveDocument(null);
+                }}
+                disabled={hasPendingLeave}
+              >
+                <option value="medical">{t('leaveType_medical')}</option>
+                <option value="unpaid">{t('leaveType_unpaid')}</option>
+                <option value="paternity">{t('leaveType_paternity')}</option>
+              </select>
+            </Field>
+            <Field label={t('leaveStartDate')}>
+              <input
+                type="date"
+                required
+                className={inputClass}
+                value={leaveForm.start_date}
+                onChange={(e) => setLeaveForm((f) => ({ ...f, start_date: e.target.value }))}
+                disabled={hasPendingLeave}
+              />
+            </Field>
+            <Field label={t('leaveEndDate')}>
+              <input
+                type="date"
+                required
+                className={inputClass}
+                value={leaveForm.end_date}
+                min={leaveForm.start_date || undefined}
+                onChange={(e) => setLeaveForm((f) => ({ ...f, end_date: e.target.value }))}
+                disabled={hasPendingLeave}
+              />
+            </Field>
+            {leaveNeedsDocument && (
+              <Field label={t('leaveDocument')} hint={t('leaveDocumentHint')}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  required
+                  className={inputClass}
+                  onChange={(e) => setLeaveDocument(e.target.files?.[0] || null)}
+                  disabled={hasPendingLeave}
+                />
+              </Field>
+            )}
+            <Field label={t('leaveReason')} className="sm:col-span-2">
+              <textarea
+                className={`${inputClass} min-h-[72px]`}
+                value={leaveForm.reason}
+                onChange={(e) => setLeaveForm((f) => ({ ...f, reason: e.target.value }))}
+                disabled={hasPendingLeave}
+                maxLength={2000}
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              {hasPendingLeave && (
+                <p className="mb-3 text-sm text-amber-800">{t('leavePendingExists')}</p>
+              )}
+              <Button type="submit" variant="primary" disabled={leaveSubmitting || hasPendingLeave}>
+                {leaveSubmitting ? t('loading') : t('leaveSubmit')}
+              </Button>
+            </div>
+          </form>
+          {leaveRequests.length > 0 && (
+            <ul className="mt-6 space-y-4 border-t border-slate-100 pt-6">
+              {leaveRequests.map((req) => (
+                <li
+                  key={req.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 text-sm shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-slate-900">
+                        {t(`leaveType_${req.leave_type}`)}
+                      </span>
+                      <span className="ml-2 text-slate-500">
+                        {req.start_date} — {req.end_date} · {req.days_count} {t('leaveDaysUnit')}
+                      </span>
+                    </div>
+                    <Badge
+                      variant={
+                        req.approval_status === 'approved'
+                          ? 'success'
+                          : req.approval_status === 'rejected'
+                            ? 'muted'
+                            : 'neutral'
+                      }
+                    >
+                      {t(`leaveStatus_${req.approval_status}`)}
+                    </Badge>
+                  </div>
+                  {req.reason && <p className="mt-1 text-xs text-slate-500">{req.reason}</p>}
+                  {req.approval_status === 'approved' && (
+                    <p className="mt-1 text-xs text-slate-600">
+                      {t('leavePayStatus')}: {req.is_paid ? t('leavePaid') : t('leaveUnpaid')}
+                    </p>
+                  )}
+                  {req.approval_status === 'pending' && req.leave_type === 'medical' && (
+                    <p className="mt-1 text-xs text-slate-500">{t('leaveMedicalPaidHint')}</p>
+                  )}
+                  {req.approval_status === 'pending' && req.leave_type === 'unpaid' && (
+                    <p className="mt-1 text-xs text-slate-500">{t('leaveUnpaidHint')}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">
+                    {t('leaveSubmittedAt')}: {new Date(req.created_at).toLocaleString()}
+                  </p>
+                  {req.attachment_path && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      className="mt-2"
+                      onClick={() => openLeaveAttachment(req.attachment_path)}
+                    >
+                      {t('leaveViewDocument')}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
 
       <Card title={t('loanTitle')} description={t('loanEmployeeHint')}>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLoanSubmit}>
