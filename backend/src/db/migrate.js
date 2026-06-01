@@ -39,7 +39,7 @@ const SCHEMA_STATEMENTS = [
     id SERIAL PRIMARY KEY,
     username VARCHAR(128) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'umum')),
+    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'general_affairs', 'head_of_finance')),
     office_id INTEGER REFERENCES offices(id),
     employee_id INTEGER UNIQUE REFERENCES employees(id)
   )`,
@@ -267,6 +267,9 @@ async function migratePayrollLoanColumns() {
     `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS other_deductions NUMERIC(14,2) NOT NULL DEFAULT 0`
   );
   await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS late_deduction NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
     `UPDATE payroll SET other_deductions = deductions
      WHERE other_deductions = 0 AND deductions > 0`
   );
@@ -303,23 +306,25 @@ async function migrateEnterpriseColumns() {
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment2_start TIME`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS segment2_end TIME`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS birthday DATE`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS custom_work_start TIME`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS custom_work_end TIME`);
 }
 
-/** Default shift 07:00–16:00 and assign to employees who have no shift row yet. */
+/** Default shift 07:15–16:00 and assign to employees who have no shift row yet. */
 async function ensureDefaultShift() {
   let r = await query(`SELECT id FROM shifts WHERE shift_name = 'Standard 7–4' LIMIT 1`);
   let shiftId;
   if (r.rows.length === 0) {
     const ins = await query(
       `INSERT INTO shifts (shift_name, start_time, end_time, break_duration)
-       VALUES ('Standard 7–4', TIME '07:00', TIME '16:00', 60)
+       VALUES ('Standard 7–4', TIME '07:15', TIME '16:00', 60)
        RETURNING id`
     );
     shiftId = ins.rows[0].id;
   } else {
     shiftId = r.rows[0].id;
     await query(
-      `UPDATE shifts SET start_time = TIME '07:00', end_time = TIME '16:00', break_duration = 60 WHERE id = $1`,
+      `UPDATE shifts SET start_time = TIME '07:15', end_time = TIME '16:00', break_duration = 60 WHERE id = $1`,
       [shiftId]
     );
   }
@@ -411,7 +416,7 @@ async function migrateUserRoleConstraint() {
   }
   await query(`
     ALTER TABLE users ADD CONSTRAINT users_role_check
-    CHECK (role IN ('admin', 'employee', 'field_officer', 'umum'))
+    CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'general_affairs', 'head_of_finance'))
   `);
 }
 
@@ -429,6 +434,9 @@ async function normalizeEmployeeClockMode() {
 
 async function migrateAttendanceCheckoutCode() {
   await query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS checkout_code TEXT`);
+  await query(
+    `ALTER TABLE attendance ADD COLUMN IF NOT EXISTS overtime_minutes INTEGER NOT NULL DEFAULT 0`
+  );
 }
 
 async function migrateLeaveFeatures() {

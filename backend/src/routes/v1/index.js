@@ -79,7 +79,8 @@ function buildV1Router() {
     payrollRepository,
     employeeRepository,
     loanRequestRepository,
-    leaveRequestRepository
+    leaveRequestRepository,
+    attendanceRepository
   );
   const employeePortalService = new EmployeePortalService(
     userRepository,

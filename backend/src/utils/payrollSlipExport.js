@@ -18,7 +18,7 @@ const EARNINGS = [
 ];
 
 const DEDUCTIONS = [
-  { key: 'bpjs_tk', label: 'BPJS Ketenagakerjaan' },
+  { key: 'potongan_terlambat', label: 'Potongan Datang Terlambat' },
   { key: 'bpjs_kes', label: 'BPJS Kesehatan' },
   { key: 'pph21', label: 'PPh 21' },
   { key: 'kasbon', label: 'Potongan Pinjaman' },
@@ -43,16 +43,18 @@ const ROW = {
   JUMLAH_HADIR: 19,
   SPACER_BEFORE_GAJI: 20,
   GAJI_TERIMA: 21,
-  SIGN_TITLE: 25,
-  SIGN_LINE: 30,
+  SPACER_AFTER_GAJI_1: 22,
+  SPACER_AFTER_GAJI_2: 23,
+  SIGN_TITLE: 24,
+  SIGN_LINE: 29,
 };
-const SHEET_LAST_ROW = 30;
+const SHEET_LAST_ROW = 29;
 const SHEET_LAST_COL = 6;
 
 const FONT_BODY = { name: 'Calibri', size: 11 };
 const FONT_TITLE = { name: 'Calibri', size: 14, bold: true };
-const FONT_TABLE_HEAD = { name: 'Calibri', size: 11, bold: true };
-const FONT_NET = { name: 'Calibri', size: 11, bold: true };
+const FONT_TABLE_HEAD = { name: 'Calibri', size: 13, bold: true };
+const FONT_NET = { name: 'Calibri', size: 14, bold: true };
 
 const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF000000' } };
 const BORDER_BLUE = { style: 'medium', color: { argb: 'FF4472C4' } };
@@ -148,7 +150,8 @@ function slipAsOfDate(row, period) {
 function slipAmounts(row) {
   const transport = row.transport_eligible ? num(row.transport_allowance) : 0;
   const kerajinan = row.diligence_eligible ? num(row.diligence_bonus) : 0;
-  const monthlyStaff = row.payroll_mode === 'monthly';
+  const monthlyStaff =
+    row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs';
   const monthlyGross =
     row.monthly_basic_gross != null
       ? num(row.monthly_basic_gross)
@@ -164,7 +167,7 @@ function slipAmounts(row) {
     insentif: num(row.insentif),
     kerajinan,
     bonus: num(row.bonus_omset),
-    bpjs_tk: 0,
+    potongan_terlambat: num(row.late_deduction),
     bpjs_kes: 0,
     pph21: 0,
     kasbon: num(row.loan_deduction),
@@ -354,7 +357,8 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
     const r = ROW.TABLE_FIRST + i;
     const earning = EARNINGS[i];
     const earningLabel =
-      earning.key === 'gaji_harian' && row.payroll_mode === 'monthly'
+      earning.key === 'gaji_harian' &&
+        (row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs')
         ? 'Gaji Pokok Bulanan'
         : earning.label;
     fillTableLine(
@@ -408,6 +412,11 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
   ws.getRow(ROW.GAJI_TERIMA).height = 20;
+
+  addSpacerRow(ws, ROW.SPACER_AFTER_GAJI_1);
+  clearRowBorders(ws, ROW.SPACER_AFTER_GAJI_1);
+  addSpacerRow(ws, ROW.SPACER_AFTER_GAJI_2);
+  clearRowBorders(ws, ROW.SPACER_AFTER_GAJI_2);
 
   ws.mergeCells(ROW.SIGN_TITLE, L_LABEL, ROW.SIGN_TITLE, L_VALUE);
   const penerima = ws.getCell(ROW.SIGN_TITLE, L_LABEL);

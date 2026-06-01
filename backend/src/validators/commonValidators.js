@@ -1,6 +1,6 @@
 const { body, param, query } = require('express-validator');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
-const { VALID_ROLES, isAttendanceRole } = require('../constants/roles');
+const { VALID_ROLES, isAttendanceRole, isHeadOfFinance } = require('../constants/roles');
 const { FIELD_OFFICER_CHECKOUT_MAX_LENGTH } = require('../constants/fieldOfficer');
 const { validateFieldCheckoutCode } = require('../utils/fieldCheckoutPayload');
 
@@ -98,6 +98,11 @@ const createUserValidators = [
         }
         const n = Number(value);
         if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office_id');
+      } else if (isHeadOfFinance(req.body.role)) {
+        if (value != null && value !== '') {
+          const n = Number(value);
+          if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office_id');
+        }
       } else if (value != null && value !== '') {
         const n = Number(value);
         if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office_id');
@@ -112,6 +117,8 @@ const createUserValidators = [
   body('upah_harian').optional({ values: 'null' }).isNumeric(),
   optionalDateBody('join_date'),
   optionalDateBody('birthday'),
+  body('custom_work_start').optional({ values: 'null' }).isString(),
+  body('custom_work_end').optional({ values: 'null' }).isString(),
 ];
 
 const changePasswordValidators = [passwordPolicyValidator()];
@@ -124,6 +131,9 @@ const updateUserValidators = [
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
   optionalDateBody('join_date'),
   optionalDateBody('birthday'),
+  body('custom_work_start').optional({ values: 'null' }).isString(),
+  body('custom_work_end').optional({ values: 'null' }).isString(),
+  body('basic_salary').optional({ values: 'null' }).isNumeric(),
 ];
 
 const idParamValidator = [param('id').isInt({ min: 1 })];

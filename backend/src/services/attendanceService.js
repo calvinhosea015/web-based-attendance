@@ -8,14 +8,23 @@ const {
 } = require('../constants/attendance');
 
 const STATUS_BUFFER_MS = ATTENDANCE_STATUS_BUFFER_MINUTES * 60 * 1000;
-const { isAttendanceRole, isFieldOfficer, isUmum } = require('../constants/roles');
+const {
+  isAttendanceRole,
+  isFieldOfficer,
+  isUmum,
+  isAccounting,
+  isGeneralAffairs,
+  usesOncePerDayInOut,
+} = require('../constants/roles');
+const { customShiftFromEmployee } = require('../utils/customWorkShift');
+const { computeStaffKantorOvertimeMinutes } = require('../utils/staffKantorOvertime');
 const config = require('../config/env');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 
-/** Two clocks per day: fixed 07:00–16:00 with 60 min break (used for late / hours math, not DB-dependent). */
+/** Two clocks per day: fixed 07:15–16:00 with 60 min break (used for late / hours math, not DB-dependent). */
 const STANDARD_TWO_CLOCK_SHIFT = {
   shift_name: 'Standard 7–4',
-  start_time: '07:00:00',
+  start_time: '07:15:00',
   end_time: '16:00:00',
   break_duration: 60,
 };
@@ -166,6 +175,23 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
   return { workHours: Number(workHours.toFixed(2)), overtimeHours: Number(overtimeHours.toFixed(2)), status };
 }
 
+/** Staff Kantor checkout: standard work hours + lembur minutes (from 16:00 if out after 16:30). */
+function computeStaffKantorCheckout(checkInIso, checkOutIso, previousStatus) {
+  const base = computeWorkAndCheckoutStatus(
+    checkInIso,
+    checkOutIso,
+    STANDARD_TWO_CLOCK_SHIFT,
+    previousStatus,
+    { skipBreakDeduction: false }
+  );
+  const overtimeMinutes = computeStaffKantorOvertimeMinutes(checkOutIso);
+  return {
+    ...base,
+    overtimeMinutes,
+    overtimeHours: Number((overtimeMinutes / 60).toFixed(2)),
+  };
+}
+
 class AttendanceService {
   constructor(
     attendanceRepository,
@@ -216,7 +242,17 @@ class AttendanceService {
 
     const fieldOfficer = isFieldOfficer(auth.role);
     const umum = isUmum(auth.role);
-    if (!fieldOfficer) {
+    const onceDailyInOut = usesOncePerDayInOut(auth.role);
+    if (onceDailyInOut) {
+      const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
+      if (segCount >= 1) {
+        throw new AppError(
+          'You can only check in once per day. Check out first if you are still on duty, or you have already finished today.',
+          400,
+          'FIELD_ONE_CHECKIN'
+        );
+      }
+    } else if (!umum) {
       const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
       if (segCount >= CLOCK_SEGMENTS_PER_DAY) {
         throw new AppError('Attendance for today is already complete.', 400, 'DAY_COMPLETE');
@@ -269,8 +305,21 @@ class AttendanceService {
     const checkInTime = new Date();
     let lateMinutes = 0;
     let attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
-    if (fieldOfficer || umum) {
+    if (onceDailyInOut || umum) {
       if (remoteWork) attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
+    } else if (isAccounting(auth.role)) {
+      const emp = await this.employeeRepository.findById(auth.employeeId);
+      const shift = customShiftFromEmployee(emp);
+      if (!shift) {
+        throw new AppError(
+          'Custom work hours are not configured. Ask an admin to set your work schedule.',
+          400,
+          'CUSTOM_WORK_HOURS_REQUIRED'
+        );
+      }
+      const late = computeLateAndStatus(checkInTime.toISOString(), shift);
+      lateMinutes = late.lateMinutes;
+      attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : late.status;
     } else {
       const late = computeLateAndStatus(checkInTime.toISOString(), STANDARD_TWO_CLOCK_SHIFT);
       lateMinutes = late.lateMinutes;
@@ -363,6 +412,7 @@ class AttendanceService {
     const checkInIso = new Date(open.check_in).toISOString();
     let workHours;
     let overtimeHours;
+    let overtimeMinutes = 0;
     let status;
     let checkoutCode = null;
     if (fieldOfficer) {
@@ -371,15 +421,28 @@ class AttendanceService {
       workHours = Number(Math.max(0, rawHours).toFixed(2));
       overtimeHours = 0;
       status = open.attendance_status || ATTENDANCE_STATUSES.PRESENT;
+    } else if (isGeneralAffairs(auth.role)) {
+      const rawHours = (new Date(nowIso).getTime() - new Date(checkInIso).getTime()) / 3600000;
+      workHours = Number(Math.max(0, rawHours).toFixed(2));
+      overtimeHours = 0;
+      overtimeMinutes = 0;
+      status = open.attendance_status || ATTENDANCE_STATUSES.PRESENT;
+    } else if (isAccounting(auth.role)) {
+      const emp = await this.employeeRepository.findById(auth.employeeId);
+      const shift = customShiftFromEmployee(emp);
+      const w = computeWorkAndCheckoutStatus(checkInIso, nowIso, shift, open.attendance_status, {
+        skipBreakDeduction: true,
+      });
+      workHours = w.workHours;
+      overtimeHours = 0;
+      overtimeMinutes = 0;
+      status = w.status;
     } else {
-      const w = computeWorkAndCheckoutStatus(
-        checkInIso,
-        nowIso,
-        STANDARD_TWO_CLOCK_SHIFT,
-        open.attendance_status,
-        { skipBreakDeduction: false }
-      );
-      ({ workHours, overtimeHours, status } = w);
+      const w = computeStaffKantorCheckout(checkInIso, nowIso, open.attendance_status);
+      workHours = w.workHours;
+      overtimeHours = w.overtimeHours;
+      overtimeMinutes = w.overtimeMinutes;
+      status = w.status;
     }
 
     const updated = await this.attendanceRepository.checkoutRow(open.id, {
@@ -391,6 +454,7 @@ class AttendanceService {
       userAgentOut: reqMeta.userAgent,
       workHours,
       overtimeHours,
+      overtimeMinutes,
       attendanceStatus: status,
       checkoutCode,
       validationFlagsOut: {

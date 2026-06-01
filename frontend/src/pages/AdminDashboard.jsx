@@ -14,7 +14,19 @@ import {
 } from 'recharts';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
-import { isAttendanceRole, requiresFullName } from '../roles.js';
+import {
+  isAttendanceRole,
+  isAccountingRole,
+  isGeneralAffairsRole,
+  isHeadOfFinanceRole,
+  requiresFullName,
+} from '../roles.js';
+
+function toTimeInputValue(t) {
+  if (t == null || t === '') return '';
+  const s = String(t);
+  return s.length >= 5 ? s.slice(0, 5) : '';
+}
 import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 function toTimeInputValue(v) {
@@ -60,6 +72,9 @@ export default function AdminDashboard() {
     remote_work_allowed: true,
     join_date: '',
     birthday: '',
+    custom_work_start: '09:00',
+    custom_work_end: '17:00',
+    basic_salary: '',
   });
   const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
   const [editingOffice, setEditingOffice] = useState(null);
@@ -164,9 +179,19 @@ export default function AdminDashboard() {
       setMessage(t('officeRequiredEmployee'));
       return;
     }
+    if (isHeadOfFinanceRole(newUser.role) && !newUser.full_name?.trim()) {
+      setMessage(t('fullNameRequired'));
+      return;
+    }
     if (requiresFullName(newUser.role) && !newUser.full_name?.trim()) {
       setMessage(t('fullNameRequired'));
       return;
+    }
+    if (isAccountingRole(newUser.role)) {
+      if (!newUser.custom_work_start || !newUser.custom_work_end) {
+        setMessage(t('accountingWorkStart') + ' / ' + t('accountingWorkEnd'));
+        return;
+      }
     }
     try {
       const payload = {
@@ -182,6 +207,14 @@ export default function AdminDashboard() {
         if (newUser.join_date) payload.join_date = newUser.join_date;
         if (newUser.birthday) payload.birthday = newUser.birthday;
       }
+      if (isAccountingRole(newUser.role)) {
+        payload.custom_work_start = newUser.custom_work_start;
+        payload.custom_work_end = newUser.custom_work_end;
+        payload.basic_salary = Number(newUser.basic_salary) || 0;
+      }
+      if (isGeneralAffairsRole(newUser.role) || isHeadOfFinanceRole(newUser.role)) {
+        payload.basic_salary = Number(newUser.basic_salary) || 0;
+      }
       const res = await api.post(paths.users, payload);
       const ec = res.data?.employee_code;
       setMessage(ec ? `${t('userAdded')} — ${t('employeeCode')}: ${ec}` : t('userAdded'));
@@ -195,6 +228,9 @@ export default function AdminDashboard() {
         remote_work_allowed: true,
         join_date: '',
         birthday: '',
+        custom_work_start: '09:00',
+        custom_work_end: '17:00',
+        basic_salary: '',
       });
     } catch (err) {
       setMessage(formatUserApiError(err));
@@ -223,6 +259,9 @@ export default function AdminDashboard() {
       remote_work_allowed: user.remote_work_allowed !== false,
       join_date: toDateInputValue(user.join_date),
       birthday: toDateInputValue(user.birthday),
+      custom_work_start: toTimeInputValue(user.custom_work_start) || '09:00',
+      custom_work_end: toTimeInputValue(user.custom_work_end) || '17:00',
+      basic_salary: user.basic_salary != null ? String(user.basic_salary) : '',
     });
   };
 
@@ -234,7 +273,17 @@ export default function AdminDashboard() {
         username: editingUser.username.trim(),
         role: editingUser.role,
       };
-      if (isAttendanceRole(editingUser.role)) {
+      if (isHeadOfFinanceRole(editingUser.role)) {
+        const fn = editingUser.full_name.trim();
+        if (!fn) {
+          setMessage(t('fullNameRequired'));
+          return;
+        }
+        body.full_name = fn;
+        body.basic_salary = Number(editingUser.basic_salary) || 0;
+        body.join_date = editingUser.join_date || null;
+        body.birthday = editingUser.birthday || null;
+      } else if (isAttendanceRole(editingUser.role)) {
         const fn = editingUser.full_name.trim();
         if (requiresFullName(editingUser.role) && !fn) {
           setMessage(t('fullNameRequired'));
@@ -249,6 +298,14 @@ export default function AdminDashboard() {
         body.remote_work_allowed = Boolean(editingUser.remote_work_allowed);
         body.join_date = editingUser.join_date || null;
         body.birthday = editingUser.birthday || null;
+        if (isAccountingRole(editingUser.role)) {
+          body.custom_work_start = editingUser.custom_work_start;
+          body.custom_work_end = editingUser.custom_work_end;
+          body.basic_salary = Number(editingUser.basic_salary) || 0;
+        }
+        if (isGeneralAffairsRole(editingUser.role)) {
+          body.basic_salary = Number(editingUser.basic_salary) || 0;
+        }
       } else if (editingUser.office_id) {
         body.office_id = Number(editingUser.office_id);
       }
@@ -407,6 +464,9 @@ export default function AdminDashboard() {
               <option value="employee">{t('roleEmployee')}</option>
               <option value="field_officer">{t('roleFieldOfficer')}</option>
               <option value="umum">{t('roleUmum')}</option>
+              <option value="accounting">{t('roleAccounting')}</option>
+              <option value="general_affairs">{t('roleGeneralAffairs')}</option>
+              <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
               <option value="admin">{t('roleAdmin')}</option>
             </select>
             {requiresFullName(newUser.role) && (
@@ -418,7 +478,7 @@ export default function AdminDashboard() {
                 required
               />
             )}
-            {isAttendanceRole(newUser.role) && (
+            {isAttendanceRole(newUser.role) && !isHeadOfFinanceRole(newUser.role) && (
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -428,10 +488,78 @@ export default function AdminDashboard() {
                 {t('allowRemoteWork')}
               </label>
             )}
-            {isAttendanceRole(newUser.role) && (
+            {newUser.role === 'employee' && (
               <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
             )}
-            {isAttendanceRole(newUser.role) && (
+            {isGeneralAffairsRole(newUser.role) && (
+              <>
+                <p className="text-xs text-slate-500">{t('generalAffairsOnceInOut')}</p>
+                <p className="text-xs text-slate-500">{t('generalAffairsAbsenceHint')}</p>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder={t('generalAffairsBasicSalary')}
+                  value={newUser.basic_salary}
+                  onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
+                />
+              </>
+            )}
+            {isHeadOfFinanceRole(newUser.role) && (
+              <>
+                <p className="text-xs text-slate-500">{t('headOfFinanceNoAttendance')}</p>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder={t('headOfFinanceBasicSalary')}
+                  value={newUser.basic_salary}
+                  onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
+                />
+              </>
+            )}
+            {isAccountingRole(newUser.role) && (
+              <>
+                <p className="text-xs text-slate-500">{t('accountingScheduleHint')}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm text-slate-700">
+                    <span className="mb-1 block text-xs font-medium text-slate-600">
+                      {t('accountingWorkStart')}
+                    </span>
+                    <input
+                      type="time"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      value={newUser.custom_work_start}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, custom_work_start: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="block text-sm text-slate-700">
+                    <span className="mb-1 block text-xs font-medium text-slate-600">
+                      {t('accountingWorkEnd')}
+                    </span>
+                    <input
+                      type="time"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      value={newUser.custom_work_end}
+                      onChange={(e) => setNewUser({ ...newUser, custom_work_end: e.target.value })}
+                      required
+                    />
+                  </label>
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder={t('accountingBasicSalary')}
+                  value={newUser.basic_salary}
+                  onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
+                />
+              </>
+            )}
+            {isAttendanceRole(newUser.role) && !isHeadOfFinanceRole(newUser.role) && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm text-slate-700">
                   <span className="mb-1 block text-xs font-medium text-slate-600">{t('startDate')}</span>
@@ -453,21 +581,23 @@ export default function AdminDashboard() {
                 </label>
               </div>
             )}
-            <select
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              value={newUser.office_id}
-              onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
-            >
-              {offices.length ? (
-                offices.map((office) => (
-                  <option key={office.id} value={office.id}>
-                    {office.name}
-                  </option>
-                ))
-              ) : (
-                <option value="">{t('noOfficesAvailable')}</option>
-              )}
-            </select>
+            {!isHeadOfFinanceRole(newUser.role) && (
+              <select
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={newUser.office_id}
+                onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
+              >
+                {offices.length ? (
+                  offices.map((office) => (
+                    <option key={office.id} value={office.id}>
+                      {office.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">{t('noOfficesAvailable')}</option>
+                )}
+              </select>
+            )}
             <button
               type="submit"
               className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-500"
@@ -542,20 +672,25 @@ export default function AdminDashboard() {
                       <option value="employee">{t('roleEmployee')}</option>
                       <option value="field_officer">{t('roleFieldOfficer')}</option>
                       <option value="umum">{t('roleUmum')}</option>
+                      <option value="accounting">{t('roleAccounting')}</option>
+                      <option value="general_affairs">{t('roleGeneralAffairs')}</option>
+                      <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
                       <option value="admin">{t('roleAdmin')}</option>
                     </select>
-                    <select
-                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
-                      value={editingUser.office_id}
-                      onChange={(e) => setEditingUser({ ...editingUser, office_id: e.target.value })}
-                    >
-                      <option value="">{offices.length ? t('selectOffice') : t('noOfficesAvailable')}</option>
-                      {offices.map((office) => (
-                        <option key={office.id} value={office.id}>
-                          {office.name}
-                        </option>
-                      ))}
-                    </select>
+                    {!isHeadOfFinanceRole(editingUser.role) && (
+                      <select
+                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                        value={editingUser.office_id}
+                        onChange={(e) => setEditingUser({ ...editingUser, office_id: e.target.value })}
+                      >
+                        <option value="">{offices.length ? t('selectOffice') : t('noOfficesAvailable')}</option>
+                        {offices.map((office) => (
+                          <option key={office.id} value={office.id}>
+                            {office.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     {isAttendanceRole(editingUser.role) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700">
                         <input
@@ -568,8 +703,84 @@ export default function AdminDashboard() {
                         {t('allowRemoteWork')}
                       </label>
                     )}
-                    {isAttendanceRole(editingUser.role) && (
+                    {editingUser.role === 'employee' && (
                       <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
+                    )}
+                    {isGeneralAffairsRole(editingUser.role) && (
+                      <>
+                        <p className="text-xs text-slate-500">{t('generalAffairsOnceInOut')}</p>
+                        <p className="text-xs text-slate-500">{t('generalAffairsAbsenceHint')}</p>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          placeholder={t('generalAffairsBasicSalary')}
+                          value={editingUser.basic_salary}
+                          onChange={(e) =>
+                            setEditingUser({ ...editingUser, basic_salary: e.target.value })
+                          }
+                        />
+                      </>
+                    )}
+                    {isHeadOfFinanceRole(editingUser.role) && (
+                      <>
+                        <p className="text-xs text-slate-500">{t('headOfFinanceNoAttendance')}</p>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          placeholder={t('headOfFinanceBasicSalary')}
+                          value={editingUser.basic_salary}
+                          onChange={(e) =>
+                            setEditingUser({ ...editingUser, basic_salary: e.target.value })
+                          }
+                        />
+                      </>
+                    )}
+                    {isAccountingRole(editingUser.role) && (
+                      <>
+                        <p className="text-xs text-slate-500">{t('accountingScheduleHint')}</p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <label className="block text-xs text-slate-700">
+                            <span className="mb-0.5 block font-medium text-slate-600">
+                              {t('accountingWorkStart')}
+                            </span>
+                            <input
+                              type="time"
+                              className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                              value={editingUser.custom_work_start}
+                              onChange={(e) =>
+                                setEditingUser({ ...editingUser, custom_work_start: e.target.value })
+                              }
+                              required
+                            />
+                          </label>
+                          <label className="block text-xs text-slate-700">
+                            <span className="mb-0.5 block font-medium text-slate-600">
+                              {t('accountingWorkEnd')}
+                            </span>
+                            <input
+                              type="time"
+                              className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                              value={editingUser.custom_work_end}
+                              onChange={(e) =>
+                                setEditingUser({ ...editingUser, custom_work_end: e.target.value })
+                              }
+                              required
+                            />
+                          </label>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          placeholder={t('accountingBasicSalary')}
+                          value={editingUser.basic_salary}
+                          onChange={(e) =>
+                            setEditingUser({ ...editingUser, basic_salary: e.target.value })
+                          }
+                        />
+                      </>
                     )}
                     {requiresFullName(editingUser.role) && (
                       <input

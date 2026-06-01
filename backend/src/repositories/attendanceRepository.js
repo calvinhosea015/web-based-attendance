@@ -95,9 +95,10 @@ class AttendanceRepository {
         user_agent_out = $7,
         work_hours = $8,
         overtime_hours = $9,
-        attendance_status = $10,
-        checkout_code = $11,
-        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $12::jsonb
+        overtime_minutes = $10,
+        attendance_status = $11,
+        checkout_code = $12,
+        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $13::jsonb
       WHERE id = $1 AND check_out IS NULL
       RETURNING *`,
       [
@@ -110,6 +111,7 @@ class AttendanceRepository {
         row.userAgentOut,
         row.workHours,
         row.overtimeHours,
+        row.overtimeMinutes ?? 0,
         row.attendanceStatus,
         row.checkoutCode ?? null,
         JSON.stringify(row.validationFlagsOut || {}),
@@ -231,6 +233,33 @@ class AttendanceRepository {
        ORDER BY a.check_out DESC
        LIMIT $2`,
       [officeId, limit, days]
+    );
+    return r.rows;
+  }
+
+  async sumLateMinutesInPeriod(employeeId, periodStart, periodEnd) {
+    const tz = config.attendanceCalendarTz || 'Asia/Jakarta';
+    const r = await query(
+      `SELECT COALESCE(SUM(GREATEST(COALESCE(late_minutes, 0), 0)), 0)::int AS total
+       FROM attendance
+       WHERE employee_id = $1
+         AND (check_in AT TIME ZONE $4)::date >= $2::date
+         AND (check_in AT TIME ZONE $4)::date <= $3::date`,
+      [employeeId, periodStart, periodEnd, tz]
+    );
+    return r.rows[0]?.total ?? 0;
+  }
+
+  async listOvertimeRowsInPeriod(employeeId, periodStart, periodEnd) {
+    const tz = config.attendanceCalendarTz || 'Asia/Jakarta';
+    const r = await query(
+      `SELECT check_out, overtime_minutes
+       FROM attendance
+       WHERE employee_id = $1
+         AND check_out IS NOT NULL
+         AND (check_out AT TIME ZONE $4)::date >= $2::date
+         AND (check_out AT TIME ZONE $4)::date <= $3::date`,
+      [employeeId, periodStart, periodEnd, tz]
     );
     return r.rows;
   }

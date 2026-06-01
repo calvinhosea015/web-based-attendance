@@ -19,6 +19,8 @@ class EmployeeRepository {
       segment1_end,
       segment2_start,
       segment2_end,
+      custom_work_start,
+      custom_work_end,
     },
     exec = query
   ) {
@@ -27,9 +29,10 @@ class EmployeeRepository {
       `INSERT INTO employees (
         employee_id, full_name, department_id, position_id, salary_type, basic_salary, upah_harian, join_date, birthday, status,
         remote_work_allowed, daily_segments,
-        segment1_start, segment1_end, segment2_start, segment2_end
+        segment1_start, segment1_end, segment2_start, segment2_end,
+        custom_work_start, custom_work_end
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), $12, $13, $14, $15, $16)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         employeeId,
@@ -48,6 +51,8 @@ class EmployeeRepository {
         ds === 2 ? segment1_end : null,
         ds === 2 ? segment2_start : null,
         ds === 2 ? segment2_end : null,
+        custom_work_start || null,
+        custom_work_end || null,
       ]
     );
     return r.rows[0];
@@ -132,6 +137,8 @@ class EmployeeRepository {
     segment1_end,
     segment2_start,
     segment2_end,
+    custom_work_start,
+    custom_work_end,
   }) {
     const sets = [];
     const vals = [];
@@ -184,6 +191,14 @@ class EmployeeRepository {
     if (segment2_end !== undefined) {
       sets.push(`segment2_end = $${i++}`);
       vals.push(segment2_end);
+    }
+    if (custom_work_start !== undefined) {
+      sets.push(`custom_work_start = $${i++}`);
+      vals.push(custom_work_start);
+    }
+    if (custom_work_end !== undefined) {
+      sets.push(`custom_work_end = $${i++}`);
+      vals.push(custom_work_end);
     }
     if (!sets.length) return this.findById(id);
     vals.push(id);

@@ -1,5 +1,10 @@
 const { Router } = require('express');
-const { authenticate, requireRole, requireAttendanceRole } = require('../../middleware/authMiddleware');
+const {
+  authenticate,
+  requireRole,
+  requireAttendanceRole,
+  requireEmployeePayrollAccess,
+} = require('../../middleware/authMiddleware');
 const { validateRequest } = require('../../middleware/validateRequest');
 const { csrfProtection } = require('../../middleware/csrfProtection');
 const { activityLogger } = require('../../middleware/activityLogger');
@@ -307,7 +312,7 @@ function buildProtectedRoutes(deps) {
 
   r.get('/employee/me/summary', requireAttendanceRole, dashboardController.employeeSummary);
   r.get('/employee/me/attendance', requireAttendanceRole, dashboardController.employeeHistory);
-  r.get('/employee/me/payroll', requireAttendanceRole, dashboardController.employeePayroll);
+  r.get('/employee/me/payroll', requireEmployeePayrollAccess, dashboardController.employeePayroll);
   r.get(
     '/employee/field-deliveries',
     requireRole('employee'),

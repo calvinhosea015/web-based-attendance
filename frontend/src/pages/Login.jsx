@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Button, Field, PasswordInput, inputClass } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
-import { isAttendanceRole } from '../roles.js';
+import { canAccessEmployeePayrollPortal } from '../roles.js';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -26,7 +26,7 @@ export default function Login() {
       }
       localStorage.setItem('role', res.data.role);
       if (res.data.role === 'admin') navigate('/admin');
-      else if (isAttendanceRole(res.data.role)) navigate('/employee');
+      else if (canAccessEmployeePayrollPortal(res.data.role)) navigate('/employee');
       else setMessage(t('invalidCredentials'));
     } catch (err) {
       setMessage(translateApiMessage(err) || t('invalidCredentials'));

@@ -70,10 +70,17 @@ function asyncHandler(fn) {
   };
 }
 
-const { ATTENDANCE_ROLES } = require('../constants/roles');
+const { ATTENDANCE_ROLES, canAccessEmployeePayrollPortal } = require('../constants/roles');
 
 function requireAttendanceRole(req, res, next) {
   if (!req.auth || !ATTENDANCE_ROLES.includes(req.auth.role)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+}
+
+function requireEmployeePayrollAccess(req, res, next) {
+  if (!req.auth?.employeeId || !canAccessEmployeePayrollPortal(req.auth.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
@@ -84,5 +91,6 @@ module.exports = {
   optionalAuthenticate,
   requireRole,
   requireAttendanceRole,
+  requireEmployeePayrollAccess,
   asyncHandler,
 };

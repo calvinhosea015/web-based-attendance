@@ -13,8 +13,23 @@ const {
   countWorkingDaysMonSatInCycle,
   listPayrollHolidaysInCycle,
 } = require('../utils/payrollPeriod');
-const { ROLES } = require('../constants/roles');
+const { ROLES, isAccounting, isGeneralAffairs, isHeadOfFinance } = require('../constants/roles');
+const {
+  hasMonthlyBasicPayroll,
+  receivesMonthlyAbsenceDeduction,
+  receivesStaffKantorAttendancePayroll,
+  normalizeRolePayrollFields,
+} = require('../utils/payrollRoleRules');
 const { countEffectiveDaysAttended } = require('../utils/leavePayrollDays');
+const {
+  computeStaffKantorOvertimeMinutes,
+  computeLemburPay,
+  computeLateDeductionPay,
+} = require('../utils/staffKantorOvertime');
+const {
+  receivesTunjanganMasaKerja,
+  resolveTunjanganMasaKerjaForRole,
+} = require('../utils/tenureAllowance');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -51,6 +66,34 @@ function computeGajiPokok(daysAttended, upahHarian) {
 
 function isMonthlyOfficeStaff(role) {
   return role === ROLES.EMPLOYEE;
+}
+
+/** Head of Finance: preserve prior row / profile defaults; admin edits all amounts manually. */
+function buildManualPayrollFields({ prev, emp, settings }) {
+  const transportEligible = prev?.transport_eligible ?? Boolean(emp.transport_eligible);
+  const diligenceEligible = prev?.diligence_eligible ?? false;
+  const transportAmount =
+    prev?.transport_allowance != null && transportEligible
+      ? num(prev.transport_allowance)
+      : num(emp.transport_allowance_amount ?? settings.transport_amount);
+  const diligenceAmount =
+    prev?.diligence_bonus != null && diligenceEligible
+      ? num(prev.diligence_bonus)
+      : num(emp.diligence_allowance_amount ?? settings.diligence_amount);
+  return {
+    basic_salary: num(prev?.basic_salary ?? emp.basic_salary),
+    tunjangan_masa_kerja: num(prev?.tunjangan_masa_kerja ?? emp.tunjangan_masa_kerja),
+    transport_eligible: transportEligible,
+    transport_allowance_amount: transportAmount,
+    overtime_pay: num(prev?.overtime_pay ?? 0),
+    insentif: num(prev?.insentif ?? 0),
+    diligence_eligible: diligenceEligible,
+    diligence_allowance_amount: diligenceAmount,
+    bonus_omset: num(prev?.bonus_omset ?? 0),
+    other_deductions: num(prev?.other_deductions ?? prev?.deductions ?? 0),
+    loan_deduction: num(prev?.loan_deduction ?? 0),
+    late_deduction: num(prev?.late_deduction ?? 0),
+  };
 }
 
 /** Staff Kantor: monthly basic minus absence (Mon–Sat expected days in pay cycle). */
@@ -97,6 +140,49 @@ function attachEmployeeFields(payrollRow, employee) {
 
 function attachPayrollMode(row) {
   const role = row.user_role;
+  if (isHeadOfFinance(role)) {
+    return {
+      ...row,
+      payroll_mode: 'manual',
+      absence_deduction: 0,
+      days_absent: 0,
+      expected_work_days: null,
+    };
+  }
+  if (isAccounting(role)) {
+    const monthlyGross = num(row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary);
+    return {
+      ...row,
+      payroll_mode: 'accounting',
+      monthly_basic_gross: monthlyGross,
+      absence_deduction: 0,
+      days_absent: 0,
+      expected_work_days: row.expected_work_days ?? null,
+    };
+  }
+  if (isGeneralAffairs(role)) {
+    const expected =
+      row.expected_work_days != null
+        ? row.expected_work_days
+        : countWorkingDaysMonSatInCycle(row.payroll_period);
+    const monthlyGross =
+      row.monthly_basic_gross != null
+        ? num(row.monthly_basic_gross)
+        : num(row.employee_basic_salary);
+    const calc = computeMonthlyStaffPayroll({
+      monthlyBasic: monthlyGross,
+      expectedDays: expected,
+      daysAttended: row.days_attended,
+    });
+    return {
+      ...row,
+      payroll_mode: 'general_affairs',
+      monthly_basic_gross: calc.monthly_basic_gross,
+      expected_work_days: calc.expected_work_days,
+      days_absent: calc.days_absent,
+      absence_deduction: calc.absence_deduction,
+    };
+  }
   const payroll_mode = isMonthlyOfficeStaff(role) ? 'monthly' : 'daily';
   if (payroll_mode !== 'monthly') {
     return { ...row, payroll_mode };
@@ -146,8 +232,9 @@ function computeTotals(fields, employee, settings) {
   const insentif = num(fields.insentif);
   const bonusOmset = num(fields.bonus_omset);
   const loanDeduction = num(fields.loan_deduction);
+  const lateDeduction = num(fields.late_deduction);
   const otherDeductions = num(fields.other_deductions);
-  const deductions = loanDeduction + otherDeductions;
+  const deductions = loanDeduction + lateDeduction + otherDeductions;
   const allowances =
     tunjangan + transportAllowance + overtime + insentif + diligenceBonus + bonusOmset;
   const finalSalary = basicSalary + allowances - deductions;
@@ -155,6 +242,7 @@ function computeTotals(fields, employee, settings) {
     transport_allowance: transportAllowance,
     diligence_bonus: diligenceBonus,
     loan_deduction: loanDeduction,
+    late_deduction: lateDeduction,
     other_deductions: otherDeductions,
     deductions,
     allowances,
@@ -165,11 +253,18 @@ function computeTotals(fields, employee, settings) {
 }
 
 class PayrollService {
-  constructor(payrollRepository, employeeRepository, loanRequestRepository, leaveRequestRepository) {
+  constructor(
+    payrollRepository,
+    employeeRepository,
+    loanRequestRepository,
+    leaveRequestRepository,
+    attendanceRepository
+  ) {
     this.payrollRepository = payrollRepository;
     this.employeeRepository = employeeRepository;
     this.loanRequestRepository = loanRequestRepository;
     this.leaveRequestRepository = leaveRequestRepository;
+    this.attendanceRepository = attendanceRepository;
   }
 
   async previewLoanDeduction(employeeId, payrollPeriod) {
@@ -288,7 +383,10 @@ class PayrollService {
     let gajiPokok;
     let resolvedUpahHarian = upahHarian;
     let resolvedDays = days;
-    if (isMonthlyOfficeStaff(role)) {
+    if (isAccounting(role)) {
+      gajiPokok = num(monthlyBasicGross);
+      resolvedUpahHarian = 0;
+    } else if (receivesMonthlyAbsenceDeduction(role)) {
       const expectedDays = this.resolveExpectedWorkDays({
         payrollPeriod,
         existing: prev?.expected_work_days,
@@ -313,29 +411,36 @@ class PayrollService {
         ? num(prev.diligence_bonus)
         : num(emp.diligence_allowance_amount ?? settings.diligence_amount);
 
-    return {
-      basic_salary: gajiPokok,
-      tunjangan_masa_kerja: prev?.tunjangan_masa_kerja ?? num(emp.tunjangan_masa_kerja),
-      transport_eligible: transportEligible,
-      transport_allowance_amount: transportAmount,
-      overtime_pay: prev?.overtime_pay ?? 0,
-      insentif: prev?.insentif ?? 0,
-      diligence_eligible: diligenceEligible,
-      diligence_allowance_amount: diligenceAmount,
-      bonus_omset: prev?.bonus_omset ?? 0,
-      other_deductions: prev?.other_deductions ?? prev?.deductions ?? 0,
-      loan_deduction: 0,
-      _employee: employee,
-      _payrollPeriod: payrollPeriod,
-      _prev: prev,
-      _resolvedUpahHarian: resolvedUpahHarian,
-      _resolvedDays: resolvedDays,
-    };
+    const joinDate = (employee || emp)?.join_date;
+    const tunjanganMasaKerja = resolveTunjanganMasaKerjaForRole(role, joinDate, payrollPeriod);
+
+    return normalizeRolePayrollFields(
+      {
+        basic_salary: gajiPokok,
+        tunjangan_masa_kerja: tunjanganMasaKerja,
+        transport_eligible: transportEligible,
+        transport_allowance_amount: transportAmount,
+        overtime_pay: prev?.overtime_pay ?? 0,
+        insentif: prev?.insentif ?? 0,
+        diligence_eligible: diligenceEligible,
+        diligence_allowance_amount: diligenceAmount,
+        bonus_omset: prev?.bonus_omset ?? 0,
+        other_deductions: prev?.other_deductions ?? prev?.deductions ?? 0,
+        loan_deduction: 0,
+        late_deduction: prev?.late_deduction ?? 0,
+        _employee: employee,
+        _payrollPeriod: payrollPeriod,
+        _prev: prev,
+        _resolvedUpahHarian: resolvedUpahHarian,
+        _resolvedDays: resolvedDays,
+      },
+      role
+    );
   }
 
   /** Days attended = check-ins plus approved paid leave workdays (Staff Kantor). */
   async resolveDaysAttended(employeeId, periodStart, periodEnd, role) {
-    const monSatOnly = isMonthlyOfficeStaff(role);
+    const monSatOnly = receivesMonthlyAbsenceDeduction(role);
     if (!monSatOnly || !this.leaveRequestRepository) {
       return this.payrollRepository.countDaysAttendedFromAttendance(
         employeeId,
@@ -372,11 +477,69 @@ class PayrollService {
     return countWorkingDaysMonSatInCycle(payrollPeriod);
   }
 
+  async sumStaffKantorOvertimeMinutes(employeeId, periodStart, periodEnd) {
+    const rows = await this.attendanceRepository.listOvertimeRowsInPeriod(
+      employeeId,
+      periodStart,
+      periodEnd
+    );
+    let total = 0;
+    for (const row of rows) {
+      const stored = Number(row.overtime_minutes);
+      if (Number.isFinite(stored) && stored > 0) {
+        total += Math.floor(stored);
+      } else if (row.check_out) {
+        total += computeStaffKantorOvertimeMinutes(row.check_out);
+      }
+    }
+    return total;
+  }
+
+  /** Lembur = (gaji pokok / required days / 8 / 60) × total overtime minutes in period. */
+  async computeLemburPayForPeriod(employeeId, bounds, employee, requiredWorkDays) {
+    const minutes = await this.sumStaffKantorOvertimeMinutes(
+      employeeId,
+      bounds.period_start,
+      bounds.period_end
+    );
+    return computeLemburPay({
+      gajiPokok: num(employee.basic_salary),
+      requiredWorkDays,
+      overtimeMinutes: minutes,
+    });
+  }
+
+  /** Potongan terlambat = (gaji pokok / required days / 8 / 60) × sum(late_minutes) in period. */
+  async computeLateDeductionForPeriod(employeeId, bounds, employee, requiredWorkDays) {
+    const lateMinutes = await this.attendanceRepository.sumLateMinutesInPeriod(
+      employeeId,
+      bounds.period_start,
+      bounds.period_end
+    );
+    return computeLateDeductionPay({
+      gajiPokok: num(employee.basic_salary),
+      requiredWorkDays,
+      lateMinutes,
+    });
+  }
+
   /** Refresh days_attended and gaji pokok from attendance; keep other payroll fields. */
   async syncPayrollRowFromAttendance(row, bounds) {
     const empId = row.employee_id;
     let role = row.user_role;
     if (!role) role = await this.payrollRepository.getRoleForEmployee(empId);
+
+    if (isHeadOfFinance(role)) {
+      const employee = await this.employeeRepository.findById(empId);
+      if (!employee) return row;
+      return attachPayrollMode(
+        attachEmployeeFields(row, {
+          ...employee,
+          employee_code: employee.employee_id,
+          user_role: role,
+        })
+      );
+    }
 
     const days = await this.resolveDaysAttended(
       empId,
@@ -389,14 +552,20 @@ class PayrollService {
 
     const settings = await this.payrollRepository.getSettings();
     const monthlyStaff = isMonthlyOfficeStaff(role);
-    const upahHarian = monthlyStaff ? 0 : num(row.upah_harian ?? employee.upah_harian);
+    const accounting = isAccounting(role);
+    const upahHarian = hasMonthlyBasicPayroll(role) ? 0 : num(row.upah_harian ?? employee.upah_harian);
     let gajiPokok;
 
-    if (monthlyStaff) {
-      const expectedDays = this.resolveExpectedWorkDays({
-        payrollPeriod: bounds.payroll_period,
-        existing: row.expected_work_days,
-      });
+    const expectedDays = hasMonthlyBasicPayroll(role)
+      ? this.resolveExpectedWorkDays({
+          payrollPeriod: bounds.payroll_period,
+          existing: row.expected_work_days,
+        })
+      : null;
+
+    if (accounting) {
+      gajiPokok = num(employee.basic_salary);
+    } else if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
       gajiPokok = computeMonthlyStaffPayroll({
         monthlyBasic: num(employee.basic_salary),
         expectedDays,
@@ -406,23 +575,56 @@ class PayrollService {
       gajiPokok = computeGajiPokok(days, upahHarian);
     }
 
-    const fields = {
-      basic_salary: gajiPokok,
-      tunjangan_masa_kerja: num(row.tunjangan_masa_kerja),
-      transport_eligible: Boolean(row.transport_eligible),
-      transport_allowance_amount: row.transport_eligible
-        ? num(row.transport_allowance)
-        : num(employee.transport_allowance_amount ?? settings.transport_amount),
-      overtime_pay: num(row.overtime_pay),
-      insentif: num(row.insentif),
-      diligence_eligible: Boolean(row.diligence_eligible),
-      diligence_allowance_amount: row.diligence_eligible
-        ? num(row.diligence_bonus)
-        : num(employee.diligence_allowance_amount ?? settings.diligence_amount),
-      bonus_omset: num(row.bonus_omset),
-      other_deductions: num(row.other_deductions ?? row.deductions),
-      loan_deduction: num(row.loan_deduction),
-    };
+    let overtimePay = num(row.overtime_pay);
+    let lateDeduction = num(row.late_deduction);
+    if (receivesStaffKantorAttendancePayroll(role) && expectedDays != null) {
+      overtimePay = await this.computeLemburPayForPeriod(
+        empId,
+        bounds,
+        employee,
+        expectedDays
+      );
+      lateDeduction = await this.computeLateDeductionForPeriod(
+        empId,
+        bounds,
+        employee,
+        expectedDays
+      );
+    } else if (accounting) {
+      overtimePay = 0;
+      lateDeduction = 0;
+    }
+
+    const tunjanganMasaKerja = resolveTunjanganMasaKerjaForRole(
+      role,
+      employee.join_date,
+      bounds.payroll_period
+    );
+
+    const fields = normalizeRolePayrollFields(
+      {
+        basic_salary: gajiPokok,
+        tunjangan_masa_kerja: tunjanganMasaKerja,
+        transport_eligible: Boolean(row.transport_eligible),
+        transport_allowance_amount: row.transport_eligible
+          ? num(row.transport_allowance)
+          : num(employee.transport_allowance_amount ?? settings.transport_amount),
+        overtime_pay: overtimePay,
+        late_deduction: lateDeduction,
+        insentif: num(row.insentif),
+        diligence_eligible: Boolean(row.diligence_eligible),
+        diligence_allowance_amount: row.diligence_eligible
+          ? num(row.diligence_bonus)
+          : num(employee.diligence_allowance_amount ?? settings.diligence_amount),
+        bonus_omset: num(row.bonus_omset),
+        other_deductions: Math.max(
+          0,
+          num(row.other_deductions ?? row.deductions) - num(row.late_deduction)
+        ),
+        loan_deduction: num(row.loan_deduction),
+      },
+      role
+    );
 
     const totals = computeTotals(fields, employee, settings);
     const saved = await this.payrollRepository.upsertRow({
@@ -433,12 +635,7 @@ class PayrollService {
       upah_harian: upahHarian,
       basic_salary: gajiPokok,
       days_attended: days,
-      expected_work_days: monthlyStaff
-        ? this.resolveExpectedWorkDays({
-            payrollPeriod: bounds.payroll_period,
-            existing: row.expected_work_days,
-          })
-        : null,
+      expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
       transport_eligible: fields.transport_eligible,
       transport_allowance: totals.transport_allowance,
@@ -448,6 +645,7 @@ class PayrollService {
       diligence_bonus: totals.diligence_bonus,
       bonus_omset: fields.bonus_omset,
       loan_deduction: totals.loan_deduction,
+      late_deduction: totals.late_deduction,
       other_deductions: totals.other_deductions,
       deductions: totals.deductions,
       allowances: totals.allowances,
@@ -520,20 +718,53 @@ class PayrollService {
     const rows = [];
     for (const emp of employees) {
       const role = emp.user_role;
+      const prev = existingByEmp.get(emp.id);
+
+      if (isHeadOfFinance(role)) {
+        const manualFields = buildManualPayrollFields({ prev, emp, settings });
+        const totals = computeTotals(manualFields, emp, settings);
+        const saved = await this.payrollRepository.upsertRow({
+          employee_id: emp.id,
+          payroll_period: bounds.payroll_period,
+          period_start: bounds.period_start,
+          period_end: bounds.period_end,
+          upah_harian: 0,
+          basic_salary: manualFields.basic_salary,
+          days_attended: prev?.days_attended ?? 0,
+          expected_work_days: null,
+          tunjangan_masa_kerja: manualFields.tunjangan_masa_kerja,
+          transport_eligible: manualFields.transport_eligible,
+          transport_allowance: totals.transport_allowance,
+          overtime_pay: manualFields.overtime_pay,
+          insentif: manualFields.insentif,
+          diligence_eligible: manualFields.diligence_eligible,
+          diligence_bonus: totals.diligence_bonus,
+          bonus_omset: manualFields.bonus_omset,
+          loan_deduction: manualFields.loan_deduction,
+          late_deduction: manualFields.late_deduction,
+          other_deductions: totals.other_deductions,
+          deductions: totals.deductions,
+          allowances: totals.allowances,
+          final_salary: totals.final_salary,
+          keterangan: prev?.keterangan ?? '',
+        });
+        rows.push(attachEmployeeFields(saved, emp));
+        continue;
+      }
+
       const days = await this.resolveDaysAttended(
         emp.id,
         bounds.period_start,
         bounds.period_end,
         role
       );
-      const prev = existingByEmp.get(emp.id);
-      const upahHarian = isMonthlyOfficeStaff(role)
+      const upahHarian = hasMonthlyBasicPayroll(role)
         ? 0
         : prev?.upah_harian != null
           ? num(prev.upah_harian)
           : num(emp.upah_harian);
       const monthlyBasicGross = num(emp.basic_salary);
-      const fields = this.buildFieldsFromSources({
+      let fields = this.buildFieldsFromSources({
         prev,
         emp,
         employee: emp,
@@ -544,20 +775,37 @@ class PayrollService {
         role,
         monthlyBasicGross,
       });
-      const expectedDays = isMonthlyOfficeStaff(role)
+      const expectedDays = hasMonthlyBasicPayroll(role)
         ? this.resolveExpectedWorkDays({
             payrollPeriod: bounds.payroll_period,
             explicit: requiredWorkDays,
             existing: prev?.expected_work_days,
           })
         : null;
-      if (expectedDays != null) {
+      if (isAccounting(role)) {
+        fields.basic_salary = monthlyBasicGross;
+      } else if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
         fields.basic_salary = computeMonthlyStaffPayroll({
           monthlyBasic: monthlyBasicGross,
           expectedDays,
           daysAttended: fields._resolvedDays ?? days,
         }).basic_salary;
+        if (receivesStaffKantorAttendancePayroll(role)) {
+          fields.overtime_pay = await this.computeLemburPayForPeriod(
+            emp.id,
+            bounds,
+            emp,
+            expectedDays
+          );
+          fields.late_deduction = await this.computeLateDeductionForPeriod(
+            emp.id,
+            bounds,
+            emp,
+            expectedDays
+          );
+        }
       }
+      fields = normalizeRolePayrollFields(fields, role);
       fields.loan_deduction = await this.resolveLoanDeduction(emp.id, bounds.payroll_period);
 
       const totals = computeTotals(fields, emp, settings);
@@ -579,6 +827,7 @@ class PayrollService {
         diligence_bonus: totals.diligence_bonus,
         bonus_omset: fields.bonus_omset,
         loan_deduction: totals.loan_deduction,
+        late_deduction: totals.late_deduction,
         other_deductions: totals.other_deductions,
         deductions: totals.deductions,
         allowances: totals.allowances,
@@ -611,6 +860,8 @@ class PayrollService {
     const role =
       (await this.payrollRepository.getRoleForEmployee(empId)) || ROLES.EMPLOYEE;
     const monthlyStaff = isMonthlyOfficeStaff(role);
+    const accounting = isAccounting(role);
+    const headOfFinance = isHeadOfFinance(role);
 
     const settings = await this.payrollRepository.getSettings();
     let existing = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
@@ -626,13 +877,17 @@ class PayrollService {
         payroll_period: bounds.payroll_period,
         period_start: bounds.period_start,
         period_end: bounds.period_end,
-        upah_harian: monthlyStaff ? 0 : num(employee.upah_harian),
+        upah_harian: hasMonthlyBasicPayroll(role) ? 0 : num(employee.upah_harian),
         days_attended: days,
-        expected_work_days: monthlyStaff
+        expected_work_days: hasMonthlyBasicPayroll(role)
           ? this.resolveExpectedWorkDays({ payrollPeriod: bounds.payroll_period })
           : null,
-        tunjangan_masa_kerja: num(employee.tunjangan_masa_kerja),
-        transport_eligible: Boolean(employee.transport_eligible),
+        tunjangan_masa_kerja: resolveTunjanganMasaKerjaForRole(
+          role,
+          employee.join_date,
+          bounds.payroll_period
+        ),
+        transport_eligible: accounting ? false : Boolean(employee.transport_eligible),
         overtime_pay: 0,
         insentif: 0,
         diligence_eligible: false,
@@ -641,7 +896,96 @@ class PayrollService {
       };
     }
 
-    const upahHarian = monthlyStaff
+    if (headOfFinance) {
+      const transportEligible =
+        payload.transport_eligible != null
+          ? Boolean(payload.transport_eligible)
+          : Boolean(existing.transport_eligible);
+      const diligenceEligible =
+        payload.diligence_eligible != null
+          ? Boolean(payload.diligence_eligible)
+          : Boolean(existing.diligence_eligible);
+      const transportAmount =
+        payload.transport_allowance_amount != null
+          ? num(payload.transport_allowance_amount)
+          : transportEligible
+            ? num(existing.transport_allowance ?? employee.transport_allowance_amount ?? settings.transport_amount)
+            : num(employee.transport_allowance_amount ?? settings.transport_amount);
+      const diligenceAmount =
+        payload.diligence_allowance_amount != null
+          ? num(payload.diligence_allowance_amount)
+          : diligenceEligible
+            ? num(existing.diligence_bonus ?? employee.diligence_allowance_amount ?? settings.diligence_amount)
+            : num(employee.diligence_allowance_amount ?? settings.diligence_amount);
+      const fields = {
+        basic_salary:
+          payload.basic_salary != null ? num(payload.basic_salary) : num(existing.basic_salary),
+        tunjangan_masa_kerja:
+          payload.tunjangan_masa_kerja != null
+            ? num(payload.tunjangan_masa_kerja)
+            : num(existing.tunjangan_masa_kerja),
+        transport_eligible: transportEligible,
+        transport_allowance_amount: transportAmount,
+        overtime_pay:
+          payload.overtime_pay != null ? num(payload.overtime_pay) : num(existing.overtime_pay),
+        insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
+        diligence_eligible: diligenceEligible,
+        diligence_allowance_amount: diligenceAmount,
+        bonus_omset:
+          payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
+        other_deductions:
+          payload.other_deductions != null
+            ? num(payload.other_deductions)
+            : payload.deductions != null
+              ? num(payload.deductions)
+              : num(existing.other_deductions ?? existing.deductions),
+        loan_deduction:
+          payload.loan_deduction != null ? num(payload.loan_deduction) : num(existing.loan_deduction),
+        late_deduction:
+          payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction),
+      };
+      const totals = computeTotals(fields, employee, settings);
+      const keterangan =
+        payload.keterangan !== undefined
+          ? normalizeKeterangan(payload.keterangan)
+          : normalizeKeterangan(existing.keterangan);
+      const daysN =
+        payload.days_attended != null ? Math.max(0, Math.floor(num(payload.days_attended))) : num(existing.days_attended);
+      const saved = await this.payrollRepository.upsertRow({
+        employee_id: empId,
+        payroll_period: bounds.payroll_period,
+        period_start: bounds.period_start,
+        period_end: bounds.period_end,
+        upah_harian: 0,
+        basic_salary: fields.basic_salary,
+        days_attended: daysN,
+        expected_work_days: null,
+        tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
+        transport_eligible: fields.transport_eligible,
+        transport_allowance: totals.transport_allowance,
+        overtime_pay: fields.overtime_pay,
+        insentif: fields.insentif,
+        diligence_eligible: fields.diligence_eligible,
+        diligence_bonus: totals.diligence_bonus,
+        bonus_omset: fields.bonus_omset,
+        loan_deduction: fields.loan_deduction,
+        late_deduction: fields.late_deduction,
+        other_deductions: totals.other_deductions,
+        deductions: totals.deductions,
+        allowances: totals.allowances,
+        final_salary: totals.final_salary,
+        keterangan,
+      });
+      return this.enrichPayrollRow(
+        attachEmployeeFields(saved, {
+          ...employee,
+          employee_code: employee.employee_id,
+          user_role: role,
+        })
+      );
+    }
+
+    const upahHarian = hasMonthlyBasicPayroll(role)
       ? 0
       : payload.upah_harian != null
         ? num(payload.upah_harian)
@@ -654,7 +998,14 @@ class PayrollService {
     );
     let gajiPokok;
     let monthlyBasicGross = num(employee.basic_salary);
-    if (monthlyStaff) {
+    if (accounting) {
+      if (payload.monthly_basic_gross != null) {
+        monthlyBasicGross = num(payload.monthly_basic_gross);
+      } else if (payload.basic_salary != null) {
+        monthlyBasicGross = num(payload.basic_salary);
+      }
+      gajiPokok = monthlyBasicGross;
+    } else if (receivesMonthlyAbsenceDeduction(role)) {
       if (payload.monthly_basic_gross != null) {
         monthlyBasicGross = num(payload.monthly_basic_gross);
       } else if (payload.basic_salary != null) {
@@ -673,12 +1024,14 @@ class PayrollService {
       gajiPokok = computeGajiPokok(daysN, upahHarian);
     }
 
-    const transportEligible =
-      payload.transport_eligible != null
+    const transportEligible = accounting
+      ? false
+      : payload.transport_eligible != null
         ? Boolean(payload.transport_eligible)
         : Boolean(existing.transport_eligible);
-    const diligenceEligible =
-      payload.diligence_eligible != null
+    const diligenceEligible = accounting
+      ? false
+      : payload.diligence_eligible != null
         ? Boolean(payload.diligence_eligible)
         : Boolean(existing.diligence_eligible);
 
@@ -701,28 +1054,65 @@ class PayrollService {
       loanDeduction = await this.resolveLoanDeduction(empId, bounds.payroll_period);
     }
 
-    const fields = {
-      basic_salary: gajiPokok,
-      tunjangan_masa_kerja:
-        payload.tunjangan_masa_kerja != null
-          ? num(payload.tunjangan_masa_kerja)
-          : num(existing.tunjangan_masa_kerja),
-      transport_eligible: transportEligible,
-      transport_allowance_amount: transportAmount,
-      overtime_pay:
-        payload.overtime_pay != null ? num(payload.overtime_pay) : num(existing.overtime_pay),
-      insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
-      diligence_eligible: diligenceEligible,
-      diligence_allowance_amount: diligenceAmount,
-      bonus_omset: payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
-      other_deductions:
-        payload.other_deductions != null
-          ? num(payload.other_deductions)
-          : payload.deductions != null
-            ? num(payload.deductions)
-            : num(existing.other_deductions ?? existing.deductions),
-      loan_deduction: loanDeduction,
-    };
+    const expectedDaysForLate = receivesStaffKantorAttendancePayroll(role)
+      ? this.resolveExpectedWorkDays({
+          payrollPeriod: bounds.payroll_period,
+          existing: existing.expected_work_days,
+        })
+      : null;
+
+    let lateDeduction =
+      payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction);
+    if (
+      receivesStaffKantorAttendancePayroll(role) &&
+      expectedDaysForLate != null &&
+      payload.late_deduction == null
+    ) {
+      lateDeduction = await this.computeLateDeductionForPeriod(
+        empId,
+        bounds,
+        employee,
+        expectedDaysForLate
+      );
+    } else if (accounting) {
+      lateDeduction = 0;
+    }
+
+    let overtimePay =
+      payload.overtime_pay != null ? num(payload.overtime_pay) : num(existing.overtime_pay);
+    if (accounting) {
+      overtimePay = 0;
+    }
+
+    const fields = normalizeRolePayrollFields(
+      {
+        basic_salary: gajiPokok,
+        tunjangan_masa_kerja:
+          payload.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)
+            ? num(payload.tunjangan_masa_kerja)
+            : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period),
+        transport_eligible: transportEligible,
+        transport_allowance_amount: transportAmount,
+        overtime_pay: overtimePay,
+        insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
+        diligence_eligible: diligenceEligible,
+        diligence_allowance_amount: diligenceAmount,
+        bonus_omset: payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
+        other_deductions:
+          payload.other_deductions != null
+            ? num(payload.other_deductions)
+            : payload.deductions != null
+              ? num(payload.deductions)
+              : Math.max(
+                  0,
+                  num(existing.other_deductions ?? existing.deductions) -
+                    num(existing.late_deduction)
+                ),
+        loan_deduction: loanDeduction,
+        late_deduction: lateDeduction,
+      },
+      role
+    );
 
     const totals = computeTotals(fields, employee, settings);
     const keterangan =
@@ -737,7 +1127,7 @@ class PayrollService {
       upah_harian: upahHarian,
       basic_salary: gajiPokok,
       days_attended: daysN,
-      expected_work_days: monthlyStaff
+      expected_work_days: hasMonthlyBasicPayroll(role)
         ? this.resolveExpectedWorkDays({
             payrollPeriod: bounds.payroll_period,
             existing: existing.expected_work_days,
@@ -752,6 +1142,7 @@ class PayrollService {
       diligence_bonus: totals.diligence_bonus,
       bonus_omset: fields.bonus_omset,
       loan_deduction: totals.loan_deduction,
+      late_deduction: totals.late_deduction,
       other_deductions: totals.other_deductions,
       deductions: totals.deductions,
       allowances: totals.allowances,
@@ -760,14 +1151,17 @@ class PayrollService {
     });
 
     const defaultsPayload = {};
-    if (payload.tunjangan_masa_kerja != null) {
+    if (payload.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)) {
       defaultsPayload.tunjangan_masa_kerja = fields.tunjangan_masa_kerja;
     }
     if (payload.transport_eligible != null) {
       defaultsPayload.transport_eligible = fields.transport_eligible;
     }
     if (payload.upah_harian != null) defaultsPayload.upah_harian = upahHarian;
-    if (monthlyStaff && (payload.monthly_basic_gross != null || payload.basic_salary != null)) {
+    if (
+      hasMonthlyBasicPayroll(role) &&
+      (payload.monthly_basic_gross != null || payload.basic_salary != null)
+    ) {
       defaultsPayload.basic_salary = monthlyBasicGross;
     }
     if (payload.transport_allowance_amount != null) {

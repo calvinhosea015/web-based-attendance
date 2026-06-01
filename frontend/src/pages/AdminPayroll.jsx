@@ -193,6 +193,8 @@ export default function AdminPayroll() {
         Number(row.loan_deduction_preview || 0)
       ),
       other_deductions: row.other_deductions ?? row.deductions ?? 0,
+      late_deduction: row.late_deduction ?? 0,
+      basic_salary: row.basic_salary ?? 0,
       keterangan: row.keterangan ?? '',
     });
   };
@@ -205,10 +207,23 @@ export default function AdminPayroll() {
       await ensureCsrf();
       const payload = { ...editForm };
       delete payload.payroll_mode;
-      if (editForm.payroll_mode === 'monthly') {
+      if (
+        editForm.payroll_mode === 'monthly' ||
+        editForm.payroll_mode === 'general_affairs' ||
+        editForm.payroll_mode === 'accounting' ||
+        editForm.payroll_mode === 'manual'
+      ) {
         delete payload.upah_harian;
-      } else {
+      }
+      if (editForm.payroll_mode !== 'monthly' && editForm.payroll_mode !== 'general_affairs') {
         delete payload.monthly_basic_gross;
+      }
+      if (editForm.payroll_mode === 'accounting') {
+        delete payload.tunjangan_masa_kerja;
+        delete payload.transport_eligible;
+        delete payload.overtime_pay;
+        delete payload.insentif;
+        delete payload.diligence_eligible;
       }
       const { data } = await api.put(paths.adminPayrollEntry(period, editingId), payload);
       setRows((prev) => prev.map((r) => (r.employee_id === data.employee_id ? { ...r, ...data } : r)));
@@ -228,8 +243,15 @@ export default function AdminPayroll() {
   }, [rows]);
 
   const editingRow = rows.find((r) => r.employee_id === editingId);
+  const editIsAccounting = editForm?.payroll_mode === 'accounting';
+  const editIsManual = editForm?.payroll_mode === 'manual';
   const editMonthlyPreview = useMemo(() => {
-    if (!editForm || editForm.payroll_mode !== 'monthly') return null;
+    if (
+      !editForm ||
+      (editForm.payroll_mode !== 'monthly' && editForm.payroll_mode !== 'general_affairs')
+    ) {
+      return null;
+    }
     const expected = requiredWorkDays ?? countWorkingDaysMonSatInCycle(period);
     return previewMonthlyStaffPayroll({
       monthlyBasic: editForm.monthly_basic_gross,
@@ -397,19 +419,30 @@ export default function AdminPayroll() {
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {row.payroll_mode === 'monthly' ? (
+                        {row.payroll_mode === 'monthly' ||
+                        row.payroll_mode === 'general_affairs' ||
+                        row.payroll_mode === 'accounting' ? (
                           <div>
                             <div>{row.days_attended ?? 0}</div>
-                            <div className="text-xs text-slate-400">
-                              / {row.expected_work_days ?? requiredWorkDays ?? countWorkingDaysMonSatInCycle(period)}
-                            </div>
+                            {row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs' ? (
+                              <div className="text-xs text-slate-400">
+                                /{' '}
+                                {row.expected_work_days ??
+                                  requiredWorkDays ??
+                                  countWorkingDaysMonSatInCycle(period)}
+                              </div>
+                            ) : null}
                           </div>
                         ) : (
                           row.days_attended ?? 0
                         )}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-                        {row.payroll_mode === 'monthly' ? (
+                        {row.payroll_mode === 'manual' ? (
+                          <div className="text-xs text-slate-400">{t('payrollManualMode')}</div>
+                        ) : row.payroll_mode === 'monthly' ||
+                          row.payroll_mode === 'general_affairs' ||
+                          row.payroll_mode === 'accounting' ? (
                           <div>
                             <div>{formatIdr(row.monthly_basic_gross ?? row.employee_basic_salary)}</div>
                             <div className="text-xs text-slate-400">{t('payrollMonthlyBasic')}</div>
@@ -423,10 +456,14 @@ export default function AdminPayroll() {
                           {formatIdr(row.basic_salary)}
                         </div>
                         <div className="text-xs text-slate-400">
-                          {row.payroll_mode === 'monthly'
-                            ? t('payrollAbsenceDeduction') +
-                              `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
-                            : `${row.days_attended ?? 0} × ${formatIdr(row.upah_harian)}`}
+                          {row.payroll_mode === 'manual'
+                            ? t('payrollManualMode')
+                            : row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs'
+                              ? t('payrollAbsenceDeduction') +
+                                `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
+                              : row.payroll_mode === 'accounting'
+                                ? t('roleAccounting')
+                                : `${row.days_attended ?? 0} × ${formatIdr(row.upah_harian)}`}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-rose-600">
@@ -510,16 +547,75 @@ export default function AdminPayroll() {
                 onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
               />
             </CompactField>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('payrollDaysAttended')}
-              </p>
-              <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
-                {editForm.days_attended ?? 0}
-              </p>
-              <p className="mt-0.5 text-[10px] text-slate-500">{t('payrollDaysFromAttendance')}</p>
-            </div>
-            {editForm.payroll_mode === 'monthly' ? (
+            {editIsManual ? (
+              <>
+                <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
+                  {t('payrollManualHint')}
+                </p>
+                <CompactField label={t('payrollBasicSalary')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.basic_salary}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, basic_salary: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+                <CompactField label={t('payrollDaysAttended')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.days_attended}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, days_attended: Number(e.target.value) }))
+                    }
+                  />
+                  <p className="mt-0.5 text-[10px] text-slate-500">{t('payrollDaysManual')}</p>
+                </CompactField>
+              </>
+            ) : (
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  {t('payrollDaysAttended')}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+                  {editForm.days_attended ?? 0}
+                </p>
+                <p className="mt-0.5 text-[10px] text-slate-500">{t('payrollDaysFromAttendance')}</p>
+              </div>
+            )}
+            {editForm.payroll_mode === 'accounting' ? (
+              <>
+                <CompactField label={t('payrollMonthlyBasic')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.monthly_basic_gross}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        monthly_basic_gross: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </CompactField>
+                <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5 md:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                    {t('payrollBasicSalary')}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+                    Rp {formatIdr(editForm.monthly_basic_gross ?? 0)}
+                  </p>
+                </div>
+                <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
+                  {t('payrollAccountingHint')}
+                </p>
+              </>
+            ) : editForm.payroll_mode === 'monthly' || editForm.payroll_mode === 'general_affairs' ? (
               <>
                 <CompactField label={t('payrollMonthlyBasic')}>
                   <input
@@ -586,39 +682,43 @@ export default function AdminPayroll() {
                 </div>
               </>
             )}
-            <CompactField label={t('payrollTunjanganMasaKerja')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.tunjangan_masa_kerja}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, tunjangan_masa_kerja: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
-            <CompactField label={t('payrollLembur')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.overtime_pay}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, overtime_pay: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
-            <CompactField label={t('payrollInsentif')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.insentif}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, insentif: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
+            {(!editIsAccounting || editIsManual) && (
+              <>
+                <CompactField label={t('payrollTunjanganMasaKerja')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.tunjangan_masa_kerja}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, tunjangan_masa_kerja: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+                <CompactField label={t('payrollLembur')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.overtime_pay}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, overtime_pay: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+                <CompactField label={t('payrollInsentif')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.insentif}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, insentif: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+              </>
+            )}
             <CompactField label={t('payrollBonusOmset')}>
               <input
                 type="number"
@@ -630,15 +730,37 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <CompactField label={t('payrollLoanDeduction')} hint={t('payrollLoanDeductionHint')}>
+            <CompactField
+              label={t('payrollLoanDeduction')}
+              hint={editIsManual ? undefined : t('payrollLoanDeductionHint')}
+            >
               <input
                 type="number"
                 min="0"
-                className={`${inputClassCompact} bg-slate-50`}
+                className={editIsManual ? inputClassCompact : `${inputClassCompact} bg-slate-50`}
                 value={editForm.loan_deduction}
-                readOnly
+                readOnly={!editIsManual}
+                onChange={
+                  editIsManual
+                    ? (e) =>
+                        setEditForm((f) => ({ ...f, loan_deduction: Number(e.target.value) }))
+                    : undefined
+                }
               />
             </CompactField>
+            {editIsManual && (
+              <CompactField label={t('payrollLateDeduction')}>
+                <input
+                  type="number"
+                  min="0"
+                  className={inputClassCompact}
+                  value={editForm.late_deduction}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, late_deduction: Number(e.target.value) }))
+                  }
+                />
+              </CompactField>
+            )}
             <CompactField label={t('payrollOtherDeductions')}>
               <input
                 type="number"
@@ -650,30 +772,32 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                  checked={editForm.transport_eligible}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, transport_eligible: e.target.checked }))
-                  }
-                />
-                {t('payrollTransportEligible')}
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                  checked={editForm.diligence_eligible}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, diligence_eligible: e.target.checked }))
-                  }
-                />
-                {t('payrollDiligenceEligible')}
-              </label>
-            </div>
+            {(!editIsAccounting || editIsManual) && (
+              <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    checked={editForm.transport_eligible}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, transport_eligible: e.target.checked }))
+                    }
+                  />
+                  {t('payrollTransportEligible')}
+                </label>
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    checked={editForm.diligence_eligible}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, diligence_eligible: e.target.checked }))
+                    }
+                  />
+                  {t('payrollDiligenceEligible')}
+                </label>
+              </div>
+            )}
             {editingRow?.has_active_loan && (
               <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
                 {t('payrollActiveLoanHint', {

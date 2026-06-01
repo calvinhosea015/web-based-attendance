@@ -6,7 +6,13 @@ import LoanProgress from '../components/LoanProgress.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
-import { isAttendanceRole, ROLE_EMPLOYEE } from '../roles.js';
+import {
+  canAccessEmployeePayrollPortal,
+  isPayrollOnlyRole,
+  ROLE_EMPLOYEE,
+  isAccountingRole,
+  isGeneralAffairsRole,
+} from '../roles.js';
 import {
   isFieldCheckoutFormatValid,
   parseFieldCheckoutDisplay,
@@ -84,7 +90,7 @@ export default function EmployeeDashboard() {
       navigate('/admin');
       return;
     }
-    if (!isAttendanceRole(role)) {
+    if (!canAccessEmployeePayrollPortal(role)) {
       navigate('/login');
       return;
     }
@@ -96,6 +102,11 @@ export default function EmployeeDashboard() {
         return;
       }
       try {
+        if (isPayrollOnlyRole(role)) {
+          const pr = await api.get(paths.employeePayroll);
+          setPayroll(pr.data || []);
+          return;
+        }
         const isStaffKantor = role === ROLE_EMPLOYEE;
         const [s, h, ln, pr, fd, lb, lr] = await Promise.all([
           api.get(paths.employeeSummary),
@@ -394,30 +405,41 @@ export default function EmployeeDashboard() {
   const canClockIn = Boolean(assignedOffice?.id);
   const isFieldOfficer = summary?.field_officer_mode === true;
   const isUmum = summary?.umum_mode === true;
+  const isGeneralAffairs =
+    summary?.general_affairs_mode === true || isGeneralAffairsRole(summary?.role);
+  const isOnceDailyInOut = summary?.once_daily_in_out_mode === true;
+  const isAccounting =
+    summary?.accounting_mode === true || isAccountingRole(summary?.role);
   const isStaffKantor = summary?.role === ROLE_EMPLOYEE;
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
-  const shiftLabel = isFieldOfficer
+  const shiftLabel = isFieldOfficer || isGeneralAffairs
     ? t('fieldFlexibleSchedule')
     : isUmum
       ? t('umumFlexibleSchedule')
-      : shift?.start_time && shift?.end_time
+      : isAccounting && shift?.start_time && shift?.end_time
         ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
-        : '07:00 – 16:00';
+        : shift?.start_time && shift?.end_time
+          ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
+          : '07:15 – 16:00';
   const clockDisabled =
     summary == null ||
     !canClockIn ||
     clockPending ||
-    (!isFieldOfficer && nextAction === 'done') ||
+    nextAction === 'done' ||
     (isFieldOfficer && nextAction === 'check_out' && !isFieldCheckoutFormatValid(checkoutCode));
 
   const primaryClockLabel =
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
   const scheduleHint = isFieldOfficer
     ? t('fieldOnceInOnceOut')
-    : isUmum
-      ? t('umumOncePerDay')
-      : t('onceInOnceOut');
+    : isGeneralAffairs
+      ? t('generalAffairsOnceInOut')
+      : isUmum
+        ? t('umumOncePerDay')
+        : isAccounting
+          ? t('accountingScheduleHint')
+          : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
   const office = assignedOffice;
@@ -431,6 +453,65 @@ export default function EmployeeDashboard() {
     geoPreview && office?.lat != null && office?.lng != null
       ? Math.round(haversineMeters(geoPreview.lat, geoPreview.lng, office.lat, office.lng))
       : null;
+
+  const payrollOnly = isPayrollOnlyRole(localStorage.getItem('role'));
+
+  if (payrollOnly) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
+              {translateRole(localStorage.getItem('role'))}
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+              {t('payrollEmployeeTitle')}
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">{t('headOfFinanceNoAttendance')}</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            {t('logout')}
+          </Button>
+        </div>
+        {message && (
+          <Alert tone="error">{message}</Alert>
+        )}
+        <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
+          {payroll.length > 0 ? (
+            <ul className="space-y-3 text-sm">
+              {payroll.map((row) => (
+                <li
+                  key={row.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900">
+                      {payrollCycleLabel(row.payroll_period)}
+                    </span>
+                    <span className="font-semibold text-brand-700">
+                      Rp {formatIdr(row.final_salary)}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid gap-1 text-xs text-slate-600 sm:grid-cols-2">
+                    <div>
+                      {t('payrollBasicSalary')}: Rp {formatIdr(row.basic_salary)}
+                    </div>
+                    {Number(row.bonus_omset || 0) > 0 && (
+                      <div>
+                        {t('payrollBonusOmset')}: Rp {formatIdr(row.bonus_omset)}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-600">{t('payrollEmployeeEmpty')}</p>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
@@ -473,8 +554,12 @@ export default function EmployeeDashboard() {
             {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            {isFieldOfficer || isUmum ? shiftLabel : `${t('expectedShift')}: ${shiftLabel}`}
-            {!isFieldOfficer && !isUmum && shift?.shift_name ? ` · ${shift.shift_name}` : ''}
+            {isOnceDailyInOut || isUmum || isAccounting
+              ? shiftLabel
+              : `${t('expectedShift')}: ${shiftLabel}`}
+            {!isOnceDailyInOut && !isUmum && !isAccounting && shift?.shift_name
+              ? ` · ${shift.shift_name}`
+              : ''}
           </p>
           <p className="mt-1 text-xs font-medium text-slate-600">{scheduleHint}</p>
           {isFieldOfficer && summary?.has_checkout_code_today === false && (
@@ -486,7 +571,7 @@ export default function EmployeeDashboard() {
             <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
           )}
           <div className="mt-3 space-y-2 text-sm text-slate-600">
-            {isFieldOfficer && sessionsToday.length > 0 ? (
+            {isOnceDailyInOut && sessionsToday.length > 0 ? (
               sessionsToday.map((seg, idx) => (
                 <div key={seg.id || idx} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
                   <div className="font-medium text-slate-800">{t('sessionN', { n: idx + 1 })}</div>
@@ -496,7 +581,7 @@ export default function EmployeeDashboard() {
                   <div>
                     {t('checkOut')}: {seg.check_out ? formatDisplayDateTime(seg.check_out) : t('emDash')}
                   </div>
-                  {seg.checkout_code ? (
+                  {isFieldOfficer && seg.checkout_code ? (
                     <p>
                       {t('fieldCheckoutCode')}: {seg.checkout_code}
                     </p>
@@ -685,7 +770,8 @@ export default function EmployeeDashboard() {
                       </dt>
                       <dd className="font-medium text-slate-800">Rp {formatIdr(row.basic_salary)}</dd>
                     </div>
-                    {row.payroll_mode === 'monthly' && Number(row.absence_deduction || 0) > 0 && (
+                    {(row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs') &&
+                      Number(row.absence_deduction || 0) > 0 && (
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-slate-500">
                           {t('payrollAbsenceDeduction')}

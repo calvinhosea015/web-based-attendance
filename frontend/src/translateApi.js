@@ -44,6 +44,12 @@ const MESSAGE_CODE = {
   'You still have an open session. Clock out before starting another.': 'ALREADY_IN',
   'All clock sessions for today are already complete.': 'DAY_COMPLETE',
   'Attendance for today is already complete.': 'DAY_COMPLETE',
+  'You can only check in once per day. Check out first if you are still on duty, or you have already finished today.':
+    'FIELD_ONE_CHECKIN',
+  'Custom work hours are not configured. Ask an admin to set your work schedule.':
+    'CUSTOM_WORK_HOURS_REQUIRED',
+  'Work start and end times are required (HH:MM).': 'CUSTOM_WORK_HOURS_REQUIRED',
+  'Work end time must be after start time.': 'CUSTOM_WORK_HOURS_REQUIRED',
   'Check-out is not required for your role.': 'CHECKOUT_NOT_REQUIRED',
   'Checkout code is required to check out.': 'CHECKOUT_CODE_REQUIRED',
   'Checkout data is required to check out.': 'CHECKOUT_CODE_REQUIRED',
@@ -218,5 +224,8 @@ export function translateRole(role) {
   if (role === 'employee') return i18n.t('roleEmployee');
   if (role === 'field_officer') return i18n.t('roleFieldOfficer');
   if (role === 'umum') return i18n.t('roleUmum');
+  if (role === 'accounting') return i18n.t('roleAccounting');
+  if (role === 'general_affairs') return i18n.t('roleGeneralAffairs');
+  if (role === 'head_of_finance') return i18n.t('roleHeadOfFinance');
   return role ?? '';
 }

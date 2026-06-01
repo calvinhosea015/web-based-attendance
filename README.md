@@ -281,7 +281,7 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 - **Add user**:
   - **Employee** accounts require **full name**, **office**, and a password meeting the **password policy**.
   - Options: **allow remote work**, **clock mode**:
-    - **Two clocks per day** (one segment): fixed reference shift **07:00–16:00** with a **60** minute break for late / hours calculations in the service layer.
+    - **Two clocks per day** (one segment): fixed reference shift **07:15–16:00** with a **60** minute break for late / hours calculations in the service layer.
     - **Four clocks per day** (split shift): configure morning and afternoon **start/end** times; the employee completes **two** in/out pairs per calendar day.
   - On success, the message may include the new **employee code** generated for that person.
 - **Edit user**: update username, role, office, remote flag, split times (for employees), and full name as applicable.

@@ -4,7 +4,17 @@ const { AppError } = require('../utils/errors');
 const { MetaRepository } = require('../repositories/metaRepository');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
 const config = require('../config/env');
-const { ROLES, isValidRole, isAttendanceRole, requiresFullName } = require('../constants/roles');
+const {
+  ROLES,
+  isValidRole,
+  isAttendanceRole,
+  requiresFullName,
+  requiresLinkedEmployee,
+  isAccounting,
+  isGeneralAffairs,
+  isHeadOfFinance,
+} = require('../constants/roles');
+const { validateCustomWorkHours } = require('../utils/customWorkShift');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
 
 function stripUserSecrets(row) {
@@ -50,10 +60,27 @@ class UserService {
 
     let employeeId = null;
     let createdEmployee = null;
-    if (isAttendanceRole(role)) {
+    if (requiresLinkedEmployee(role)) {
       const trimmedFullName = fullName && String(fullName).trim();
       if (requiresFullName(role) && !trimmedFullName) {
-        throw new AppError('full_name is required for Staff Kantor and Petugas Lapangan.', 400, 'EMPLOYEE_FIELDS');
+        throw new AppError(
+          'full_name is required for this role.',
+          400,
+          'EMPLOYEE_FIELDS'
+        );
+      }
+      let customWorkStart;
+      let customWorkEnd;
+      if (isAccounting(role)) {
+        const hours = validateCustomWorkHours(
+          payload.custom_work_start,
+          payload.custom_work_end
+        );
+        if (!hours.ok) {
+          throw new AppError(hours.message, 400, 'CUSTOM_WORK_HOURS_REQUIRED');
+        }
+        customWorkStart = hours.start;
+        customWorkEnd = hours.end;
       }
       const resolvedFullName = trimmedFullName;
       const trimmedCode = employeeCode && String(employeeCode).trim();
@@ -63,13 +90,27 @@ class UserService {
         departmentId,
         positionId,
         salaryType: payload.salary_type || 'monthly',
-        basicSalary: payload.basic_salary ?? 0,
-        upahHarian: role === ROLES.EMPLOYEE ? 0 : payload.upah_harian ?? 0,
+        basicSalary:
+          isAccounting(role) ||
+          isGeneralAffairs(role) ||
+          isHeadOfFinance(role) ||
+          role === ROLES.EMPLOYEE
+            ? Math.max(0, Number(payload.basic_salary) || 0)
+            : payload.basic_salary ?? 0,
+        upahHarian:
+          role === ROLES.EMPLOYEE ||
+          isAccounting(role) ||
+          isGeneralAffairs(role) ||
+          isHeadOfFinance(role)
+            ? 0
+            : payload.upah_harian ?? 0,
         joinDate: payload.join_date,
         birthday: payload.birthday || null,
         status: 'active',
         remoteWorkAllowed,
         dailySegments: CLOCK_SEGMENTS_PER_DAY,
+        custom_work_start: customWorkStart,
+        custom_work_end: customWorkEnd,
       };
       let emp;
       if (trimmedCode) {
@@ -93,7 +134,9 @@ class UserService {
       }
       employeeId = emp.id;
       createdEmployee = emp;
-      await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
+      if (isAttendanceRole(role)) {
+        await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
+      }
     }
 
     const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
@@ -157,10 +200,13 @@ class UserService {
       'remote_work_allowed',
       'join_date',
       'birthday',
+      'custom_work_start',
+      'custom_work_end',
+      'basic_salary',
     ];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
-        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, or birthday is required.',
+        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, birthday, custom work hours, or basic_salary is required.',
         400,
         'NO_FIELDS'
       );
@@ -187,8 +233,32 @@ class UserService {
       const patch = {};
       if (has('join_date')) patch.join_date = normalizeOptionalDate(payload.join_date);
       if (has('birthday')) patch.birthday = normalizeOptionalDate(payload.birthday);
+      if (
+        isAccounting(effectiveRole) &&
+        (has('custom_work_start') || has('custom_work_end'))
+      ) {
+        const hours = validateCustomWorkHours(
+          has('custom_work_start') ? payload.custom_work_start : latest.custom_work_start,
+          has('custom_work_end') ? payload.custom_work_end : latest.custom_work_end
+        );
+        if (!hours.ok) {
+          throw new AppError(hours.message, 400, 'CUSTOM_WORK_HOURS_REQUIRED');
+        }
+        patch.custom_work_start = hours.start;
+        patch.custom_work_end = hours.end;
+      }
       if (Object.keys(patch).length) {
         await this.employeeRepository.updateEnterpriseFields(latest.employee_id, patch);
+      }
+      if (
+        has('basic_salary') &&
+        (isAccounting(effectiveRole) ||
+          isGeneralAffairs(effectiveRole) ||
+          isHeadOfFinance(effectiveRole))
+      ) {
+        await this.employeeRepository.updatePayrollDefaults(latest.employee_id, {
+          basic_salary: Math.max(0, Number(payload.basic_salary) || 0),
+        });
       }
     };
 
@@ -233,11 +303,11 @@ class UserService {
 
     const empFk = user.employee_id;
 
-    if (isAttendanceRole(effectiveRole) && empFk && newFullNameRaw !== undefined) {
+    if (requiresLinkedEmployee(effectiveRole) && empFk && newFullNameRaw !== undefined) {
       await this.employeeRepository.updateFullName(empFk, newFullNameRaw);
     }
 
-    if (isAttendanceRole(prevRole) && effectiveRole === 'admin') {
+    if (requiresLinkedEmployee(prevRole) && effectiveRole === 'admin') {
       const patch = { role: 'admin', employeeId: null };
       if (newUsername !== undefined) patch.username = newUsername;
       if (newOfficeIdValue !== undefined) patch.officeId = newOfficeIdValue;
@@ -253,21 +323,13 @@ class UserService {
       return stripUserSecrets(await this.userRepository.findById(userId));
     }
 
-    if (prevRole === 'admin' && isAttendanceRole(effectiveRole)) {
+    if (prevRole === 'admin' && requiresLinkedEmployee(effectiveRole)) {
       if (requiresFullName(effectiveRole) && newFullNameRaw === undefined) {
-        throw new AppError(
-          'full_name is required when changing role to Staff Kantor or Petugas Lapangan.',
-          400,
-          'EMPLOYEE_FIELDS'
-        );
+        throw new AppError('full_name is required for this role.', 400, 'EMPLOYEE_FIELDS');
       }
       const fullNameForNewEmployee = newFullNameRaw;
       if (requiresFullName(effectiveRole) && !fullNameForNewEmployee) {
-        throw new AppError(
-          'full_name is required when changing role to Staff Kantor or Petugas Lapangan.',
-          400,
-          'EMPLOYEE_FIELDS'
-        );
+        throw new AppError('full_name is required for this role.', 400, 'EMPLOYEE_FIELDS');
       }
       const { departmentId, positionId } = await this.metaRepository.defaultDepartmentAndPosition();
       let emp;
@@ -301,11 +363,14 @@ class UserService {
             if (e.code !== '23505' || attempt === 4) throw e;
           }
         }
-        const office =
-          newOfficeIdValue !== undefined
-            ? newOfficeIdValue
-            : (await this.metaRepository.firstOfficeId());
-        if (!office) throw new AppError('No office configured; create an office first.', 400);
+        let office = null;
+        if (isAttendanceRole(effectiveRole)) {
+          office =
+            newOfficeIdValue !== undefined
+              ? newOfficeIdValue
+              : (await this.metaRepository.firstOfficeId());
+          if (!office) throw new AppError('No office configured; create an office first.', 400);
+        }
 
         const patch = { role: effectiveRole, employeeId: emp.id, officeId: office };
         if (newUsername !== undefined) patch.username = newUsername;
@@ -321,7 +386,9 @@ class UserService {
         client.release();
       }
 
-      await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
+      if (isAttendanceRole(effectiveRole)) {
+        await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
+      }
       await syncEmployeePolicies();
       await syncEmployeeHrFields();
       const updated = stripUserSecrets(await this.userRepository.findById(userId));

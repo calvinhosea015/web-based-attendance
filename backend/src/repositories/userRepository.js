@@ -50,7 +50,8 @@ class UserRepository {
       `SELECT u.id, u.username, u.role, u.office_id, u.employee_id, e.employee_id AS employee_code, e.full_name,
               e.join_date, e.birthday,
               e.remote_work_allowed, e.daily_segments,
-              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end
+              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
+              e.custom_work_start, e.custom_work_end, e.basic_salary
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
        ORDER BY u.id`

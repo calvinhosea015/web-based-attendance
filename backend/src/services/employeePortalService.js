@@ -1,7 +1,15 @@
 const { AppError } = require('../utils/errors');
 const config = require('../config/env');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
-const { isFieldOfficer, isUmum, isStaffKantor } = require('../constants/roles');
+const {
+  isFieldOfficer,
+  isUmum,
+  isStaffKantor,
+  isAccounting,
+  isGeneralAffairs,
+  usesOncePerDayInOut,
+} = require('../constants/roles');
+const { customShiftFromEmployee } = require('../utils/customWorkShift');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 
 class EmployeePortalService {
@@ -30,6 +38,9 @@ class EmployeePortalService {
     const employee = await this.employeeRepository.findById(auth.employeeId);
     const fieldOfficer = isFieldOfficer(auth.role);
     const umum = isUmum(auth.role);
+    const accounting = isAccounting(auth.role);
+    const generalAffairs = isGeneralAffairs(auth.role);
+    const onceDailyInOut = usesOncePerDayInOut(auth.role);
 
     const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
     const sessions = await this.attendanceRepository.listTodaySegments(auth.employeeId, dayStr);
@@ -38,13 +49,18 @@ class EmployeePortalService {
     let clockEventsTarget = CLOCK_SEGMENTS_PER_DAY * 2;
     let nextClockAction;
 
-    if (fieldOfficer) {
-      for (const s of sessions) {
-        if (s.check_in) clockEventsDone += 1;
-        if (s.check_out) clockEventsDone += 1;
+    if (onceDailyInOut) {
+      const hasCheckInToday = sessions.length > 0;
+      const completedToday = sessions.some((s) => s.check_out != null);
+      clockEventsDone = hasCheckInToday ? (completedToday ? 2 : 1) : 0;
+      clockEventsTarget = 2;
+      if (!hasCheckInToday) {
+        nextClockAction = 'check_in';
+      } else if (open || !completedToday) {
+        nextClockAction = 'check_out';
+      } else {
+        nextClockAction = 'done';
       }
-      nextClockAction = open ? 'check_out' : 'check_in';
-      clockEventsTarget = null;
     } else if (umum) {
       for (const s of sessions) {
         if (s.check_in) clockEventsDone += 1;
@@ -88,15 +104,19 @@ class EmployeePortalService {
         : null;
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
 
-    const shift =
-      fieldOfficer || umum
-        ? null
-        : {
-            shift_name: 'Standard 7–4',
-            start_time: '07:00:00',
-            end_time: '16:00:00',
-            break_duration: 60,
-          };
+    let shift;
+    if (onceDailyInOut || umum) {
+      shift = null;
+    } else if (accounting) {
+      shift = customShiftFromEmployee(employee);
+    } else {
+      shift = {
+        shift_name: 'Standard 7–4',
+        start_time: '07:15:00',
+        end_time: '16:00:00',
+        break_duration: 60,
+      };
+    }
 
     const mapSession = (s) => ({
       id: s.id,
@@ -116,7 +136,10 @@ class EmployeePortalService {
       remote_work_allowed: remoteWorkAllowed,
       field_officer_mode: fieldOfficer,
       umum_mode: umum,
-      daily_segments: fieldOfficer || umum ? null : CLOCK_SEGMENTS_PER_DAY,
+      accounting_mode: accounting,
+      general_affairs_mode: generalAffairs,
+      once_daily_in_out_mode: onceDailyInOut,
+      daily_segments: onceDailyInOut || umum ? null : CLOCK_SEGMENTS_PER_DAY,
       clock_events_target: clockEventsTarget,
       clock_events_done: clockEventsDone,
       next_clock_action: nextClockAction,
