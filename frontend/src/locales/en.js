@@ -231,7 +231,6 @@ export default {
   leaveRejected: 'Leave rejected.',
   leaveActions: 'Actions',
   leaveViewDocument: 'View document',
-  leaveViewDocumentHint: 'Tap to open the uploaded photo in a larger preview.',
   leaveDocumentPreviewTitle: 'Leave supporting document',
   close: 'Close',
   download: 'Download',

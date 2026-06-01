@@ -18,10 +18,7 @@ export default function LeaveDocumentButton({ onClick, className = '' }) {
       >
         📄
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-brand-800">{t('leaveViewDocument')}</span>
-        <span className="block text-xs text-brand-700/80">{t('leaveViewDocumentHint')}</span>
-      </span>
+      <span className="min-w-0 flex-1 text-sm font-semibold text-brand-800">{t('leaveViewDocument')}</span>
       <span className="shrink-0 text-brand-600" aria-hidden>
         →
       </span>

@@ -232,7 +232,6 @@ export default {
   leaveRejected: 'Cuti ditolak.',
   leaveActions: 'Aksi',
   leaveViewDocument: 'Lihat dokumen',
-  leaveViewDocumentHint: 'Ketuk untuk membuka foto yang diunggah dalam pratinjau lebih besar.',
   leaveDocumentPreviewTitle: 'Dokumen pendukung cuti',
   close: 'Tutup',
   download: 'Unduh',
