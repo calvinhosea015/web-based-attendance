@@ -1,5 +1,12 @@
 const { query } = require('../db/pool');
 
+/** Columns for API lists (omit attachment_data blob). */
+const LEAVE_LIST_COLUMNS =
+  'id, employee_id, leave_type, start_date, end_date, days_count, approval_status, attachment_path, attachment_mime, reason, created_at, approved_by, approved_at, rejection_reason, is_paid';
+const LEAVE_LIST_COLUMNS_L = LEAVE_LIST_COLUMNS.split(',')
+  .map((c) => `l.${c.trim()}`)
+  .join(', ');
+
 class LeaveRequestRepository {
   async create({
     employeeId,
@@ -76,7 +83,8 @@ class LeaveRequestRepository {
 
   async listForEmployee(employeeId) {
     const r = await query(
-      `SELECT * FROM leave_requests
+      `SELECT ${LEAVE_LIST_COLUMNS}
+       FROM leave_requests
        WHERE employee_id = $1
        ORDER BY created_at DESC
        LIMIT 50`,
@@ -87,7 +95,7 @@ class LeaveRequestRepository {
 
   async listPending() {
     const r = await query(
-      `SELECT l.*, e.full_name, e.employee_id AS employee_code
+      `SELECT ${LEAVE_LIST_COLUMNS_L}, e.full_name, e.employee_id AS employee_code
        FROM leave_requests l
        JOIN employees e ON e.id = l.employee_id
        WHERE l.approval_status = 'pending'
@@ -105,7 +113,7 @@ class LeaveRequestRepository {
     }
     vals.push(limit);
     const r = await query(
-      `SELECT l.*, e.full_name, e.employee_id AS employee_code
+      `SELECT ${LEAVE_LIST_COLUMNS_L}, e.full_name, e.employee_id AS employee_code
        FROM leave_requests l
        JOIN employees e ON e.id = l.employee_id
        ${where}

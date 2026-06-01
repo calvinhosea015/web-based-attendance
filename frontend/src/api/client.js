@@ -31,7 +31,7 @@ export async function ensureCsrf() {
 function attachAuthHeaders(config) {
   const token = localStorage.getItem('token');
   if (token) {
-    config.headers.Authorization = token.startsWith('Bearer ') ? token : token;
+    config.headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   }
   if (csrfToken) {
     config.headers['X-CSRF-Token'] = csrfToken;

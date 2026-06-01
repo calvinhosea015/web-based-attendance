@@ -9,17 +9,63 @@ export function closeLeaveDocumentPreview() {
   }
 }
 
-async function parseBlobError(blob) {
-  try {
-    const text = await blob.text();
-    const parsed = JSON.parse(text);
-    if (parsed.code === 'NOT_FOUND') {
-      return 'Document file not found. It may have been removed after a server restart—please upload again.';
+async function readErrorMessage(data, status) {
+  if (data == null) {
+    if (status === 404) {
+      return 'Document not found. Submit a new leave request with the photo (older uploads may be missing after a server update).';
     }
-    return parsed.message || 'Could not load document.';
-  } catch {
-    return 'Could not load document.';
+    return `Could not load document (HTTP ${status || 'error'}).`;
   }
+
+  let text = '';
+  if (typeof data === 'string') {
+    text = data;
+  } else if (data instanceof Blob) {
+    text = await data.text();
+  } else if (data instanceof ArrayBuffer) {
+    text = new TextDecoder().decode(data);
+  }
+
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<')) {
+    return 'Could not load document. The app may be calling the wrong API URL (received a web page instead of the image).';
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed.code === 'NOT_FOUND') {
+      return (
+        parsed.message ||
+        'Document not found. Submit a new leave request with the photo.'
+      );
+    }
+    return parsed.message || `Could not load document (HTTP ${status || 'error'}).`;
+  } catch {
+    if (trimmed) return trimmed.slice(0, 300);
+    return `Could not load document (HTTP ${status || 'error'}).`;
+  }
+}
+
+function isImageBuffer(buffer) {
+  if (!buffer || buffer.byteLength < 4) return false;
+  const u8 = new Uint8Array(buffer);
+  if (u8[0] === 0xff && u8[1] === 0xd8 && u8[2] === 0xff) return true;
+  if (u8[0] === 0x89 && u8[1] === 0x50 && u8[2] === 0x4e && u8[3] === 0x47) return true;
+  if (u8[0] === 0x47 && u8[1] === 0x49 && u8[2] === 0x46) return true;
+  if (u8[0] === 0x52 && u8[1] === 0x49 && u8[2] === 0x46 && u8[3] === 0x46) return true;
+  return false;
+}
+
+function mimeFromBuffer(buffer, headerMime) {
+  const fromHeader = (headerMime || '').split(';')[0].trim();
+  if (fromHeader && fromHeader.startsWith('image/')) return fromHeader;
+  if (!buffer) return 'image/jpeg';
+  const u8 = new Uint8Array(buffer);
+  if (u8[0] === 0xff && u8[1] === 0xd8) return 'image/jpeg';
+  if (u8[0] === 0x89 && u8[1] === 0x50) return 'image/png';
+  if (u8[0] === 0x47 && u8[1] === 0x49) return 'image/gif';
+  if (u8[0] === 0x52 && u8[1] === 0x49) return 'image/webp';
+  return fromHeader || 'image/jpeg';
 }
 
 /**
@@ -32,36 +78,31 @@ export async function openLeaveDocument(client, url) {
 
   let res;
   try {
-    res = await client.get(url, { responseType: 'blob' });
+    res = await client.get(url, { responseType: 'arraybuffer' });
   } catch (err) {
-    const blob = err.response?.data;
-    if (blob instanceof Blob) {
-      throw new Error(await parseBlobError(blob));
-    }
-    if (err.response?.status === 404) {
-      throw new Error(
-        'Document file not found. Please submit the leave request again with the document.'
-      );
-    }
-    throw err;
+    throw new Error(
+      await readErrorMessage(err.response?.data, err.response?.status)
+    );
   }
 
   const contentType = (res.headers['content-type'] || '').toLowerCase();
+  const buffer = res.data;
 
   if (contentType.includes('application/json') || contentType.includes('text/html')) {
-    throw new Error(await parseBlobError(res.data));
+    throw new Error(await readErrorMessage(buffer, res.status));
   }
 
-  const mime = contentType.split(';')[0].trim() || 'image/jpeg';
-  const blob =
-    res.data instanceof Blob
-      ? res.data.type
-        ? res.data
-        : new Blob([await res.data.arrayBuffer()], { type: mime })
-      : new Blob([res.data], { type: mime });
+  if (!isImageBuffer(buffer)) {
+    throw new Error(
+      await readErrorMessage(buffer, res.status)
+    );
+  }
+
+  const mime = mimeFromBuffer(buffer, contentType);
+  const blob = new Blob([buffer], { type: mime });
 
   if (!blob.size) {
-    throw new Error('Document file is empty or missing on the server.');
+    throw new Error('Document file is empty. Please submit the leave request again with the photo.');
   }
 
   activeObjectUrl = URL.createObjectURL(blob);
@@ -84,7 +125,8 @@ export async function openLeaveDocument(client, url) {
   const img = document.createElement('img');
   img.src = activeObjectUrl;
   img.alt = 'Leave supporting document';
-  img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+  img.style.cssText =
+    'max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)';
 
   root.appendChild(closeBtn);
   root.appendChild(img);
