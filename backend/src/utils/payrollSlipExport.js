@@ -54,7 +54,6 @@ const FONT_TITLE = { name: 'Calibri', size: 14, bold: true };
 const FONT_TABLE_HEAD = { name: 'Calibri', size: 11, bold: true };
 const FONT_NET = { name: 'Calibri', size: 11, bold: true };
 
-const BORDER_THIN = { style: 'thin', color: { argb: 'FF000000' } };
 const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF000000' } };
 const BORDER_BLUE = { style: 'medium', color: { argb: 'FF4472C4' } };
 
@@ -184,28 +183,13 @@ function setColon(ws, row, col) {
   setCell(ws, row, col, ':', { alignment: { horizontal: 'center', vertical: 'middle' } });
 }
 
-function setBorders(cell, edges) {
-  const b = {};
-  if (edges.top) b.top = BORDER_THIN;
-  if (edges.bottom) b.bottom = BORDER_THIN;
-  if (edges.left) b.left = BORDER_THIN;
-  if (edges.right) b.right = BORDER_THIN;
-  cell.border = b;
-}
-
 function applyTableBorders(ws) {
   const { TABLE_HEAD, TABLE_LAST } = ROW;
   const { L_LABEL, L_VALUE, R_LABEL, R_VALUE } = COL;
 
   for (let r = TABLE_HEAD; r <= TABLE_LAST; r += 1) {
     for (let c = L_LABEL; c <= R_VALUE; c += 1) {
-      const cell = ws.getCell(r, c);
-      setBorders(cell, {
-        top: true,
-        bottom: true,
-        left: true,
-        right: true,
-      });
+      ws.getCell(r, c).border = {};
     }
   }
 
