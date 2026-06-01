@@ -13,6 +13,7 @@ import {
 } from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
+import { openLeaveDocument } from '../utils/openLeaveDocument.js';
 
 function formatApiError(err) {
   if (!err.response && (err.message === 'Network Error' || err.code === 'ERR_NETWORK')) {
@@ -359,13 +360,9 @@ export default function EmployeeDashboard() {
   const openLeaveAttachment = async (filename) => {
     if (!filename) return;
     try {
-      await ensureCsrf();
-      const res = await api.get(paths.leaveAttachment(filename), { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+      await openLeaveDocument(api, paths.leaveAttachment(filename));
     } catch (err) {
-      setMessage(formatApiError(err));
+      setMessage(err.message ? err.message : formatApiError(err));
     }
   };
 

@@ -232,6 +232,8 @@ export default {
   leaveRejected: 'Cuti ditolak.',
   leaveActions: 'Aksi',
   leaveViewDocument: 'Lihat dokumen',
+  leaveDocumentNotFound:
+    'Berkas dokumen tidak ditemukan. Mungkin hilang setelah server dimuat ulang—unggah ulang jika perlu.',
   leaveFilter_pending: 'Menunggu',
   leaveFilter_approved: 'Disetujui',
   leaveFilter_rejected: 'Ditolak',

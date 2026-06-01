@@ -2,6 +2,19 @@ const path = require('path');
 const { asyncHandler } = require('../middleware/authMiddleware');
 const { UPLOAD_DIR } = require('../middleware/leaveUpload');
 
+const MIME_BY_EXT = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+
+function contentTypeForFilename(filename) {
+  const ext = path.extname(String(filename || '')).toLowerCase();
+  return MIME_BY_EXT[ext] || 'application/octet-stream';
+}
+
 function makeLeaveController(leaveService) {
   return {
     getSettings: asyncHandler(async (_req, res) => {
@@ -29,9 +42,18 @@ function makeLeaveController(leaveService) {
     decide: asyncHandler(async (req, res) => {
       res.json(await leaveService.decide(req.params.id, req.auth, req.body));
     }),
-    getAttachment: asyncHandler(async (req, res) => {
+    getAttachment: asyncHandler(async (req, res, next) => {
       const filename = await leaveService.getAttachment(req.auth, req.params.filename);
-      res.sendFile(path.join(UPLOAD_DIR, filename));
+      const filePath = path.join(UPLOAD_DIR, filename);
+      res.type(contentTypeForFilename(filename));
+      res.setHeader('Content-Disposition', 'inline');
+      res.sendFile(filePath, (err) => {
+        if (!err) return;
+        if (err.code === 'ENOENT') {
+          return res.status(404).json({ message: 'File not found.', code: 'NOT_FOUND' });
+        }
+        return next(err);
+      });
     }),
   };
 }

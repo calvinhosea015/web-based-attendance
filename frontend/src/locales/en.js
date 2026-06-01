@@ -231,6 +231,7 @@ export default {
   leaveRejected: 'Leave rejected.',
   leaveActions: 'Actions',
   leaveViewDocument: 'View document',
+  leaveDocumentNotFound: 'Document file not found. It may have been removed after a server restart—please upload again.',
   leaveFilter_pending: 'Pending',
   leaveFilter_approved: 'Approved',
   leaveFilter_rejected: 'Rejected',

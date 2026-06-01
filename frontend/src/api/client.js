@@ -141,7 +141,8 @@ export const paths = {
   employeeLeaveBalances: '/v1/employee/me/leave-balances',
   employeeLeaveRequests: '/v1/employee/me/leave-requests',
   /** @param {string} filename */
-  leaveAttachment: (filename) => `/v1/leave-attachments/${filename}`,
+  leaveAttachment: (filename) =>
+    `/v1/leave-attachments/${encodeURIComponent(String(filename || ''))}`,
 };
 
 /** Download an axios blob response as a file (same pattern as attendance export). */

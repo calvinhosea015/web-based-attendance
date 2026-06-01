@@ -5,6 +5,7 @@ import AdminLayout from '../components/AdminLayout.jsx';
 import { Alert, Badge, Button, Card, Field, inputClass } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
+import { openLeaveDocument } from '../utils/openLeaveDocument.js';
 
 function statusBadgeVariant(status) {
   if (status === 'approved') return 'success';
@@ -119,13 +120,9 @@ export default function AdminLeave() {
   const openAttachment = async (filename) => {
     if (!filename) return;
     try {
-      await ensureCsrf();
-      const res = await api.get(paths.leaveAttachment(filename), { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+      await openLeaveDocument(api, paths.leaveAttachment(filename));
     } catch (err) {
-      notify(translateApiMessage(err) || String(err), 'error');
+      notify(err.message || translateApiMessage(err) || String(err), 'error');
     }
   };
 
