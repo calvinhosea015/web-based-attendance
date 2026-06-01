@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui.jsx';
 import { api, paths } from '../api/client.js';
+import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 const NAV = [
   { to: '/admin', labelKey: 'adminDashboard', match: (p) => p === '/admin', pendingKey: null },
@@ -221,7 +222,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                             <span className="mt-0.5 block text-xs text-slate-600">{n.body}</span>
                           )}
                           <span className="mt-1 block text-[10px] text-slate-400">
-                            {new Date(n.created_at).toLocaleString()}
+                            {formatDisplayDateTime(n.created_at)}
                           </span>
                         </button>
                       </li>

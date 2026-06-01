@@ -14,7 +14,7 @@ import {
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
 import { openLeaveDocument } from '../utils/openLeaveDocument.js';
-import { formatDateRange } from '../utils/formatDate.js';
+import { formatDateRange, formatDisplayDateTime } from '../utils/formatDate.js';
 import LeaveDocumentButton from '../components/LeaveDocumentButton.jsx';
 
 function formatApiError(err) {
@@ -491,10 +491,10 @@ export default function EmployeeDashboard() {
                 <div key={seg.id || idx} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
                   <div className="font-medium text-slate-800">{t('sessionN', { n: idx + 1 })}</div>
                   <div>
-                    {t('checkIn')}: {seg.check_in ? new Date(seg.check_in).toLocaleString() : t('emDash')}
+                    {t('checkIn')}: {seg.check_in ? formatDisplayDateTime(seg.check_in) : t('emDash')}
                   </div>
                   <div>
-                    {t('checkOut')}: {seg.check_out ? new Date(seg.check_out).toLocaleString() : t('emDash')}
+                    {t('checkOut')}: {seg.check_out ? formatDisplayDateTime(seg.check_out) : t('emDash')}
                   </div>
                   {seg.checkout_code ? (
                     <p>
@@ -509,12 +509,12 @@ export default function EmployeeDashboard() {
             ) : (
               <>
                 <div>
-                  {t('checkIn')}: {today?.check_in ? new Date(today.check_in).toLocaleString() : t('emDash')}
+                  {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
                 </div>
                 {!isUmum && (
                   <>
                     <div>
-                      {t('checkOut')}: {today?.check_out ? new Date(today.check_out).toLocaleString() : t('emDash')}
+                      {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
                     </div>
                     <div>
                       {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
@@ -866,7 +866,7 @@ export default function EmployeeDashboard() {
                     <p className="mt-1 text-xs text-slate-500">{t('leaveUnpaidHint')}</p>
                   )}
                   <p className="mt-1 text-xs text-slate-500">
-                    {t('leaveSubmittedAt')}: {new Date(req.created_at).toLocaleString()}
+                    {t('leaveSubmittedAt')}: {formatDisplayDateTime(req.created_at)}
                   </p>
                   {req.attachment_path && (
                     <LeaveDocumentButton onClick={() => openLeaveAttachment(req.id)} />
@@ -953,11 +953,11 @@ export default function EmployeeDashboard() {
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
-                  {t('loanSubmittedAt')}: {new Date(loan.created_at).toLocaleString()}
+                  {t('loanSubmittedAt')}: {formatDisplayDateTime(loan.created_at)}
                   {loan.decided_at && (
                     <>
                       {' '}
-                      · {t('loanDecidedAt')}: {new Date(loan.decided_at).toLocaleString()}
+                      · {t('loanDecidedAt')}: {formatDisplayDateTime(loan.decided_at)}
                     </>
                   )}
                 </p>
@@ -987,7 +987,7 @@ export default function EmployeeDashboard() {
                     </div>
                     <div className="mt-1 text-slate-600">
                       {t('checkOut')}:{' '}
-                      {row.check_out ? new Date(row.check_out).toLocaleString() : t('emDash')}
+                      {row.check_out ? formatDisplayDateTime(row.check_out) : t('emDash')}
                     </div>
                     <p className="mt-2 font-mono text-xs text-slate-800 break-all">
                       {row.checkout_code}
@@ -1025,11 +1025,11 @@ export default function EmployeeDashboard() {
                   {t('status')}: {translateAttendanceStatus(item.attendance_status)}
                 </div>
                 <div className="text-slate-600">
-                  {t('checkIn')}: {item.check_in ? new Date(item.check_in).toLocaleString() : ''}
+                  {t('checkIn')}: {item.check_in ? formatDisplayDateTime(item.check_in) : ''}
                 </div>
                 {!isUmum && (
                   <div className="text-slate-600">
-                    {t('checkOut')}: {item.check_out ? new Date(item.check_out).toLocaleString() : t('notCheckedOut')}
+                    {t('checkOut')}: {item.check_out ? formatDisplayDateTime(item.check_out) : t('notCheckedOut')}
                   </div>
                 )}
               </li>

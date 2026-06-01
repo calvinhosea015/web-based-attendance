@@ -5,6 +5,7 @@ import AdminLayout from '../components/AdminLayout.jsx';
 import { Alert, Badge, Button, Card } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
+import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
@@ -167,7 +168,7 @@ export default function AdminLoans() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
-                      {new Date(row.created_at).toLocaleString()}
+                      {formatDisplayDateTime(row.created_at)}
                     </td>
                     <td className="px-4 py-3">
                       {row.approval_status === 'pending' ? (
@@ -192,7 +193,7 @@ export default function AdminLoans() {
                       ) : (
                         <span className="block text-right text-xs text-slate-400">
                           {row.decided_at
-                            ? new Date(row.decided_at).toLocaleString()
+                            ? formatDisplayDateTime(row.decided_at)
                             : t('emDash')}
                         </span>
                       )}

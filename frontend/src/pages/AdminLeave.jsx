@@ -6,7 +6,7 @@ import { Alert, Badge, Button, Card, Field, inputClass } from '../components/ui.
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { openLeaveDocument } from '../utils/openLeaveDocument.js';
-import { formatDateRange } from '../utils/formatDate.js';
+import { formatDateRange, formatDisplayDateTime } from '../utils/formatDate.js';
 import LeaveDocumentButton from '../components/LeaveDocumentButton.jsx';
 
 function statusBadgeVariant(status) {
@@ -270,7 +270,7 @@ export default function AdminLeave() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
-                      {new Date(row.created_at).toLocaleString()}
+                      {formatDisplayDateTime(row.created_at)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col items-end gap-1.5">
@@ -323,7 +323,7 @@ export default function AdminLeave() {
                         ) : (
                           <span className="text-xs text-slate-400">
                             {row.approved_at
-                              ? new Date(row.approved_at).toLocaleString()
+                              ? formatDisplayDateTime(row.approved_at)
                               : t('emDash')}
                           </span>
                         )}

@@ -1,3 +1,5 @@
+import { formatDisplayDate } from './formatDate.js';
+
 /** Payroll month YYYY-MM = cycle 25 (prev month) through 24 (that month). */
 
 const ID_MONTHS = [
@@ -48,8 +50,7 @@ export function payrollCycleBounds(period) {
 export function payrollCycleLabel(period) {
   const bounds = payrollCycleBounds(period);
   if (!bounds) return String(period || '');
-  const fmt = (m, y) => `${ID_MONTHS[m - 1] || ''} ${y}`;
-  return `25 ${fmt(bounds.startMonth, bounds.startYear)} – 24 ${fmt(bounds.endMonth, bounds.endYear)}`;
+  return `${formatDisplayDate(bounds.period_start)} – ${formatDisplayDate(bounds.period_end)}`;
 }
 
 export function periodLabelCalendar(period) {

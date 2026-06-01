@@ -15,6 +15,7 @@ import {
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
 import { isAttendanceRole, requiresFullName } from '../roles.js';
+import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 function toTimeInputValue(v) {
   if (v == null || v === '') return '';
@@ -813,9 +814,9 @@ export default function AdminDashboard() {
                   <td className="px-2 py-2">{row.full_name || row.employee_code}</td>
                   <td className="px-2 py-2">{row.office_name}</td>
                   <td className="px-2 py-2">{translateAttendanceStatus(row.attendance_status)}</td>
-                  <td className="px-2 py-2">{row.check_in ? new Date(row.check_in).toLocaleString() : ''}</td>
+                  <td className="px-2 py-2">{row.check_in ? formatDisplayDateTime(row.check_in) : ''}</td>
                   <td className="px-2 py-2">
-                    {row.check_out ? new Date(row.check_out).toLocaleString() : t('notCheckedOut')}
+                    {row.check_out ? formatDisplayDateTime(row.check_out) : t('notCheckedOut')}
                   </td>
                 </tr>
               ))}
