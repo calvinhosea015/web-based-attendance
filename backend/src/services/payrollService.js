@@ -73,6 +73,28 @@ function computeMonthlyStaffPayroll({ monthlyBasic, expectedDays, daysAttended }
   };
 }
 
+/** Merge employee profile fields onto a payroll row for API responses. */
+function attachEmployeeFields(payrollRow, employee) {
+  if (!employee) return payrollRow;
+  return {
+    ...payrollRow,
+    employee_code: employee.employee_code ?? employee.employee_id ?? payrollRow.employee_code,
+    full_name: employee.full_name ?? payrollRow.full_name,
+    join_date: employee.join_date ?? payrollRow.join_date,
+    user_role: employee.user_role ?? payrollRow.user_role,
+    employee_upah_harian: employee.upah_harian ?? payrollRow.employee_upah_harian,
+    employee_basic_salary: employee.basic_salary ?? payrollRow.employee_basic_salary,
+    employee_tunjangan_masa_kerja:
+      employee.tunjangan_masa_kerja ?? payrollRow.employee_tunjangan_masa_kerja,
+    employee_transport_eligible:
+      employee.transport_eligible ?? payrollRow.employee_transport_eligible,
+    employee_transport_allowance_amount:
+      employee.transport_allowance_amount ?? payrollRow.employee_transport_allowance_amount,
+    employee_diligence_allowance_amount:
+      employee.diligence_allowance_amount ?? payrollRow.employee_diligence_allowance_amount,
+  };
+}
+
 function attachPayrollMode(row) {
   const role = row.user_role;
   const payroll_mode = isMonthlyOfficeStaff(role) ? 'monthly' : 'daily';
@@ -467,13 +489,14 @@ class PayrollService {
 
   async getPeriod(period) {
     const bounds = parsePeriod(period);
+    const payrollPeriod = bounds.payroll_period;
     const settings = await this.payrollRepository.getSettings();
     const employees = await this.payrollRepository.listActiveEmployeesForPayroll();
     await this.payrollRepository.deleteForPeriodExceptEmployees(
-      meta.period,
+      payrollPeriod,
       employees.map((e) => e.id)
     );
-    const listed = await this.payrollRepository.listByPeriod(meta.period);
+    const listed = await this.payrollRepository.listByPeriod(payrollPeriod);
     const synced = await Promise.all(
       listed.map((row) => this.syncPayrollRowFromAttendance(row, bounds))
     );
@@ -562,7 +585,7 @@ class PayrollService {
         final_salary: totals.final_salary,
         keterangan: prev?.keterangan ?? '',
       });
-      rows.push(saved);
+      rows.push(attachEmployeeFields(saved, emp));
     }
     await this.payrollRepository.deleteForPeriodExceptEmployees(
       bounds.payroll_period,
@@ -757,7 +780,13 @@ class PayrollService {
       await this.employeeRepository.updatePayrollDefaults(empId, defaultsPayload);
     }
 
-    return this.enrichPayrollRow(saved);
+    return this.enrichPayrollRow(
+      attachEmployeeFields(saved, {
+        ...employee,
+        employee_code: employee.employee_id,
+        user_role: role,
+      })
+    );
   }
 
   async updateEmployeeDefaults(employeeId, payload) {
