@@ -149,7 +149,7 @@ class LeaveRequestRepository {
         approved_by = $3,
         approved_at = NOW(),
         rejection_reason = $4,
-        is_paid = CASE WHEN $2::varchar = 'approved' THEN $5 ELSE NULL END
+        is_paid = CASE WHEN $2::varchar = 'approved' THEN $5::boolean ELSE NULL END
        WHERE id = $1 AND approval_status = 'pending'
        RETURNING *`,
       [id, status, approvedBy, rejectionReason || null, isPaid]

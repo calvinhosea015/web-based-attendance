@@ -15,9 +15,20 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseDate(s) {
-  const d = new Date(`${s}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d;
+/** Accept YYYY-MM-DD strings or Date values from PostgreSQL. */
+function parseDate(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  const s = String(value).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 function countInclusiveDays(startDate, endDate) {
@@ -123,7 +134,11 @@ class LeaveService {
 
     const settings = await this.getSettings();
     const quota = quotaForType(settings, leaveType);
-    const year = parseDate(startDate).getFullYear();
+    const start = parseDate(startDate);
+    if (!start) {
+      throw new AppError('Invalid date range.', 400, 'LEAVE_DATES');
+    }
+    const year = start.getFullYear();
     const used = await this.leaveRequestRepository.sumApprovedDaysInYear(
       auth.employeeId,
       leaveType,
@@ -215,7 +230,11 @@ class LeaveService {
 
       const settings = await this.getSettings();
       const quota = quotaForType(settings, existing.leave_type);
-      const year = parseDate(existing.start_date).getFullYear();
+      const start = parseDate(existing.start_date);
+      if (!start) {
+        throw new AppError('Invalid leave start date on request.', 400, 'LEAVE_DATES');
+      }
+      const year = start.getFullYear();
       const used = await this.leaveRequestRepository.sumApprovedDaysInYear(
         existing.employee_id,
         existing.leave_type,
