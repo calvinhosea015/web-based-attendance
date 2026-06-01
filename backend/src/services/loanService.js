@@ -42,8 +42,21 @@ function enrichLoanProgress(row, deductions = []) {
 }
 
 class LoanService {
-  constructor(loanRequestRepository) {
+  constructor(loanRequestRepository, notificationRepository, employeeRepository) {
     this.loanRequestRepository = loanRequestRepository;
+    this.notificationRepository = notificationRepository;
+    this.employeeRepository = employeeRepository;
+  }
+
+  async notifyAdminNewLoan(employee, row) {
+    if (!this.notificationRepository || !employee || !row) return;
+    const amount = num(row.loan_amount).toLocaleString('id-ID');
+    await this.notificationRepository.insertAdminAlert({
+      type: 'loan_request',
+      title: 'New loan request',
+      body: `${employee.full_name} (${employee.employee_id}) submitted a loan for Rp ${amount}.`,
+      payload: { requestId: row.id, employeeId: row.employee_id },
+    });
   }
 
   async submit(auth, payload) {
@@ -67,12 +80,17 @@ class LoanService {
       throw new AppError('You already have a pending loan request.', 400, 'LOAN_PENDING');
     }
 
-    return this.loanRequestRepository.create({
+    const row = await this.loanRequestRepository.create({
       employeeId: auth.employeeId,
       loanAmount,
       monthlyDeduction,
       notes: payload.notes ? String(payload.notes).trim().slice(0, 2000) : null,
     });
+    const employee = this.employeeRepository
+      ? await this.employeeRepository.findById(auth.employeeId)
+      : null;
+    await this.notifyAdminNewLoan(employee, row).catch(() => {});
+    return row;
   }
 
   async listMine(auth) {

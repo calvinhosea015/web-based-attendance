@@ -97,8 +97,17 @@ function buildV1Router() {
     attendanceCorrectionRepository
   );
   const analyticsService = new AnalyticsService(analyticsRepository);
-  const loanService = new LoanService(loanRequestRepository);
-  const leaveService = new LeaveService(leaveRequestRepository, leaveSettingsRepository);
+  const loanService = new LoanService(
+    loanRequestRepository,
+    notificationRepository,
+    employeeRepository
+  );
+  const leaveService = new LeaveService(
+    leaveRequestRepository,
+    leaveSettingsRepository,
+    notificationRepository,
+    employeeRepository
+  );
 
   const authController = makeAuthController(authService);
   const officeController = makeOfficeController(officeService);

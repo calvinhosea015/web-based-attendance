@@ -69,11 +69,12 @@ function mimeFromBuffer(buffer, headerMime) {
 }
 
 /**
- * Fetch a leave attachment with auth and show it in a full-screen preview.
+ * Fetch a leave attachment with auth and show it in a modal preview.
  * @param {import('axios').AxiosInstance} client
  * @param {string} url
+ * @param {{ title?: string, closeLabel?: string, downloadLabel?: string }} [labels]
  */
-export async function openLeaveDocument(client, url) {
+export async function openLeaveDocument(client, url, labels = {}) {
   closeLeaveDocumentPreview();
 
   let res;
@@ -106,30 +107,70 @@ export async function openLeaveDocument(client, url) {
   }
 
   activeObjectUrl = URL.createObjectURL(blob);
+  const title = labels.title || 'Supporting document';
+  const closeLabel = labels.closeLabel || 'Close';
+  const downloadLabel = labels.downloadLabel || 'Download';
 
   const root = document.createElement('div');
   root.id = 'leave-doc-preview-root';
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', title);
   root.style.cssText =
-    'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box';
+    'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.75);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+
+  const panel = document.createElement('div');
+  panel.style.cssText =
+    'display:flex;flex-direction:column;max-width:min(960px,100%);max-height:min(92vh,100%);width:100%;background:#fff;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,.35);border:1px solid #e2e8f0;overflow:hidden';
+
+  const header = document.createElement('div');
+  header.style.cssText =
+    'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #e2e8f0;background:#f8fafc';
+
+  const heading = document.createElement('h2');
+  heading.textContent = title;
+  heading.style.cssText = 'margin:0;font-size:1rem;font-weight:600;color:#0f172a;font-family:system-ui,sans-serif';
 
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
-  closeBtn.id = 'leave-doc-close';
-  closeBtn.textContent = '×';
-  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.textContent = closeLabel;
+  closeBtn.setAttribute('aria-label', closeLabel);
   closeBtn.style.cssText =
-    'position:absolute;top:16px;right:20px;color:#fff;font-size:32px;line-height:1;background:transparent;border:none;cursor:pointer;padding:4px 12px';
+    'flex-shrink:0;padding:8px 14px;font-size:0.875rem;font-weight:500;color:#334155;background:#fff;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-family:system-ui,sans-serif';
+
+  const body = document.createElement('div');
+  body.style.cssText =
+    'flex:1;overflow:auto;padding:20px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:200px';
+
+  const frame = document.createElement('div');
+  frame.style.cssText =
+    'width:100%;max-height:calc(92vh - 140px);padding:12px;background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:inset 0 1px 2px rgba(0,0,0,.04);display:flex;align-items:center;justify-content:center';
 
   const img = document.createElement('img');
   img.src = activeObjectUrl;
-  img.alt = 'Leave supporting document';
-  img.style.cssText =
-    'max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+  img.alt = title;
+  img.style.cssText = 'max-width:100%;max-height:calc(92vh - 180px);object-fit:contain;border-radius:6px;display:block';
 
-  root.appendChild(closeBtn);
-  root.appendChild(img);
+  const footer = document.createElement('div');
+  footer.style.cssText =
+    'display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid #e2e8f0;background:#f8fafc';
+
+  const downloadLink = document.createElement('a');
+  downloadLink.href = activeObjectUrl;
+  downloadLink.download = 'leave-document.jpg';
+  downloadLink.textContent = downloadLabel;
+  downloadLink.style.cssText =
+    'padding:8px 14px;font-size:0.875rem;font-weight:500;color:#fff;background:#2563eb;border-radius:8px;text-decoration:none;font-family:system-ui,sans-serif';
+
+  header.appendChild(heading);
+  header.appendChild(closeBtn);
+  frame.appendChild(img);
+  body.appendChild(frame);
+  footer.appendChild(downloadLink);
+  panel.appendChild(header);
+  panel.appendChild(body);
+  panel.appendChild(footer);
+  root.appendChild(panel);
   document.body.appendChild(root);
 
   const onClose = () => closeLeaveDocumentPreview();

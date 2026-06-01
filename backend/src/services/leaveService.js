@@ -1,4 +1,5 @@
 const { AppError } = require('../utils/errors');
+const { mapLeaveRow, mapLeaveRows } = require('../utils/formatDbDate');
 const { isStaffKantor } = require('../constants/roles');
 const { buildStoredFilename, writeDiskCopy } = require('../middleware/leaveUpload');
 const {
@@ -45,9 +46,28 @@ function quotaForType(settings, leaveType) {
 }
 
 class LeaveService {
-  constructor(leaveRequestRepository, leaveSettingsRepository) {
+  constructor(
+    leaveRequestRepository,
+    leaveSettingsRepository,
+    notificationRepository,
+    employeeRepository
+  ) {
     this.leaveRequestRepository = leaveRequestRepository;
     this.leaveSettingsRepository = leaveSettingsRepository;
+    this.notificationRepository = notificationRepository;
+    this.employeeRepository = employeeRepository;
+  }
+
+  async notifyAdminNewLeave(employee, row) {
+    if (!this.notificationRepository || !employee || !row) return;
+    const start = mapLeaveRow(row).start_date;
+    const end = mapLeaveRow(row).end_date;
+    await this.notificationRepository.insertAdminAlert({
+      type: 'leave_request',
+      title: 'New leave request',
+      body: `${employee.full_name} (${employee.employee_id}) requested ${row.leave_type} leave (${start} – ${end}).`,
+      payload: { requestId: row.id, employeeId: row.employee_id },
+    });
   }
 
   assertStaffKantor(auth) {
@@ -177,7 +197,7 @@ class LeaveService {
       writeDiskCopy(attachmentPath, file.buffer);
     }
 
-    return this.leaveRequestRepository.create({
+    const row = await this.leaveRequestRepository.create({
       employeeId: auth.employeeId,
       leaveType,
       startDate,
@@ -188,15 +208,21 @@ class LeaveService {
       attachmentMime,
       reason,
     });
+    const employee = this.employeeRepository
+      ? await this.employeeRepository.findById(auth.employeeId)
+      : null;
+    await this.notifyAdminNewLeave(employee, row).catch(() => {});
+    return mapLeaveRow(row);
   }
 
   async listMine(auth) {
     this.assertStaffKantor(auth);
-    return this.leaveRequestRepository.listForEmployee(auth.employeeId);
+    const rows = await this.leaveRequestRepository.listForEmployee(auth.employeeId);
+    return mapLeaveRows(rows);
   }
 
   async listPending() {
-    return this.leaveRequestRepository.listPending();
+    return mapLeaveRows(await this.leaveRequestRepository.listPending());
   }
 
   async listAll(query = {}) {
@@ -204,7 +230,9 @@ class LeaveService {
     if (status && !['pending', 'approved', 'rejected'].includes(status)) {
       throw new AppError('Invalid status.', 400, 'STATUS');
     }
-    return this.leaveRequestRepository.listAll({ status: status || null });
+    return mapLeaveRows(
+      await this.leaveRequestRepository.listAll({ status: status || null })
+    );
   }
 
   async decide(id, auth, { status, rejection_reason, is_paid }) {
@@ -256,7 +284,7 @@ class LeaveService {
       isPaid,
     });
     if (!row) throw new AppError('Request not found or already decided.', 404, 'NOT_FOUND');
-    return row;
+    return mapLeaveRow(row);
   }
 
   assertCanViewAttachment(auth, row) {

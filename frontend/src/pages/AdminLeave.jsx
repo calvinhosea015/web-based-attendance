@@ -6,6 +6,8 @@ import { Alert, Badge, Button, Card, Field, inputClass } from '../components/ui.
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { openLeaveDocument } from '../utils/openLeaveDocument.js';
+import { formatDateRange } from '../utils/formatDate.js';
+import LeaveDocumentButton from '../components/LeaveDocumentButton.jsx';
 
 function statusBadgeVariant(status) {
   if (status === 'approved') return 'success';
@@ -110,6 +112,7 @@ export default function AdminLeave() {
       await api.put(paths.adminLeaveRequest(id), body);
       notify(status === 'approved' ? t('leaveApproved') : t('leaveRejected'), 'success');
       await load();
+      window.dispatchEvent(new CustomEvent('admin-pending-refresh'));
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
@@ -120,7 +123,11 @@ export default function AdminLeave() {
   const openAttachment = async (requestId) => {
     if (!requestId) return;
     try {
-      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId));
+      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId), {
+        title: t('leaveDocumentPreviewTitle'),
+        closeLabel: t('close'),
+        downloadLabel: t('download'),
+      });
     } catch (err) {
       notify(err.message || translateApiMessage(err) || String(err), 'error');
     }
@@ -240,8 +247,8 @@ export default function AdminLeave() {
                       {row.reason && <p className="mt-1 text-xs text-slate-500">{row.reason}</p>}
                     </td>
                     <td className="px-4 py-3">{t(`leaveType_${row.leave_type}`)}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
-                      {row.start_date} — {row.end_date}
+                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
+                      {formatDateRange(row.start_date, row.end_date)}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{row.days_count}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">
@@ -268,14 +275,10 @@ export default function AdminLeave() {
                     <td className="px-4 py-3">
                       <div className="flex flex-col items-end gap-1.5">
                         {row.attachment_path && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            type="button"
+                          <LeaveDocumentButton
+                            className="max-w-none w-full"
                             onClick={() => openAttachment(row.id)}
-                          >
-                            {t('leaveViewDocument')}
-                          </Button>
+                          />
                         )}
                         {row.approval_status === 'pending' ? (
                           <div className="flex flex-wrap justify-end gap-1.5">

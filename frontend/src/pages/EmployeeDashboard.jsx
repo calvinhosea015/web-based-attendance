@@ -14,6 +14,8 @@ import {
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
 import { openLeaveDocument } from '../utils/openLeaveDocument.js';
+import { formatDateRange } from '../utils/formatDate.js';
+import LeaveDocumentButton from '../components/LeaveDocumentButton.jsx';
 
 function formatApiError(err) {
   if (!err.response && (err.message === 'Network Error' || err.code === 'ERR_NETWORK')) {
@@ -360,7 +362,11 @@ export default function EmployeeDashboard() {
   const openLeaveAttachment = async (requestId) => {
     if (!requestId) return;
     try {
-      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId));
+      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId), {
+        title: t('leaveDocumentPreviewTitle'),
+        closeLabel: t('close'),
+        downloadLabel: t('download'),
+      });
     } catch (err) {
       setMessage(err.message ? err.message : formatApiError(err));
     }
@@ -831,7 +837,8 @@ export default function EmployeeDashboard() {
                         {t(`leaveType_${req.leave_type}`)}
                       </span>
                       <span className="ml-2 text-slate-500">
-                        {req.start_date} — {req.end_date} · {req.days_count} {t('leaveDaysUnit')}
+                        {formatDateRange(req.start_date, req.end_date)} · {req.days_count}{' '}
+                        {t('leaveDaysUnit')}
                       </span>
                     </div>
                     <Badge
@@ -862,15 +869,7 @@ export default function EmployeeDashboard() {
                     {t('leaveSubmittedAt')}: {new Date(req.created_at).toLocaleString()}
                   </p>
                   {req.attachment_path && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      type="button"
-                      className="mt-2"
-                      onClick={() => openLeaveAttachment(req.id)}
-                    >
-                      {t('leaveViewDocument')}
-                    </Button>
+                    <LeaveDocumentButton onClick={() => openLeaveAttachment(req.id)} />
                   )}
                 </li>
               ))}

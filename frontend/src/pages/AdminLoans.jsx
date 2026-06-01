@@ -79,6 +79,7 @@ export default function AdminLoans() {
         'success'
       );
       await load();
+      window.dispatchEvent(new CustomEvent('admin-pending-refresh'));
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
