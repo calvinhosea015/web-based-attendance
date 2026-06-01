@@ -28,7 +28,7 @@ export async function ensureCsrf() {
   rawApi.defaults.headers.common['X-CSRF-Token'] = csrfToken;
 }
 
-api.interceptors.request.use((config) => {
+function attachAuthHeaders(config) {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = token.startsWith('Bearer ') ? token : token;
@@ -37,7 +37,10 @@ api.interceptors.request.use((config) => {
     config.headers['X-CSRF-Token'] = csrfToken;
   }
   return config;
-});
+}
+
+api.interceptors.request.use(attachAuthHeaders);
+rawApi.interceptors.request.use(attachAuthHeaders);
 
 let refreshPromise = null;
 

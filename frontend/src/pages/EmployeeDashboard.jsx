@@ -344,7 +344,7 @@ export default function EmployeeDashboard() {
       form.append('end_date', leaveForm.end_date);
       if (leaveForm.reason) form.append('reason', leaveForm.reason);
       if (leaveDocument) form.append('document', leaveDocument);
-      await rawApi.post(paths.employeeLeaveRequests, form);
+      await api.post(paths.employeeLeaveRequests, form);
       setLeaveForm({ leave_type: 'medical', start_date: '', end_date: '', reason: '' });
       setLeaveDocument(null);
       setMessage(t('leaveSubmitted'));

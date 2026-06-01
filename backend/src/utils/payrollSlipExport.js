@@ -34,18 +34,19 @@ const ROW = {
   PERIODE: 4,
   SPACER_BEFORE_PERINCIAN: 5,
   PERINCIAN: 6,
-  TABLE_HEAD: 7,
-  TABLE_FIRST: 8,
-  TABLE_LAST: 15,
-  SPACER_BEFORE_JUMLAH: 16,
-  JUMLAH_HARI: 17,
-  JUMLAH_HADIR: 18,
-  SPACER_BEFORE_GAJI: 19,
-  GAJI_TERIMA: 20,
-  SIGN_TITLE: 24,
-  SIGN_LINE: 29,
+  SPACER_AFTER_PERINCIAN: 7,
+  TABLE_HEAD: 8,
+  TABLE_FIRST: 9,
+  TABLE_LAST: 16,
+  SPACER_BEFORE_JUMLAH: 17,
+  JUMLAH_HARI: 18,
+  JUMLAH_HADIR: 19,
+  SPACER_BEFORE_GAJI: 20,
+  GAJI_TERIMA: 21,
+  SIGN_TITLE: 25,
+  SIGN_LINE: 30,
 };
-const SHEET_LAST_ROW = 29;
+const SHEET_LAST_ROW = 30;
 const SHEET_LAST_COL = 6;
 
 const FONT_BODY = { name: 'Calibri', size: 11 };
@@ -270,6 +271,13 @@ function addSpacerRow(ws, row) {
   ws.getRow(row).height = 15;
 }
 
+/** Blank row: no inner borders; outer blue box is applied later by applySheetOutline. */
+function clearRowBorders(ws, row) {
+  for (let c = 1; c <= SHEET_LAST_COL; c += 1) {
+    ws.getCell(row, c).border = {};
+  }
+}
+
 function fillTableLine(ws, row, labelCol, colonCol, valueCol, label, amount) {
   setCell(ws, row, labelCol, label);
   setCell(ws, row, colonCol, 'Rp.', { alignment: { horizontal: 'center', vertical: 'middle' } });
@@ -341,6 +349,9 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
 
   setCell(ws, ROW.PERINCIAN, L_LABEL, 'Perincian');
   setColon(ws, ROW.PERINCIAN, L_COLON);
+
+  addSpacerRow(ws, ROW.SPACER_AFTER_PERINCIAN);
+  clearRowBorders(ws, ROW.SPACER_AFTER_PERINCIAN);
 
   ws.mergeCells(ROW.TABLE_HEAD, L_LABEL, ROW.TABLE_HEAD, L_VALUE);
   const gajiKotorHead = ws.getCell(ROW.TABLE_HEAD, L_LABEL);
