@@ -51,6 +51,7 @@ const SHEET_LAST_ROW = 22;
 
 const COL_WIDTHS = { A: 19, B: 16, C: 25, D: 16 };
 const ROW_HEIGHT = 15;
+const SIGNATURE_PLACEHOLDER = '(                              )';
 
 const FONT_KETERANGAN = { name: 'Calibri', size: 8 };
 const FONT_BODY = { name: 'Calibri', size: 11 };
@@ -220,7 +221,7 @@ function setCell(ws, row, col, value, opts = {}) {
 }
 
 function setColonText(ws, row, col, value) {
-  setCell(ws, row, col, `: ${value ?? ''}`, {
+  setCell(ws, row, col, `${value ?? ''}`, {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 }
@@ -234,9 +235,18 @@ function setAmountCell(ws, row, col, amount) {
 }
 
 function setLabelColon(ws, row, col, label) {
-  setCell(ws, row, col, `${label} :`, {
+  setCell(ws, row, col, `${label}`, {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
+}
+
+function mergeCellsLeft(ws, rowStart, rowEnd, col, value, opts = {}) {
+  ws.mergeCells(rowStart, col, rowEnd, col);
+  const cell = ws.getCell(rowStart, col);
+  cell.value = value ?? '';
+  cell.font = { ...FONT_BODY, ...opts.font };
+  cell.alignment = { horizontal: 'left', vertical: 'middle', ...opts.alignment };
+  if (opts.numFmt) cell.numFmt = opts.numFmt;
 }
 
 function applyColumnWidths(ws) {
@@ -318,18 +328,20 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   const dAmt = colLetter(COL.D);
   const totalRow = ROW.TABLE_TOTAL;
 
-  setCell(ws, ROW.NAMA, COL.A, 'Nama');
-  setColonText(ws, ROW.NAMA, COL.B, row.full_name || '');
+  mergeCellsLeft(ws, 1, 2, COL.A, 'Nama');
+  mergeCellsLeft(ws, 1, 2, COL.B, `${row.full_name || ''}`);
 
-  const titleCell = ws.getCell(ROW.NAMA, COL.D);
+  ws.mergeCells(1, COL.C, 2, COL.D);
+  const titleCell = ws.getCell(1, COL.C);
   titleCell.value = 'SLIP GAJI';
   titleCell.font = FONT_TITLE;
   titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  setCell(ws, ROW.JABATAN, COL.A, 'Jabatan');
-  setColonText(ws, ROW.JABATAN, COL.B, jabatanLabel(row));
+  mergeCellsLeft(ws, 3, 4, COL.A, 'Jabatan');
+  mergeCellsLeft(ws, 3, 4, COL.B, `${jabatanLabel(row)}`);
 
-  const companyCell = ws.getCell(ROW.JABATAN, COL.D);
+  ws.mergeCells(3, COL.C, 3, COL.D);
+  const companyCell = ws.getCell(3, COL.C);
   companyCell.value = companyName();
   companyCell.font = FONT_COMPANY;
   companyCell.alignment = { horizontal: 'right', vertical: 'middle' };
@@ -389,7 +401,7 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   setLabelColon(ws, ROW.JUMLAH_HADIR, COL.A, 'Jumlah Hadir');
   setColonText(ws, ROW.JUMLAH_HADIR, COL.B, num(row.days_attended));
 
-  setCell(ws, ROW.JUMLAH_HARI, COL.C, 'Keterangan :', {
+  setCell(ws, ROW.JUMLAH_HARI, COL.C, 'Keterangan', {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 
@@ -412,10 +424,10 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   ws.getCell(ROW.SIGN_TITLE, COL.B).font = FONT_BODY;
   ws.getCell(ROW.SIGN_TITLE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(ROW.SIGN_LINE, COL.A).value = '( )';
+  ws.getCell(ROW.SIGN_LINE, COL.A).value = SIGNATURE_PLACEHOLDER;
   ws.getCell(ROW.SIGN_LINE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(ROW.SIGN_LINE, COL.B).value = '( )';
+  ws.getCell(ROW.SIGN_LINE, COL.B).value = SIGNATURE_PLACEHOLDER;
   ws.getCell(ROW.SIGN_LINE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
 
   ws.mergeCells(ROW.NET_LABEL_START, COL.C, ROW.NET_LABEL_END, COL.D);
