@@ -65,6 +65,7 @@ const FONT_NET_LABEL = { name: 'Calibri', size: 11, bold: true };
 const FONT_NET_AMOUNT = { name: 'Calibri', size: 12, bold: true };
 
 const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF000000' } };
+const BORDER_THICK = { style: 'thick', color: { argb: 'FF000000' } };
 const AMOUNT_NUMFMT = '#,##0';
 const NET_AMOUNT_NUMFMT = '"Rp "#,##0';
 
@@ -281,6 +282,13 @@ function fillTableLine(ws, row, labelCol, amountCol, label, amount) {
   setAmountCell(ws, row, amountCol, amount);
 }
 
+function setThickBottomBorderRow(ws, rowNumber) {
+  for (let c = COL.A; c <= COL.D; c += 1) {
+    const current = ws.getCell(rowNumber, c).border || {};
+    ws.getCell(rowNumber, c).border = { ...current, bottom: BORDER_THICK };
+  }
+}
+
 function addFieldOfficerCalculationSection(
   ws,
   row,
@@ -311,6 +319,7 @@ function addFieldOfficerCalculationSection(
 
   setCell(ws, 33, COL.A, 'Gaji Per Hari');
   setAmountCell(ws, 33, COL.D, gajiPerHari);
+  setThickBottomBorderRow(ws, 33);
 
   ws.mergeCells(34, COL.A, 34, COL.B);
   setCell(ws, 34, COL.A, 'Total Gaji', {
@@ -332,6 +341,7 @@ function addFieldOfficerCalculationSection(
   setAmountCell(ws, 39, COL.D, amounts.kerajinan);
   setLabelColon(ws, 40, COL.A, 'Bonus');
   setAmountCell(ws, 40, COL.D, amounts.bonus);
+  setThickBottomBorderRow(ws, 40);
 
   ws.mergeCells(41, COL.A, 41, COL.B);
   setCell(ws, 41, COL.A, 'Total Gaji', {
@@ -349,6 +359,7 @@ function addFieldOfficerCalculationSection(
   });
   setAmountCell(ws, 42, COL.D, potonganAbsen);
   ws.getCell(42, COL.D).font = FONT_TOTAL;
+  setThickBottomBorderRow(ws, 42);
 
   ws.mergeCells(43, COL.A, 43, COL.B);
   setCell(ws, 43, COL.A, 'Total Gaji yang diterima', { font: FONT_TOTAL });
