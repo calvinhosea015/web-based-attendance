@@ -320,7 +320,7 @@ function addFieldOfficerCalculationSection(
 
   setCell(ws, 29, COL.A, 'Jabatan');
   setCell(ws, 29, COL.B, String(jabatanLabel(row) || '').toUpperCase());
-  setCell(ws, 29, COL.C, 'Tanggal Mulai Kerja');
+  setCell(ws, 29, COL.C, 'Usia Kerja');
   setCell(ws, 29, COL.D, computeUsiaKerja(row.join_date, slipAsOfDate(row, period)));
 
   setCell(ws, 31, COL.A, 'RINCIAN PERHITUNGAN GAJI', { font: FONT_TABLE_HEAD });
