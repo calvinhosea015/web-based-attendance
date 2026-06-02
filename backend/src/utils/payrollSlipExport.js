@@ -200,7 +200,22 @@ function expectedWorkDaysForSlip(row, period) {
 }
 
 function jabatanLabel(row) {
-  return row.position_title || row.department_name || row.jabatan || '';
+  const role = String(row.user_role || '').toLowerCase();
+  const roleLabelMap = {
+    field_officer: 'Petugas Lapangan',
+    employee: 'Staff Kantor',
+    umum: 'Umum',
+    accounting: 'Accounting',
+    general_affairs: 'General Affairs',
+    head_of_finance: 'Head of Finance',
+  };
+  return (
+    row.position_title ||
+    row.department_name ||
+    row.jabatan ||
+    roleLabelMap[role] ||
+    ''
+  );
 }
 
 function periodLabel(period) {
