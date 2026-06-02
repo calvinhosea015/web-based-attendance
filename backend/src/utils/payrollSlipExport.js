@@ -62,8 +62,7 @@ const FONT_TOTAL = { name: 'Calibri', size: 11, bold: true };
 const FONT_NET_LABEL = { name: 'Calibri', size: 11, bold: true };
 const FONT_NET_AMOUNT = { name: 'Calibri', size: 12, bold: true };
 
-const BORDER_THIN = { style: 'thin', color: { argb: 'FF000000' } };
-const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF000000' } };
+const BORDER_THICK = { style: 'thick', color: { argb: 'FF000000' } };
 const AMOUNT_NUMFMT = '"Rp "#,##0';
 
 function companyName() {
@@ -220,22 +219,23 @@ function setCell(ws, row, col, value, opts = {}) {
   if (opts.numFmt) cell.numFmt = opts.numFmt;
 }
 
-function setColonText(ws, row, col, value) {
-  setCell(ws, row, col, `${value ?? ''}`, {
+function setColonText(ws, row, col, value, withColon = false) {
+  const prefix = withColon ? ': ' : '';
+  setCell(ws, row, col, `${prefix}${value ?? ''}`, {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 }
 
-function setAmountCell(ws, row, col, amount) {
+function setAmountCell(ws, row, col, amount, withColon = false) {
   const cell = ws.getCell(row, col);
   cell.value = num(amount);
-  cell.numFmt = AMOUNT_NUMFMT;
+  cell.numFmt = withColon ? '": Rp " #,##0' : AMOUNT_NUMFMT;
   cell.font = FONT_BODY;
   cell.alignment = { horizontal: 'right', vertical: 'middle' };
 }
 
-function setLabelColon(ws, row, col, label) {
-  setCell(ws, row, col, `${label}`, {
+function setLabelColon(ws, row, col, label, withColon = false) {
+  setCell(ws, row, col, withColon ? `${label} :` : `${label}`, {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 }
@@ -263,46 +263,22 @@ function applyUniformRowHeights(ws) {
 }
 
 function applyTableBorders(ws) {
-  const { TABLE_HEAD, TABLE_TOTAL } = ROW;
-
-  for (let r = TABLE_HEAD; r <= TABLE_TOTAL; r += 1) {
+  // Remove all borders first.
+  for (let r = 1; r <= SHEET_LAST_ROW; r += 1) {
     for (let c = COL.A; c <= COL.D; c += 1) {
-      ws.getCell(r, c).border = {
-        top: BORDER_THIN,
-        left: BORDER_THIN,
-        bottom: BORDER_THIN,
-        right: BORDER_THIN,
-      };
+      ws.getCell(r, c).border = {};
     }
   }
 
+  // Only thick bottom border on A13:D13.
   for (let c = COL.A; c <= COL.D; c += 1) {
-    ws.getCell(TABLE_HEAD, c).border = {
-      ...ws.getCell(TABLE_HEAD, c).border,
-      bottom: BORDER_MEDIUM,
-    };
-    ws.getCell(TABLE_TOTAL, c).border = {
-      ...ws.getCell(TABLE_TOTAL, c).border,
-      top: BORDER_MEDIUM,
-      bottom: BORDER_MEDIUM,
-    };
-  }
-
-  for (let r = TABLE_HEAD; r <= TABLE_TOTAL; r += 1) {
-    ws.getCell(r, COL.B).border = {
-      ...ws.getCell(r, COL.B).border,
-      right: BORDER_MEDIUM,
-    };
-    ws.getCell(r, COL.C).border = {
-      ...ws.getCell(r, COL.C).border,
-      left: BORDER_MEDIUM,
-    };
+    ws.getCell(ROW.TABLE_LAST, c).border = { bottom: BORDER_THICK };
   }
 }
 
-function fillTableLine(ws, row, labelCol, amountCol, label, amount) {
-  setLabelColon(ws, row, labelCol, label);
-  setAmountCell(ws, row, amountCol, amount);
+function fillTableLine(ws, row, labelCol, amountCol, label, amount, withColon = false) {
+  setLabelColon(ws, row, labelCol, label, withColon);
+  setAmountCell(ws, row, amountCol, amount, withColon);
 }
 
 function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
@@ -328,7 +304,7 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   const dAmt = colLetter(COL.D);
   const totalRow = ROW.TABLE_TOTAL;
 
-  mergeCellsLeft(ws, 1, 2, COL.A, 'Nama');
+  mergeCellsLeft(ws, 1, 2, COL.A, 'Nama :');
   mergeCellsLeft(ws, 1, 2, COL.B, `${row.full_name || ''}`);
 
   ws.mergeCells(1, COL.C, 2, COL.D);
@@ -337,7 +313,7 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   titleCell.font = FONT_TITLE;
   titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  mergeCellsLeft(ws, 3, 4, COL.A, 'Jabatan');
+  mergeCellsLeft(ws, 3, 4, COL.A, 'Jabatan :');
   mergeCellsLeft(ws, 3, 4, COL.B, `${jabatanLabel(row)}`);
 
   ws.mergeCells(3, COL.C, 3, COL.D);
@@ -367,19 +343,19 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
 
   for (let i = 0; i < EARNINGS.length; i += 1) {
     const r = ROW.TABLE_FIRST + i;
-    fillTableLine(ws, r, COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key]);
+    fillTableLine(ws, r, COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key], true);
     if (i < DEDUCTIONS.length) {
       fillTableLine(ws, r, COL.C, COL.D, DEDUCTIONS[i].label, amounts[DEDUCTIONS[i].key]);
     }
   }
 
-  setLabelColon(ws, totalRow, COL.A, 'Total Pendapatan');
+  setLabelColon(ws, totalRow, COL.A, 'Total Pendapatan', true);
   const leftTotal = ws.getCell(totalRow, COL.B);
   leftTotal.value = {
     formula: `SUM(${bAmt}${ROW.TABLE_FIRST}:${bAmt}${ROW.TABLE_LAST})`,
     result: totalPendapatan,
   };
-  leftTotal.numFmt = AMOUNT_NUMFMT;
+  leftTotal.numFmt = '": Rp " #,##0';
   leftTotal.font = FONT_TOTAL;
   leftTotal.alignment = { horizontal: 'right', vertical: 'middle' };
 
@@ -396,10 +372,10 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   applyTableBorders(ws);
 
   setLabelColon(ws, ROW.JUMLAH_HARI, COL.A, 'Jumlah Hari');
-  setColonText(ws, ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period));
+  setColonText(ws, ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period), true);
 
   setLabelColon(ws, ROW.JUMLAH_HADIR, COL.A, 'Jumlah Hadir');
-  setColonText(ws, ROW.JUMLAH_HADIR, COL.B, num(row.days_attended));
+  setColonText(ws, ROW.JUMLAH_HADIR, COL.B, num(row.days_attended), true);
 
   setCell(ws, ROW.JUMLAH_HARI, COL.C, 'Keterangan', {
     alignment: { horizontal: 'left', vertical: 'middle' },
