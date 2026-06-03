@@ -99,12 +99,17 @@ class PayrollRepository {
         e.employee_id AS employee_code,
         e.full_name,
         e.join_date,
+        e.transport_eligible AS employee_transport_eligible,
+        e.transport_allowance_amount AS employee_transport_allowance_amount,
+        e.diligence_allowance_amount AS employee_diligence_allowance_amount,
         d.name AS department_name,
-        pos.title AS position_title
+        pos.title AS position_title,
+        u.role AS user_role
        FROM payroll p
        JOIN employees e ON e.id = p.employee_id
        LEFT JOIN departments d ON d.id = e.department_id
        LEFT JOIN positions pos ON pos.id = e.position_id
+       INNER JOIN users u ON u.employee_id = e.id
        WHERE p.payroll_period = $1 AND p.employee_id = $2`,
       [payrollPeriod, employeeId]
     );

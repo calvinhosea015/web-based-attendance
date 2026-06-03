@@ -5,6 +5,11 @@ const {
   cycleEndDate,
 } = require('./payrollPeriod');
 const { isFieldOfficer } = require('../constants/roles');
+const {
+  resolveTransportEligible,
+  resolveDiligenceEligible,
+  resolvePayrollAllowanceAmounts,
+} = require('./payrollAllowances');
 
 const EARNINGS = [
   { key: 'gaji', label: 'Gaji' },
@@ -153,8 +158,18 @@ function slipAsOfDate(row, period) {
 }
 
 function slipAmounts(row) {
-  const transport = row.transport_eligible ? num(row.transport_allowance) : 0;
-  const kerajinan = row.diligence_eligible ? num(row.diligence_bonus) : 0;
+  const transportEligible = resolveTransportEligible(row);
+  const diligenceEligible = resolveDiligenceEligible(row);
+  const { transport_allowance: transport, diligence_bonus: kerajinan } = resolvePayrollAllowanceAmounts({
+    transportEligible,
+    diligenceEligible,
+    transportAllowanceStored: row.transport_allowance,
+    diligenceBonusStored: row.diligence_bonus,
+    employeeTransportAmount: row.employee_transport_allowance_amount,
+    employeeDiligenceAmount: row.employee_diligence_allowance_amount,
+    settingsTransportAmount: row.settings_transport_amount,
+    settingsDiligenceAmount: row.settings_diligence_amount,
+  });
   const monthlyStaff =
     row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs';
   const monthlyGross =
@@ -299,6 +314,20 @@ function setThickBottomBorderRow(ws, rowNumber) {
   }
 }
 
+function fieldOfficerEarningsTotal(row, amounts) {
+  const hariKerja = Math.max(0, num(row.days_attended));
+  const totalGaji = num(row.upah_harian || 0) * hariKerja;
+  return (
+    totalGaji +
+    num(amounts.tunjangan_masa_kerja) +
+    num(amounts.tunjangan_transport) +
+    num(amounts.lembur) +
+    num(amounts.insentif) +
+    num(amounts.kerajinan) +
+    num(amounts.bonus)
+  );
+}
+
 function addFieldOfficerCalculationSection(
   ws,
   row,
@@ -310,6 +339,7 @@ function addFieldOfficerCalculationSection(
   const hariKerja = Math.max(0, num(row.days_attended));
   const gajiPerHari = num(row.upah_harian || 0);
   const totalGaji = gajiPerHari * hariKerja;
+  const detailTotalPendapatan = fieldOfficerEarningsTotal(row, amounts);
   const ketidakhadiranHari = Math.max(0, num(row.expected_work_days) - hariKerja);
   const potonganAbsen = num(amounts.potongan_absen);
 
@@ -358,7 +388,7 @@ function addFieldOfficerCalculationSection(
     font: FONT_TOTAL,
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  setAmountCell(ws, 41, COL.D, totalPendapatan);
+  setAmountCell(ws, 41, COL.D, detailTotalPendapatan);
   ws.getCell(41, COL.D).font = FONT_TOTAL;
   ws.getCell(41, COL.D).border = { top: BORDER_MEDIUM };
 

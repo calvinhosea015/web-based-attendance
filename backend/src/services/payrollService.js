@@ -30,6 +30,11 @@ const {
   receivesTunjanganMasaKerja,
   resolveTunjanganMasaKerjaForRole,
 } = require('../utils/tenureAllowance');
+const {
+  resolveTransportEligible,
+  resolveDiligenceEligible,
+  resolveAllowanceRateFields,
+} = require('../utils/payrollAllowances');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -72,14 +77,16 @@ function isMonthlyOfficeStaff(role) {
 function buildManualPayrollFields({ prev, emp, settings }) {
   const transportEligible = prev?.transport_eligible ?? Boolean(emp.transport_eligible);
   const diligenceEligible = prev?.diligence_eligible ?? false;
-  const transportAmount =
-    prev?.transport_allowance != null && transportEligible
-      ? num(prev.transport_allowance)
-      : num(emp.transport_allowance_amount ?? settings.transport_amount);
-  const diligenceAmount =
-    prev?.diligence_bonus != null && diligenceEligible
-      ? num(prev.diligence_bonus)
-      : num(emp.diligence_allowance_amount ?? settings.diligence_amount);
+  const { transport_allowance_amount: transportAmount, diligence_allowance_amount: diligenceAmount } =
+    resolveAllowanceRateFields({
+      transportEligible,
+      diligenceEligible,
+      transportAllowanceStored: prev?.transport_allowance,
+      diligenceBonusStored: prev?.diligence_bonus,
+      employeeTransportAmount: emp.transport_allowance_amount,
+      employeeDiligenceAmount: emp.diligence_allowance_amount,
+      settings,
+    });
   return {
     basic_salary: num(prev?.basic_salary ?? emp.basic_salary),
     tunjangan_masa_kerja: num(prev?.tunjangan_masa_kerja ?? emp.tunjangan_masa_kerja),
@@ -345,8 +352,66 @@ class PayrollService {
 
   async enrichSlipRow(row, period) {
     const enriched = await this.enrichPayrollRow({ ...row, payroll_period: period });
+    const settings = await this.payrollRepository.getSettings();
+    const employee = row.employee_id
+      ? await this.employeeRepository.findById(row.employee_id)
+      : null;
+    const merged = attachEmployeeFields(
+      attachPayrollMode({
+        ...row,
+        ...enriched,
+        payroll_period: period,
+        user_role: enriched.user_role ?? row.user_role,
+      }),
+      employee
+        ? { ...employee, employee_code: employee.employee_id, user_role: enriched.user_role ?? row.user_role }
+        : null
+    );
+
+    const transportEligible = resolveTransportEligible(merged, employee);
+    const diligenceEligible = resolveDiligenceEligible(merged);
+    const allowanceRates = resolveAllowanceRateFields({
+      transportEligible,
+      diligenceEligible,
+      transportAllowanceStored: merged.transport_allowance,
+      diligenceBonusStored: merged.diligence_bonus,
+      employeeTransportAmount:
+        merged.employee_transport_allowance_amount ?? employee?.transport_allowance_amount,
+      employeeDiligenceAmount:
+        merged.employee_diligence_allowance_amount ?? employee?.diligence_allowance_amount,
+      settings,
+    });
+
+    const totals = computeTotals(
+      normalizeRolePayrollFields(
+        {
+          basic_salary: num(merged.basic_salary),
+          tunjangan_masa_kerja: num(merged.tunjangan_masa_kerja),
+          transport_eligible: transportEligible,
+          diligence_eligible: diligenceEligible,
+          transport_allowance_amount: allowanceRates.transport_allowance_amount,
+          diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
+          overtime_pay: num(merged.overtime_pay),
+          insentif: num(merged.insentif),
+          bonus_omset: num(merged.bonus_omset),
+          loan_deduction: num(merged.loan_deduction),
+          late_deduction: num(merged.late_deduction),
+          other_deductions: num(merged.other_deductions ?? merged.deductions),
+        },
+        merged.user_role
+      ),
+      employee,
+      settings
+    );
+
     return {
-      ...row,
+      ...merged,
+      transport_eligible: transportEligible,
+      diligence_eligible: diligenceEligible,
+      transport_allowance: totals.transport_allowance,
+      diligence_bonus: totals.diligence_bonus,
+      settings_transport_amount: settings.transport_amount,
+      settings_diligence_amount: settings.diligence_amount,
       loan_remaining_balance: enriched.loan_remaining_balance,
       loan_monthly_deduction: enriched.loan_monthly_deduction,
       loan_amount: enriched.loan_amount,
@@ -402,14 +467,16 @@ class PayrollService {
     } else {
       gajiPokok = computeGajiPokok(days, upahHarian);
     }
-    const transportAmount =
-      prev?.transport_allowance != null && transportEligible
-        ? num(prev.transport_allowance)
-        : num(emp.transport_allowance_amount ?? settings.transport_amount);
-    const diligenceAmount =
-      prev?.diligence_bonus != null && diligenceEligible
-        ? num(prev.diligence_bonus)
-        : num(emp.diligence_allowance_amount ?? settings.diligence_amount);
+    const { transport_allowance_amount: transportAmount, diligence_allowance_amount: diligenceAmount } =
+      resolveAllowanceRateFields({
+        transportEligible,
+        diligenceEligible,
+        transportAllowanceStored: prev?.transport_allowance,
+        diligenceBonusStored: prev?.diligence_bonus,
+        employeeTransportAmount: emp.transport_allowance_amount,
+        employeeDiligenceAmount: emp.diligence_allowance_amount,
+        settings,
+      });
 
     const joinDate = (employee || emp)?.join_date;
     const tunjanganMasaKerja = resolveTunjanganMasaKerjaForRole(role, joinDate, payrollPeriod);
@@ -601,21 +668,29 @@ class PayrollService {
       bounds.payroll_period
     );
 
+    const transportEligible = resolveTransportEligible(row, employee);
+    const diligenceEligible = resolveDiligenceEligible(row);
+    const allowanceRates = resolveAllowanceRateFields({
+      transportEligible,
+      diligenceEligible,
+      transportAllowanceStored: row.transport_allowance,
+      diligenceBonusStored: row.diligence_bonus,
+      employeeTransportAmount: employee.transport_allowance_amount,
+      employeeDiligenceAmount: employee.diligence_allowance_amount,
+      settings,
+    });
+
     const fields = normalizeRolePayrollFields(
       {
         basic_salary: gajiPokok,
         tunjangan_masa_kerja: tunjanganMasaKerja,
-        transport_eligible: Boolean(row.transport_eligible),
-        transport_allowance_amount: row.transport_eligible
-          ? num(row.transport_allowance)
-          : num(employee.transport_allowance_amount ?? settings.transport_amount),
+        transport_eligible: transportEligible,
+        transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay: overtimePay,
         late_deduction: lateDeduction,
         insentif: num(row.insentif),
-        diligence_eligible: Boolean(row.diligence_eligible),
-        diligence_allowance_amount: row.diligence_eligible
-          ? num(row.diligence_bonus)
-          : num(employee.diligence_allowance_amount ?? settings.diligence_amount),
+        diligence_eligible: diligenceEligible,
+        diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
         bonus_omset: num(row.bonus_omset),
         other_deductions: Math.max(
           0,
@@ -905,18 +980,21 @@ class PayrollService {
         payload.diligence_eligible != null
           ? Boolean(payload.diligence_eligible)
           : Boolean(existing.diligence_eligible);
-      const transportAmount =
-        payload.transport_allowance_amount != null
-          ? num(payload.transport_allowance_amount)
-          : transportEligible
-            ? num(existing.transport_allowance ?? employee.transport_allowance_amount ?? settings.transport_amount)
-            : num(employee.transport_allowance_amount ?? settings.transport_amount);
-      const diligenceAmount =
-        payload.diligence_allowance_amount != null
-          ? num(payload.diligence_allowance_amount)
-          : diligenceEligible
-            ? num(existing.diligence_bonus ?? employee.diligence_allowance_amount ?? settings.diligence_amount)
-            : num(employee.diligence_allowance_amount ?? settings.diligence_amount);
+      const allowanceRates = resolveAllowanceRateFields({
+        transportEligible,
+        diligenceEligible,
+        transportAllowanceStored:
+          payload.transport_allowance_amount != null
+            ? payload.transport_allowance_amount
+            : existing.transport_allowance,
+        diligenceBonusStored:
+          payload.diligence_allowance_amount != null
+            ? payload.diligence_allowance_amount
+            : existing.diligence_bonus,
+        employeeTransportAmount: employee.transport_allowance_amount,
+        employeeDiligenceAmount: employee.diligence_allowance_amount,
+        settings,
+      });
       const fields = {
         basic_salary:
           payload.basic_salary != null ? num(payload.basic_salary) : num(existing.basic_salary),
@@ -925,12 +1003,12 @@ class PayrollService {
             ? num(payload.tunjangan_masa_kerja)
             : num(existing.tunjangan_masa_kerja),
         transport_eligible: transportEligible,
-        transport_allowance_amount: transportAmount,
+        transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay:
           payload.overtime_pay != null ? num(payload.overtime_pay) : num(existing.overtime_pay),
         insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
         diligence_eligible: diligenceEligible,
-        diligence_allowance_amount: diligenceAmount,
+        diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
         bonus_omset:
           payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
         other_deductions:
@@ -1028,25 +1106,28 @@ class PayrollService {
       ? false
       : payload.transport_eligible != null
         ? Boolean(payload.transport_eligible)
-        : Boolean(existing.transport_eligible);
+        : resolveTransportEligible(existing, employee);
     const diligenceEligible = accounting
       ? false
       : payload.diligence_eligible != null
         ? Boolean(payload.diligence_eligible)
-        : Boolean(existing.diligence_eligible);
+        : resolveDiligenceEligible(existing);
 
-    const transportAmount =
-      payload.transport_allowance_amount != null
-        ? num(payload.transport_allowance_amount)
-        : transportEligible
-          ? num(existing.transport_allowance ?? employee.transport_allowance_amount ?? settings.transport_amount)
-          : num(employee.transport_allowance_amount ?? settings.transport_amount);
-    const diligenceAmount =
-      payload.diligence_allowance_amount != null
-        ? num(payload.diligence_allowance_amount)
-        : diligenceEligible
-          ? num(existing.diligence_bonus ?? employee.diligence_allowance_amount ?? settings.diligence_amount)
-          : num(employee.diligence_allowance_amount ?? settings.diligence_amount);
+    const allowanceRates = resolveAllowanceRateFields({
+      transportEligible,
+      diligenceEligible,
+      transportAllowanceStored:
+        payload.transport_allowance_amount != null
+          ? payload.transport_allowance_amount
+          : existing.transport_allowance,
+      diligenceBonusStored:
+        payload.diligence_allowance_amount != null
+          ? payload.diligence_allowance_amount
+          : existing.diligence_bonus,
+      employeeTransportAmount: employee.transport_allowance_amount,
+      employeeDiligenceAmount: employee.diligence_allowance_amount,
+      settings,
+    });
 
     let loanDeduction =
       payload.loan_deduction != null ? num(payload.loan_deduction) : null;
@@ -1092,11 +1173,11 @@ class PayrollService {
             ? num(payload.tunjangan_masa_kerja)
             : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period),
         transport_eligible: transportEligible,
-        transport_allowance_amount: transportAmount,
+        transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay: overtimePay,
         insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
         diligence_eligible: diligenceEligible,
-        diligence_allowance_amount: diligenceAmount,
+        diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
         bonus_omset: payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
         other_deductions:
           payload.other_deductions != null
