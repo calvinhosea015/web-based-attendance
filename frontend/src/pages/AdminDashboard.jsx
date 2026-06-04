@@ -21,12 +21,6 @@ import {
   isHeadOfFinanceRole,
   requiresFullName,
 } from '../roles.js';
-
-function toTimeInputValue(t) {
-  if (t == null || t === '') return '';
-  const s = String(t);
-  return s.length >= 5 ? s.slice(0, 5) : '';
-}
 import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 function toTimeInputValue(v) {
