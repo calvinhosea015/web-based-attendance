@@ -96,6 +96,9 @@ export default {
   payrollGlobalSettings: 'Nominal tunjangan default',
   payrollTransportNominal: 'Default tunjangan transport (Rp)',
   payrollDiligenceNominal: 'Default uang kerajinan (Rp)',
+  payrollDefaultUpahHarian: 'Default upah harian — Petugas Lapangan (Rp)',
+  payrollDefaultUpahHarianHint:
+    'Hanya untuk jabatan Petugas Lapangan. Dipakai bila karyawan belum punya upah di profil.',
   payrollSaveSettings: 'Simpan default',
   payrollSettingsSaved: 'Nominal default disimpan.',
   payrollEmployeeTable: 'Gaji per karyawan',
@@ -113,7 +116,7 @@ export default {
   payrollDaysFromAttendance: 'Dihitung dari data absen masuk dalam periode gaji ini (tidak dapat diubah manual).',
   payrollUpahHarian: 'Upah harian',
   payrollUpahHarianHint:
-    'Disimpan di profil karyawan dan dipakai otomatis setiap bulan sampai Anda mengubahnya (misalnya kenaikan gaji).',
+    'Petugas Lapangan: pakai default global jika kosong; disimpan di profil saat simpan. Ubah di sini saat ada kenaikan.',
   payrollMonthlyBasic: 'Gaji bulanan',
   payrollExpectedWorkDays: 'Hari wajib masuk (Sen–Sab)',
   payrollExpectedWorkDaysManual: 'Atur manual hari wajib masuk (untuk generate/perbarui)',

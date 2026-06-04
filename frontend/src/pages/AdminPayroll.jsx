@@ -34,7 +34,11 @@ export default function AdminPayroll() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState(currentPayrollPeriodKey());
   const [periodCycleLabel, setPeriodCycleLabel] = useState(() => payrollCycleLabel(currentPayrollPeriodKey()));
-  const [settings, setSettings] = useState({ transport_amount: 250000, diligence_amount: 100000 });
+  const [settings, setSettings] = useState({
+    transport_amount: 250000,
+    diligence_amount: 100000,
+    default_upah_harian: 0,
+  });
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('info');
@@ -139,6 +143,7 @@ export default function AdminPayroll() {
       const { data } = await api.put(paths.adminPayrollSettings, {
         transport_amount: Number(settings.transport_amount),
         diligence_amount: Number(settings.diligence_amount),
+        default_upah_harian: Number(settings.default_upah_harian),
       });
       setSettings(data);
       notify(t('payrollSettingsSaved'), 'success');
@@ -182,7 +187,7 @@ export default function AdminPayroll() {
       days_attended: row.days_attended ?? 0,
       monthly_basic_gross:
         row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary ?? 0,
-      upah_harian: resolveUpahHarianDisplay(row),
+      upah_harian: resolveUpahHarianDisplay(row, settings),
       tunjangan_masa_kerja: row.tunjangan_masa_kerja ?? 0,
       transport_eligible: Boolean(row.transport_eligible),
       overtime_pay: row.overtime_pay ?? 0,
@@ -369,6 +374,20 @@ export default function AdminPayroll() {
                     }
                   />
                 </Field>
+                <Field
+                  label={t('payrollDefaultUpahHarian')}
+                  hint={t('payrollDefaultUpahHarianHint')}
+                >
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClass}
+                    value={settings.default_upah_harian ?? ''}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, default_upah_harian: e.target.value }))
+                    }
+                  />
+                </Field>
                 <Button type="submit" variant="primary" disabled={savingSettings}>
                   {savingSettings ? t('loading') : t('payrollSaveSettings')}
                 </Button>
@@ -450,7 +469,7 @@ export default function AdminPayroll() {
                             <div className="text-xs text-slate-400">{t('payrollMonthlyBasic')}</div>
                           </div>
                         ) : (
-                          formatIdr(resolveUpahHarianDisplay(row))
+                          formatIdr(resolveUpahHarianDisplay(row, settings))
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -465,7 +484,7 @@ export default function AdminPayroll() {
                                 row.payroll_mode === 'accounting'
                               ? t('payrollAbsenceDeduction') +
                                 `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
-                              : `${row.days_attended ?? 0} × ${formatIdr(resolveUpahHarianDisplay(row))}`}
+                              : `${row.days_attended ?? 0} × ${formatIdr(resolveUpahHarianDisplay(row, settings))}`}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-rose-600">
@@ -627,7 +646,11 @@ export default function AdminPayroll() {
               <>
                 <CompactField
                   label={t('payrollUpahHarian')}
-                  hint={t('payrollUpahHarianHint')}
+                  hint={
+                    editingRow?.user_role === 'field_officer'
+                      ? t('payrollUpahHarianHint')
+                      : undefined
+                  }
                   className="col-span-2 md:col-span-2"
                 >
                   <input
@@ -777,6 +800,14 @@ export default function AdminPayroll() {
                   {t('payrollDiligenceEligible')}
                 </label>
             </div>
+            {editingRow?.has_active_loan && (
+              <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
+                {t('payrollActiveLoanHint', {
+                  monthly: formatIdr(editingRow.loan_monthly_deduction),
+                  remaining: formatIdr(editingRow.loan_remaining_balance),
+                })}
+              </p>
+            )}
             <CompactField label={t('payrollKeterangan')} className="col-span-2 md:col-span-4">
               <input
                 type="text"
@@ -787,14 +818,6 @@ export default function AdminPayroll() {
                 onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
               />
             </CompactField>
-            {editingRow?.has_active_loan && (
-              <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
-                {t('payrollActiveLoanHint', {
-                  monthly: formatIdr(editingRow.loan_monthly_deduction),
-                  remaining: formatIdr(editingRow.loan_remaining_balance),
-                })}
-              </p>
-            )}
           </form>
         </Modal>
       )}

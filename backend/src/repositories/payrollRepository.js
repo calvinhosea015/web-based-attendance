@@ -3,24 +3,28 @@ const config = require('../config/env');
 
 class PayrollRepository {
   async getSettings() {
-    const r = await query(`SELECT transport_amount, diligence_amount, updated_at FROM payroll_settings WHERE id = 1`);
+    const r = await query(
+      `SELECT transport_amount, diligence_amount, default_upah_harian, updated_at FROM payroll_settings WHERE id = 1`
+    );
     return (
       r.rows[0] || {
         transport_amount: 250000,
         diligence_amount: 100000,
+        default_upah_harian: 0,
       }
     );
   }
 
-  async updateSettings({ transport_amount, diligence_amount }) {
+  async updateSettings({ transport_amount, diligence_amount, default_upah_harian }) {
     const r = await query(
       `UPDATE payroll_settings
        SET transport_amount = COALESCE($1, transport_amount),
            diligence_amount = COALESCE($2, diligence_amount),
+           default_upah_harian = COALESCE($3, default_upah_harian),
            updated_at = NOW()
        WHERE id = 1
-       RETURNING transport_amount, diligence_amount, updated_at`,
-      [transport_amount ?? null, diligence_amount ?? null]
+       RETURNING transport_amount, diligence_amount, default_upah_harian, updated_at`,
+      [transport_amount ?? null, diligence_amount ?? null, default_upah_harian ?? null]
     );
     return r.rows[0];
   }

@@ -164,6 +164,7 @@ const employeeUpdateValidators = [
 const payrollSettingsValidators = [
   body('transport_amount').optional().isFloat({ min: 0 }),
   body('diligence_amount').optional().isFloat({ min: 0 }),
+  body('default_upah_harian').optional().isFloat({ min: 0 }),
 ];
 
 const payrollPeriodParamValidator = [param('period').matches(/^\d{4}-\d{2}$/)];

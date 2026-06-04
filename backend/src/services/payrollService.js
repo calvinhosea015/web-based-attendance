@@ -13,7 +13,13 @@ const {
   countWorkingDaysMonSatInCycle,
   listPayrollHolidaysInCycle,
 } = require('../utils/payrollPeriod');
-const { ROLES, isAccounting, isGeneralAffairs, isHeadOfFinance } = require('../constants/roles');
+const {
+  ROLES,
+  isAccounting,
+  isGeneralAffairs,
+  isHeadOfFinance,
+  isFieldOfficer,
+} = require('../constants/roles');
 const {
   hasMonthlyBasicPayroll,
   receivesMonthlyAbsenceDeduction,
@@ -633,7 +639,7 @@ class PayrollService {
     if (!employee) return row;
 
     const settings = await this.payrollRepository.getSettings();
-    const upahHarian = resolveUpahHarian(row, employee, role);
+    const upahHarian = resolveUpahHarian(row, employee, role, settings);
     let gajiPokok;
 
     const expectedDays = hasMonthlyBasicPayroll(role)
@@ -751,6 +757,8 @@ class PayrollService {
     return this.payrollRepository.updateSettings({
       transport_amount: payload.transport_amount != null ? num(payload.transport_amount) : null,
       diligence_amount: payload.diligence_amount != null ? num(payload.diligence_amount) : null,
+      default_upah_harian:
+        payload.default_upah_harian != null ? num(payload.default_upah_harian) : null,
     });
   }
 
@@ -844,7 +852,7 @@ class PayrollService {
         bounds.period_end,
         role
       );
-      const upahHarian = resolveUpahHarian(prev, emp, role);
+      const upahHarian = resolveUpahHarian(prev, emp, role, settings);
       const monthlyBasicGross = num(emp.basic_salary);
       let fields = this.buildFieldsFromSources({
         prev,
@@ -1074,7 +1082,7 @@ class PayrollService {
     const upahHarian =
       payload.upah_harian != null
         ? num(payload.upah_harian)
-        : resolveUpahHarian(existing, employee, role);
+        : resolveUpahHarian(existing, employee, role, settings);
     const daysN = await this.resolveDaysAttended(
       empId,
       bounds.period_start,
@@ -1245,7 +1253,7 @@ class PayrollService {
     if (payload.transport_eligible != null) {
       defaultsPayload.transport_eligible = fields.transport_eligible;
     }
-    if (!hasMonthlyBasicPayroll(role) && !headOfFinance) {
+    if (isFieldOfficer(role)) {
       defaultsPayload.upah_harian = upahHarian;
     }
     if (

@@ -96,6 +96,9 @@ export default {
   payrollGlobalSettings: 'Default allowance amounts',
   payrollTransportNominal: 'Default transport allowance (IDR)',
   payrollDiligenceNominal: 'Default diligence bonus (IDR)',
+  payrollDefaultUpahHarian: 'Default daily wage — Field officers (IDR)',
+  payrollDefaultUpahHarianHint:
+    'Field officers only. Used when the employee has no daily wage on their profile yet.',
   payrollSaveSettings: 'Save defaults',
   payrollSettingsSaved: 'Default allowance amounts saved.',
   payrollEmployeeTable: 'Employee payroll',
@@ -113,7 +116,7 @@ export default {
   payrollDaysFromAttendance: 'Counted from check-in records in this pay period (not editable).',
   payrollUpahHarian: 'Daily wage',
   payrollUpahHarianHint:
-    'Saved on the employee profile and reused each month until you change it (e.g. a pay raise).',
+    'Field officers: uses the global default if empty; saved to profile on save. Change here for a raise.',
   payrollMonthlyBasic: 'Monthly salary',
   payrollExpectedWorkDays: 'Required days (Mon–Sat)',
   payrollExpectedWorkDaysManual: 'Set required days manually (for generate/refresh)',
