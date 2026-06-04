@@ -281,9 +281,10 @@ export default {
   accountingWorkStart: 'Work start (custom)',
   accountingWorkEnd: 'Work end (custom)',
   accountingBasicSalary: 'Monthly salary (Rp)',
-  accountingScheduleHint: 'One check-in and check-out per day on your custom schedule.',
+  accountingScheduleHint:
+    'One check-in and check-out per day on your custom hours (not required every day). Absence deduction follows attendance.',
   payrollAccountingHint:
-    'Accounting: full monthly salary, bonus only — no transport, diligence, overtime, tenure, incentive, or absence/late deductions.',
+    'Accounting: monthly pay like office staff (absence, overtime, late, allowances). Custom work hours per employee.',
   employeeCode: 'Employee ID',
   employeeCodeOptional: 'Employee ID (optional — auto-generated if empty)',
   fullName: 'Full name',

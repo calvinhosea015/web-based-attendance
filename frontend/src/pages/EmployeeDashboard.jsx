@@ -771,7 +771,9 @@ export default function EmployeeDashboard() {
                       </dt>
                       <dd className="font-medium text-slate-800">Rp {formatIdr(row.basic_salary)}</dd>
                     </div>
-                    {(row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs') &&
+                    {(row.payroll_mode === 'monthly' ||
+                      row.payroll_mode === 'general_affairs' ||
+                      row.payroll_mode === 'accounting') &&
                       Number(row.absence_deduction || 0) > 0 && (
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-slate-500">

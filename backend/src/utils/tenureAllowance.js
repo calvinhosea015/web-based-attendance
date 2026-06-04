@@ -47,10 +47,10 @@ function tunjanganAsOfForPayrollPeriod(payrollPeriod) {
   return cycleEndDate(payrollPeriod) || new Date();
 }
 
-/** Staff Kantor and Petugas Lapangan only. */
+/** Staff Kantor, Accounting, and Petugas Lapangan. */
 function receivesTunjanganMasaKerja(role) {
-  const { isStaffKantor, isFieldOfficer } = require('../constants/roles');
-  return isStaffKantor(role) || isFieldOfficer(role);
+  const { isStaffKantor, isFieldOfficer, isAccounting } = require('../constants/roles');
+  return isStaffKantor(role) || isAccounting(role) || isFieldOfficer(role);
 }
 
 function resolveTunjanganMasaKerjaForRole(role, joinDate, payrollPeriod) {

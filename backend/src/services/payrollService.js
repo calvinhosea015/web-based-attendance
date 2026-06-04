@@ -159,14 +159,26 @@ function attachPayrollMode(row) {
     };
   }
   if (isAccounting(role)) {
-    const monthlyGross = num(row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary);
+    const expected =
+      row.expected_work_days != null
+        ? row.expected_work_days
+        : countWorkingDaysMonSatInCycle(row.payroll_period);
+    const monthlyGross =
+      row.monthly_basic_gross != null
+        ? num(row.monthly_basic_gross)
+        : num(row.employee_basic_salary);
+    const calc = computeMonthlyStaffPayroll({
+      monthlyBasic: monthlyGross,
+      expectedDays: expected,
+      daysAttended: row.days_attended,
+    });
     return {
       ...row,
       payroll_mode: 'accounting',
-      monthly_basic_gross: monthlyGross,
-      absence_deduction: 0,
-      days_absent: 0,
-      expected_work_days: row.expected_work_days ?? null,
+      monthly_basic_gross: calc.monthly_basic_gross,
+      expected_work_days: calc.expected_work_days,
+      days_absent: calc.days_absent,
+      absence_deduction: calc.absence_deduction,
     };
   }
   if (isGeneralAffairs(role)) {
@@ -453,10 +465,7 @@ class PayrollService {
     let gajiPokok;
     let resolvedUpahHarian = upahHarian;
     let resolvedDays = days;
-    if (isAccounting(role)) {
-      gajiPokok = num(monthlyBasicGross);
-      resolvedUpahHarian = 0;
-    } else if (receivesMonthlyAbsenceDeduction(role)) {
+    if (receivesMonthlyAbsenceDeduction(role)) {
       const expectedDays = this.resolveExpectedWorkDays({
         payrollPeriod,
         existing: prev?.expected_work_days,
@@ -624,8 +633,6 @@ class PayrollService {
     if (!employee) return row;
 
     const settings = await this.payrollRepository.getSettings();
-    const monthlyStaff = isMonthlyOfficeStaff(role);
-    const accounting = isAccounting(role);
     const upahHarian = resolveUpahHarian(row, employee, role);
     let gajiPokok;
 
@@ -636,9 +643,7 @@ class PayrollService {
         })
       : null;
 
-    if (accounting) {
-      gajiPokok = num(employee.basic_salary);
-    } else if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
+    if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
       gajiPokok = computeMonthlyStaffPayroll({
         monthlyBasic: num(employee.basic_salary),
         expectedDays,
@@ -663,9 +668,6 @@ class PayrollService {
         employee,
         expectedDays
       );
-    } else if (accounting) {
-      overtimePay = 0;
-      lateDeduction = 0;
     }
 
     const tunjanganMasaKerja = resolveTunjanganMasaKerjaForRole(
@@ -862,9 +864,7 @@ class PayrollService {
             existing: prev?.expected_work_days,
           })
         : null;
-      if (isAccounting(role)) {
-        fields.basic_salary = monthlyBasicGross;
-      } else if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
+      if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
         fields.basic_salary = computeMonthlyStaffPayroll({
           monthlyBasic: monthlyBasicGross,
           expectedDays,
@@ -941,7 +941,6 @@ class PayrollService {
     const role =
       (await this.payrollRepository.getRoleForEmployee(empId)) || ROLES.EMPLOYEE;
     const monthlyStaff = isMonthlyOfficeStaff(role);
-    const accounting = isAccounting(role);
     const headOfFinance = isHeadOfFinance(role);
 
     const settings = await this.payrollRepository.getSettings();
@@ -968,7 +967,7 @@ class PayrollService {
           employee.join_date,
           bounds.payroll_period
         ),
-        transport_eligible: accounting ? false : Boolean(employee.transport_eligible),
+        transport_eligible: Boolean(employee.transport_eligible),
         overtime_pay: 0,
         insentif: 0,
         diligence_eligible: false,
@@ -1084,14 +1083,7 @@ class PayrollService {
     );
     let gajiPokok;
     let monthlyBasicGross = num(employee.basic_salary);
-    if (accounting) {
-      if (payload.monthly_basic_gross != null) {
-        monthlyBasicGross = num(payload.monthly_basic_gross);
-      } else if (payload.basic_salary != null) {
-        monthlyBasicGross = num(payload.basic_salary);
-      }
-      gajiPokok = monthlyBasicGross;
-    } else if (receivesMonthlyAbsenceDeduction(role)) {
+    if (receivesMonthlyAbsenceDeduction(role)) {
       if (payload.monthly_basic_gross != null) {
         monthlyBasicGross = num(payload.monthly_basic_gross);
       } else if (payload.basic_salary != null) {
@@ -1110,14 +1102,12 @@ class PayrollService {
       gajiPokok = computeGajiPokok(daysN, upahHarian);
     }
 
-    const transportEligible = accounting
-      ? false
-      : payload.transport_eligible != null
+    const transportEligible =
+      payload.transport_eligible != null
         ? Boolean(payload.transport_eligible)
         : resolveTransportEligible(existing, employee);
-    const diligenceEligible = accounting
-      ? false
-      : payload.diligence_eligible != null
+    const diligenceEligible =
+      payload.diligence_eligible != null
         ? Boolean(payload.diligence_eligible)
         : resolveDiligenceEligible(existing);
 
@@ -1163,14 +1153,21 @@ class PayrollService {
         employee,
         expectedDaysForLate
       );
-    } else if (accounting) {
-      lateDeduction = 0;
     }
 
     let overtimePay =
       payload.overtime_pay != null ? num(payload.overtime_pay) : num(existing.overtime_pay);
-    if (accounting) {
-      overtimePay = 0;
+    if (
+      receivesStaffKantorAttendancePayroll(role) &&
+      expectedDaysForLate != null &&
+      payload.overtime_pay == null
+    ) {
+      overtimePay = await this.computeLemburPayForPeriod(
+        empId,
+        bounds,
+        employee,
+        expectedDaysForLate
+      );
     }
 
     const fields = normalizeRolePayrollFields(

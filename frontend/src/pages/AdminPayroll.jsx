@@ -217,15 +217,12 @@ export default function AdminPayroll() {
       ) {
         delete payload.upah_harian;
       }
-      if (editForm.payroll_mode !== 'monthly' && editForm.payroll_mode !== 'general_affairs') {
+      if (
+        editForm.payroll_mode !== 'monthly' &&
+        editForm.payroll_mode !== 'general_affairs' &&
+        editForm.payroll_mode !== 'accounting'
+      ) {
         delete payload.monthly_basic_gross;
-      }
-      if (editForm.payroll_mode === 'accounting') {
-        delete payload.tunjangan_masa_kerja;
-        delete payload.transport_eligible;
-        delete payload.overtime_pay;
-        delete payload.insentif;
-        delete payload.diligence_eligible;
       }
       const { data } = await api.put(paths.adminPayrollEntry(period, editingId), payload);
       setRows((prev) => prev.map((r) => (r.employee_id === data.employee_id ? { ...r, ...data } : r)));
@@ -245,12 +242,13 @@ export default function AdminPayroll() {
   }, [rows]);
 
   const editingRow = rows.find((r) => r.employee_id === editingId);
-  const editIsAccounting = editForm?.payroll_mode === 'accounting';
   const editIsManual = editForm?.payroll_mode === 'manual';
   const editMonthlyPreview = useMemo(() => {
     if (
       !editForm ||
-      (editForm.payroll_mode !== 'monthly' && editForm.payroll_mode !== 'general_affairs')
+      (editForm.payroll_mode !== 'monthly' &&
+        editForm.payroll_mode !== 'general_affairs' &&
+        editForm.payroll_mode !== 'accounting')
     ) {
       return null;
     }
@@ -426,7 +424,9 @@ export default function AdminPayroll() {
                         row.payroll_mode === 'accounting' ? (
                           <div>
                             <div>{row.days_attended ?? 0}</div>
-                            {row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs' ? (
+                            {row.payroll_mode === 'monthly' ||
+                            row.payroll_mode === 'general_affairs' ||
+                            row.payroll_mode === 'accounting' ? (
                               <div className="text-xs text-slate-400">
                                 /{' '}
                                 {row.expected_work_days ??
@@ -460,12 +460,12 @@ export default function AdminPayroll() {
                         <div className="text-xs text-slate-400">
                           {row.payroll_mode === 'manual'
                             ? t('payrollManualMode')
-                            : row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs'
+                            : row.payroll_mode === 'monthly' ||
+                                row.payroll_mode === 'general_affairs' ||
+                                row.payroll_mode === 'accounting'
                               ? t('payrollAbsenceDeduction') +
                                 `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
-                              : row.payroll_mode === 'accounting'
-                                ? t('roleAccounting')
-                                : `${row.days_attended ?? 0} × ${formatIdr(resolveUpahHarianDisplay(row))}`}
+                              : `${row.days_attended ?? 0} × ${formatIdr(resolveUpahHarianDisplay(row))}`}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-rose-600">
@@ -579,35 +579,9 @@ export default function AdminPayroll() {
                 <p className="mt-0.5 text-[10px] text-slate-500">{t('payrollDaysFromAttendance')}</p>
               </div>
             )}
-            {editForm.payroll_mode === 'accounting' ? (
-              <>
-                <CompactField label={t('payrollMonthlyBasic')}>
-                  <input
-                    type="number"
-                    min="0"
-                    className={inputClassCompact}
-                    value={editForm.monthly_basic_gross}
-                    onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        monthly_basic_gross: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </CompactField>
-                <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5 md:col-span-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
-                    {t('payrollBasicSalary')}
-                  </p>
-                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
-                    Rp {formatIdr(editForm.monthly_basic_gross ?? 0)}
-                  </p>
-                </div>
-                <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
-                  {t('payrollAccountingHint')}
-                </p>
-              </>
-            ) : editForm.payroll_mode === 'monthly' || editForm.payroll_mode === 'general_affairs' ? (
+            {editForm.payroll_mode === 'monthly' ||
+            editForm.payroll_mode === 'general_affairs' ||
+            editForm.payroll_mode === 'accounting' ? (
               <>
                 <CompactField label={t('payrollMonthlyBasic')}>
                   <input
@@ -644,7 +618,9 @@ export default function AdminPayroll() {
                   </p>
                 </div>
                 <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
-                  {t('payrollMonthlyFormula')}
+                  {editForm.payroll_mode === 'accounting'
+                    ? t('payrollAccountingHint')
+                    : t('payrollMonthlyFormula')}
                 </p>
               </>
             ) : (
@@ -678,8 +654,7 @@ export default function AdminPayroll() {
                 </div>
               </>
             )}
-            {(!editIsAccounting || editIsManual) && (
-              <>
+            <>
                 <CompactField label={t('payrollTunjanganMasaKerja')}>
                   <input
                     type="number"
@@ -713,8 +688,7 @@ export default function AdminPayroll() {
                     }
                   />
                 </CompactField>
-              </>
-            )}
+            </>
             <CompactField label={t('payrollBonusOmset')}>
               <input
                 type="number"
@@ -779,8 +753,7 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            {(!editIsAccounting || editIsManual) && (
-              <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
+            <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
                 <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
                   <input
                     type="checkbox"
@@ -803,8 +776,7 @@ export default function AdminPayroll() {
                   />
                   {t('payrollDiligenceEligible')}
                 </label>
-              </div>
-            )}
+            </div>
             <CompactField label={t('payrollKeterangan')} className="col-span-2 md:col-span-4">
               <input
                 type="text"

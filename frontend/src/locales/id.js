@@ -283,9 +283,10 @@ export default {
   accountingWorkStart: 'Jam mulai kerja (kustom)',
   accountingWorkEnd: 'Jam selesai kerja (kustom)',
   accountingBasicSalary: 'Gaji bulanan (Rp)',
-  accountingScheduleHint: 'Satu absen masuk dan keluar per hari sesuai jadwal kustom Anda.',
+  accountingScheduleHint:
+    'Satu absen masuk dan keluar per hari sesuai jam kerja kustom (tidak wajib setiap hari). Potongan absen mengikuti kehadiran.',
   payrollAccountingHint:
-    'Accounting: gaji bulanan penuh, hanya bonus — tanpa transport, kerajinan, lembur, masa kerja, insentif, atau potongan absen/terlambat.',
+    'Accounting: gaji bulanan seperti Staff Kantor (potongan absen, lembur, terlambat, tunjangan). Jam kerja kustom per karyawan.',
   employeeCode: 'ID karyawan',
   employeeCodeOptional: 'ID karyawan (opsional — dibuat otomatis jika kosong)',
   fullName: 'Nama lengkap',

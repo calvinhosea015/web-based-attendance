@@ -171,7 +171,9 @@ function slipAmounts(row) {
     settingsDiligenceAmount: row.settings_diligence_amount,
   });
   const monthlyStaff =
-    row.payroll_mode === 'monthly' || row.payroll_mode === 'general_affairs';
+    row.payroll_mode === 'monthly' ||
+    row.payroll_mode === 'general_affairs' ||
+    row.payroll_mode === 'accounting';
   const monthlyGross =
     row.monthly_basic_gross != null
       ? num(row.monthly_basic_gross)
@@ -181,7 +183,7 @@ function slipAmounts(row) {
   let gajiLine;
   if (monthlyStaff) {
     gajiLine = monthlyGross;
-  } else if (row.payroll_mode === 'accounting' || row.payroll_mode === 'manual') {
+  } else if (row.payroll_mode === 'manual') {
     gajiLine = num(row.basic_salary);
   } else {
     gajiLine = num(row.upah_harian);

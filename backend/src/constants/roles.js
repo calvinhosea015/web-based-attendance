@@ -7,7 +7,7 @@ const ROLES = {
   FIELD_OFFICER: 'field_officer',
   /** Umum — one check-in per day; no checkout; remote + geolocation on check-in */
   UMUM: 'umum',
-  /** Accounting — monthly gaji pokok; custom work hours per user; simplified payroll */
+  /** Accounting — monthly gaji like Staff Kantor; custom work hours; potongan absen from attendance */
   ACCOUNTING: 'accounting',
   /** General Affairs — one in/out per day; monthly gaji; potongan absen = gaji/hari kerja × hari absen */
   GENERAL_AFFAIRS: 'general_affairs',

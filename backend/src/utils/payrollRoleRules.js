@@ -6,37 +6,21 @@ function hasMonthlyBasicPayroll(role) {
 
 /** Monthly gaji with potongan absen = gaji / hari kerja × hari absen. */
 function receivesMonthlyAbsenceDeduction(role) {
-  return isStaffKantor(role) || isGeneralAffairs(role);
+  return isStaffKantor(role) || isGeneralAffairs(role) || isAccounting(role);
 }
 
-/** Staff Kantor only — auto lembur, auto potongan terlambat. */
+/** Staff Kantor & Accounting — auto lembur, auto potongan terlambat (custom jam masuk). */
 function receivesStaffKantorAttendancePayroll(role) {
-  return isStaffKantor(role);
+  return isStaffKantor(role) || isAccounting(role);
 }
 
-function applyAccountingPayrollFields(fields) {
-  return {
-    ...fields,
-    tunjangan_masa_kerja: 0,
-    transport_eligible: false,
-    transport_allowance_amount: 0,
-    overtime_pay: 0,
-    insentif: 0,
-    diligence_eligible: false,
-    diligence_allowance_amount: 0,
-    late_deduction: 0,
-  };
-}
-
-function normalizeRolePayrollFields(fields, role) {
-  if (!isAccounting(role)) return fields;
-  return applyAccountingPayrollFields(fields);
+function normalizeRolePayrollFields(fields, _role) {
+  return fields;
 }
 
 module.exports = {
   hasMonthlyBasicPayroll,
   receivesMonthlyAbsenceDeduction,
   receivesStaffKantorAttendancePayroll,
-  applyAccountingPayrollFields,
   normalizeRolePayrollFields,
 };
