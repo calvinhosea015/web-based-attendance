@@ -5,6 +5,7 @@ import { ensureCsrf } from './api/client.js';
 import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPayroll from './pages/AdminPayroll.jsx';
+import AdminFieldDashboard from './pages/AdminFieldDashboard.jsx';
 import AdminLoans from './pages/AdminLoans.jsx';
 import AdminLeave from './pages/AdminLeave.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
@@ -86,6 +87,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/payroll" element={<AdminPayroll />} />
+          <Route path="/admin/field" element={<AdminFieldDashboard />} />
           <Route path="/admin/loans" element={<AdminLoans />} />
           <Route path="/admin/leave" element={<AdminLeave />} />
           <Route path="/employee" element={<EmployeeDashboard />} />

@@ -155,6 +155,12 @@ export default {
   payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (tonase × selisih × 2%).',
   payrollBonusFieldOfficerHint:
     'From delivery codes: tonase per item (factory + item code) × selisih (gross − net weight) × 2%. Can override manually.',
+  fieldOpsDashboardTitle: 'Field operations',
+  fieldOpsDashboardSubtitle:
+    'Factories & item codes, tonase rates, and field officer omset from delivery codes — one place.',
+  fieldOpsPeriodTitle: 'Payroll period',
+  fieldOpsPeriodHint: 'Omset report uses this month. Factories and tonase apply to all periods.',
+  fieldOpsRefreshAll: 'Refresh all',
   pabrikCatalogTitle: 'Factories & item codes',
   pabrikCatalogHint:
     'Kode pabrik 1–12 and item codes from your reference table are pre-loaded. Petugas lapangan use kode pabrik (e.g. 1) in delivery codes. Set Google Maps per factory.',

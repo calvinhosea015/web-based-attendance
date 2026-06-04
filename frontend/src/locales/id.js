@@ -155,6 +155,13 @@ export default {
   payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (tonase × selisih × 2%).',
   payrollBonusFieldOfficerHint:
     'Di-generate dari kode pengiriman: tonase per item (pabrik + kode barang) × selisih (kotor − berat bersih) × 2%. Bisa di-override manual.',
+  fieldOpsDashboardTitle: 'Operasi lapangan',
+  fieldOpsDashboardSubtitle:
+    'Pabrik & kode barang, tonase bonus, dan omset petugas lapangan dari kode pengiriman — dalam satu halaman.',
+  fieldOpsPeriodTitle: 'Periode gaji',
+  fieldOpsPeriodHint:
+    'Laporan omset memakai bulan ini. Pabrik dan tonase berlaku untuk semua periode.',
+  fieldOpsRefreshAll: 'Muat ulang semua',
   pabrikCatalogTitle: 'Pabrik & kode barang',
   pabrikCatalogHint:
     'Kode pabrik 1–12 dan kode barang dari tabel referensi sudah dimuat. Petugas lapangan memakai kode pabrik (mis. 1) di kode pengiriman. Isi Google Maps per pabrik secara manual.',

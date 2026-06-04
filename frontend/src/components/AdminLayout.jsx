@@ -14,6 +14,12 @@ const NAV = [
     pendingKey: null,
   },
   {
+    to: '/admin/field',
+    labelKey: 'fieldOpsDashboardTitle',
+    match: (p) => p.startsWith('/admin/field'),
+    pendingKey: null,
+  },
+  {
     to: '/admin/loans',
     labelKey: 'loanAdminTitle',
     match: (p) => p.startsWith('/admin/loans'),

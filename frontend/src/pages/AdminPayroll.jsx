@@ -67,17 +67,6 @@ export default function AdminPayroll() {
   const [payrollHolidays, setPayrollHolidays] = useState([]);
   const [manualRequiredDays, setManualRequiredDays] = useState('');
   const [apiBuildSha, setApiBuildSha] = useState(null);
-  const [pabriks, setPabriks] = useState([]);
-  const [pabrikRates, setPabrikRates] = useState([]);
-  const [pabrikMapsDraft, setPabrikMapsDraft] = useState({});
-  const [pabrikMapsSavingId, setPabrikMapsSavingId] = useState(null);
-  const [expandedPabrikCode, setExpandedPabrikCode] = useState(null);
-  const [pabrikForm, setPabrikForm] = useState({
-    pabrik_code: '',
-    kode_barang: '',
-    tonase_per_item: '',
-  });
-  const [pabrikSaving, setPabrikSaving] = useState(false);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -152,30 +141,6 @@ export default function AdminPayroll() {
     setPeriodCycleLabel(payrollCycleLabel(period));
   }, [period]);
 
-  const loadPabriks = useCallback(async () => {
-    try {
-      const { data } = await api.get(paths.adminPabriks);
-      const list = Array.isArray(data?.pabriks) ? data.pabriks : [];
-      setPabriks(list);
-      setPabrikMapsDraft(
-        Object.fromEntries(list.map((p) => [p.id, p.google_maps_url || '']))
-      );
-      setPabrikRates(
-        list.flatMap((p) =>
-          (p.items || []).map((item) => ({
-            ...item,
-            pabrik_code: p.pabrik_code,
-            nama_pabrik: p.nama_pabrik,
-          }))
-        )
-      );
-    } catch {
-      setPabriks([]);
-      setPabrikRates([]);
-      setPabrikMapsDraft({});
-    }
-  }, []);
-
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token || localStorage.getItem('role') !== 'admin') {
@@ -183,8 +148,7 @@ export default function AdminPayroll() {
       return;
     }
     loadPeriod();
-    loadPabriks();
-  }, [navigate, loadPeriod, loadPabriks]);
+  }, [navigate, loadPeriod]);
 
   useEffect(() => {
     const host = apiHostForHealth();
@@ -197,71 +161,6 @@ export default function AdminPayroll() {
       })
       .catch(() => setApiBuildSha(null));
   }, []);
-
-  const pabrikItemOptions = useMemo(() => {
-    const pabrik = pabriks.find((p) => p.pabrik_code === pabrikForm.pabrik_code);
-    return (pabrik?.items || []).map((item) => item.kode_barang);
-  }, [pabriks, pabrikForm.pabrik_code]);
-
-  const handleSavePabrikMaps = async (pabrikId) => {
-    setPabrikMapsSavingId(pabrikId);
-    notify('');
-    try {
-      await ensureCsrf();
-      await api.put(paths.adminPabrik(pabrikId), {
-        google_maps_url: pabrikMapsDraft[pabrikId] || null,
-      });
-      await loadPabriks();
-      notify(t('pabrikMapsSaved'), 'success');
-    } catch (err) {
-      notify(translateApiMessage(err) || String(err), 'error');
-    } finally {
-      setPabrikMapsSavingId(null);
-    }
-  };
-
-  const handleSavePabrikRate = async (e) => {
-    e.preventDefault();
-    setPabrikSaving(true);
-    notify('');
-    try {
-      await ensureCsrf();
-      const payload = {
-        pabrik_code: pabrikForm.pabrik_code.trim(),
-        kode_barang: pabrikForm.kode_barang.trim(),
-        tonase_per_item: Number(pabrikForm.tonase_per_item) || 0,
-      };
-      const existing = pabrikRates.find(
-        (r) =>
-          r.pabrik_code === payload.pabrik_code &&
-          r.kode_barang.toUpperCase() === payload.kode_barang.toUpperCase()
-      );
-      if (existing?.id) {
-        await api.put(`${paths.adminPabrikItemRates}/${existing.id}`, payload);
-      } else {
-        await api.post(paths.adminPabrikItemRates, payload);
-      }
-      setPabrikForm((f) => ({ ...f, kode_barang: '', tonase_per_item: '' }));
-      await loadPabriks();
-      notify(t('pabrikRateSaved'), 'success');
-    } catch (err) {
-      notify(translateApiMessage(err) || String(err), 'error');
-    } finally {
-      setPabrikSaving(false);
-    }
-  };
-
-  const handleDeletePabrikRate = async (id) => {
-    notify('');
-    try {
-      await ensureCsrf();
-      await api.delete(`${paths.adminPabrikItemRates}/${id}`);
-      await loadPabriks();
-      notify(t('pabrikRateDeleted'), 'success');
-    } catch (err) {
-      notify(translateApiMessage(err) || String(err), 'error');
-    }
-  };
 
   const handleSaveSettings = async (e) => {
     e.preventDefault();
@@ -432,9 +331,9 @@ export default function AdminPayroll() {
         <>
           <Button
             variant="secondary"
-            onClick={() => navigate(`/finance/field-omset?period=${period}`)}
+            onClick={() => navigate(`/admin/field?period=${period}`)}
           >
-            {t('fieldOmsetReportTitle')}
+            {t('fieldOpsDashboardTitle')}
           </Button>
           <Button
             variant="secondary"
@@ -563,208 +462,6 @@ export default function AdminPayroll() {
               </form>
             </Card>
           </div>
-
-          <Card title={t('pabrikCatalogTitle')} description={t('pabrikCatalogHint')}>
-            {pabriks.length === 0 ? (
-              <p className="text-sm text-slate-600">{t('pabrikCatalogEmpty')}</p>
-            ) : (
-              <div className="space-y-3">
-                {pabriks.map((pabrik) => (
-                  <div
-                    key={pabrik.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {pabrik.pabrik_code} — {pabrik.nama_pabrik}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          {t('pabrikItemCount', { count: pabrik.items?.length ?? 0 })}
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setExpandedPabrikCode((c) =>
-                            c === pabrik.pabrik_code ? null : pabrik.pabrik_code
-                          )
-                        }
-                      >
-                        {expandedPabrikCode === pabrik.pabrik_code
-                          ? t('pabrikHideItems')
-                          : t('pabrikShowItems')}
-                      </Button>
-                    </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <Field label={t('pabrikGoogleMaps')}>
-                        <input
-                          className={inputClass}
-                          type="url"
-                          placeholder={t('pabrikGoogleMapsPlaceholder')}
-                          value={pabrikMapsDraft[pabrik.id] ?? ''}
-                          onChange={(e) =>
-                            setPabrikMapsDraft((d) => ({
-                              ...d,
-                              [pabrik.id]: e.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <div className="flex items-end gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={pabrikMapsSavingId === pabrik.id}
-                          onClick={() => handleSavePabrikMaps(pabrik.id)}
-                        >
-                          {pabrikMapsSavingId === pabrik.id
-                            ? t('loading')
-                            : t('pabrikSaveMaps')}
-                        </Button>
-                        {pabrikMapsDraft[pabrik.id] ? (
-                          <a
-                            href={pabrikMapsDraft[pabrik.id]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700"
-                          >
-                            {t('pabrikOpenMaps')}
-                          </a>
-                        ) : null}
-                      </div>
-                    </div>
-                    {expandedPabrikCode === pabrik.pabrik_code && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {(pabrik.items || []).map((item) => (
-                          <span
-                            key={`${pabrik.pabrik_code}-${item.kode_barang}`}
-                            className={`rounded-md border px-2 py-0.5 text-xs ${
-                              Number(item.tonase_per_item) > 0
-                                ? 'border-brand-200 bg-brand-50 text-brand-800'
-                                : 'border-slate-200 bg-white text-slate-600'
-                            }`}
-                            title={
-                              Number(item.tonase_per_item) > 0
-                                ? `${t('pabrikItemTonase')}: ${item.tonase_per_item}`
-                                : t('pabrikTonaseNotSet')
-                            }
-                          >
-                            {item.kode_barang}
-                            {Number(item.tonase_per_item) > 0
-                              ? ` (${item.tonase_per_item})`
-                              : ''}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card title={t('pabrikItemRatesTitle')} description={t('pabrikItemRatesHint')}>
-            <form className="mb-4 grid gap-3 sm:grid-cols-4" onSubmit={handleSavePabrikRate}>
-              <Field label={t('pabrikItemPabrikCode')}>
-                <select
-                  className={inputClass}
-                  value={pabrikForm.pabrik_code}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({
-                      ...f,
-                      pabrik_code: e.target.value,
-                      kode_barang: '',
-                    }))
-                  }
-                  required
-                >
-                  <option value="">{t('pabrikSelectCode')}</option>
-                  {pabriks.map((p) => (
-                    <option key={p.id} value={p.pabrik_code}>
-                      {p.pabrik_code} — {p.nama_pabrik}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t('pabrikItemKodeBarang')}>
-                <input
-                  className={inputClass}
-                  list="pabrik-kode-barang-options"
-                  value={pabrikForm.kode_barang}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({ ...f, kode_barang: e.target.value }))
-                  }
-                  required
-                />
-                <datalist id="pabrik-kode-barang-options">
-                  {pabrikItemOptions.map((code) => (
-                    <option key={code} value={code} />
-                  ))}
-                </datalist>
-              </Field>
-              <Field label={t('pabrikItemTonase')}>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  className={inputClass}
-                  value={pabrikForm.tonase_per_item}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({ ...f, tonase_per_item: e.target.value }))
-                  }
-                  required
-                />
-              </Field>
-              <div className="flex items-end">
-                <Button type="submit" variant="primary" disabled={pabrikSaving}>
-                  {pabrikSaving ? t('loading') : t('pabrikItemSaveTonase')}
-                </Button>
-              </div>
-            </form>
-            {pabrikRates.length === 0 ? (
-              <p className="text-sm text-slate-600">{t('pabrikItemRatesEmpty')}</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                      <th className="px-2 py-2">{t('pabrikItemPabrikCode')}</th>
-                      <th className="px-2 py-2">{t('pabrikNama')}</th>
-                      <th className="px-2 py-2">{t('pabrikItemKodeBarang')}</th>
-                      <th className="px-2 py-2 text-right">{t('pabrikItemTonase')}</th>
-                      <th className="px-2 py-2 text-right">{t('status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pabrikRates.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-100">
-                        <td className="px-2 py-2 font-medium">{row.pabrik_code}</td>
-                        <td className="px-2 py-2 text-slate-600">{row.nama_pabrik}</td>
-                        <td className="px-2 py-2">{row.kode_barang}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">
-                          {row.tonase_per_item}
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleDeletePabrikRate(row.id)}
-                          >
-                            {t('delete')}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
 
           <Card className="flex flex-col" title={t('payrollEmployeeTable')}>
             <div className="-mx-5 -mb-4 max-h-[min(65vh,calc(100vh-16rem))] overflow-auto sm:-mx-6">
