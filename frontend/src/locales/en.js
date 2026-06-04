@@ -112,6 +112,8 @@ export default {
   payrollDaysAttended: 'Days attended',
   payrollDaysFromAttendance: 'Counted from check-in records in this pay period (not editable).',
   payrollUpahHarian: 'Daily wage',
+  payrollUpahHarianHint:
+    'Saved on the employee profile and reused each month until you change it (e.g. a pay raise).',
   payrollMonthlyBasic: 'Monthly salary',
   payrollExpectedWorkDays: 'Required days (Mon–Sat)',
   payrollExpectedWorkDaysManual: 'Set required days manually (for generate/refresh)',

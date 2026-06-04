@@ -35,6 +35,7 @@ const {
   resolveDiligenceEligible,
   resolveAllowanceRateFields,
 } = require('../utils/payrollAllowances');
+const { resolveUpahHarian } = require('../utils/payrollUpahHarian');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -625,7 +626,7 @@ class PayrollService {
     const settings = await this.payrollRepository.getSettings();
     const monthlyStaff = isMonthlyOfficeStaff(role);
     const accounting = isAccounting(role);
-    const upahHarian = hasMonthlyBasicPayroll(role) ? 0 : num(row.upah_harian ?? employee.upah_harian);
+    const upahHarian = resolveUpahHarian(row, employee, role);
     let gajiPokok;
 
     const expectedDays = hasMonthlyBasicPayroll(role)
@@ -841,11 +842,7 @@ class PayrollService {
         bounds.period_end,
         role
       );
-      const upahHarian = hasMonthlyBasicPayroll(role)
-        ? 0
-        : prev?.upah_harian != null
-          ? num(prev.upah_harian)
-          : num(emp.upah_harian);
+      const upahHarian = resolveUpahHarian(prev, emp, role);
       const monthlyBasicGross = num(emp.basic_salary);
       let fields = this.buildFieldsFromSources({
         prev,
@@ -1075,11 +1072,10 @@ class PayrollService {
       );
     }
 
-    const upahHarian = hasMonthlyBasicPayroll(role)
-      ? 0
-      : payload.upah_harian != null
+    const upahHarian =
+      payload.upah_harian != null
         ? num(payload.upah_harian)
-        : num(existing.upah_harian ?? employee.upah_harian);
+        : resolveUpahHarian(existing, employee, role);
     const daysN = await this.resolveDaysAttended(
       empId,
       bounds.period_start,
@@ -1252,7 +1248,9 @@ class PayrollService {
     if (payload.transport_eligible != null) {
       defaultsPayload.transport_eligible = fields.transport_eligible;
     }
-    if (payload.upah_harian != null) defaultsPayload.upah_harian = upahHarian;
+    if (!hasMonthlyBasicPayroll(role) && !headOfFinance) {
+      defaultsPayload.upah_harian = upahHarian;
+    }
     if (
       hasMonthlyBasicPayroll(role) &&
       (payload.monthly_basic_gross != null || payload.basic_salary != null)

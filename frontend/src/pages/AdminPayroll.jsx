@@ -23,6 +23,7 @@ import {
   countWorkingDaysMonSatInCycle,
   previewMonthlyStaffPayroll,
 } from '../utils/payrollPeriod.js';
+import { resolveUpahHarianDisplay } from '../utils/payrollDisplay.js';
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
@@ -181,7 +182,7 @@ export default function AdminPayroll() {
       days_attended: row.days_attended ?? 0,
       monthly_basic_gross:
         row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary ?? 0,
-      upah_harian: row.upah_harian ?? row.employee_upah_harian ?? 0,
+      upah_harian: resolveUpahHarianDisplay(row),
       tunjangan_masa_kerja: row.tunjangan_masa_kerja ?? 0,
       transport_eligible: Boolean(row.transport_eligible),
       overtime_pay: row.overtime_pay ?? 0,
@@ -449,7 +450,7 @@ export default function AdminPayroll() {
                             <div className="text-xs text-slate-400">{t('payrollMonthlyBasic')}</div>
                           </div>
                         ) : (
-                          formatIdr(row.upah_harian)
+                          formatIdr(resolveUpahHarianDisplay(row))
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -464,7 +465,7 @@ export default function AdminPayroll() {
                                 `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
                               : row.payroll_mode === 'accounting'
                                 ? t('roleAccounting')
-                                : `${row.days_attended ?? 0} × ${formatIdr(row.upah_harian)}`}
+                                : `${row.days_attended ?? 0} × ${formatIdr(resolveUpahHarianDisplay(row))}`}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-rose-600">
@@ -538,16 +539,6 @@ export default function AdminPayroll() {
             className="grid grid-cols-2 gap-x-3 gap-y-2 md:grid-cols-4"
             onSubmit={handleSaveRow}
           >
-            <CompactField label={t('payrollKeterangan')} className="col-span-2 md:col-span-4">
-              <input
-                type="text"
-                className={inputClassCompact}
-                maxLength={500}
-                placeholder={t('payrollKeteranganHint')}
-                value={editForm.keterangan}
-                onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
-              />
-            </CompactField>
             {editIsManual ? (
               <>
                 <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
@@ -658,7 +649,11 @@ export default function AdminPayroll() {
               </>
             ) : (
               <>
-                <CompactField label={t('payrollUpahHarian')}>
+                <CompactField
+                  label={t('payrollUpahHarian')}
+                  hint={t('payrollUpahHarianHint')}
+                  className="col-span-2 md:col-span-2"
+                >
                   <input
                     type="number"
                     min="0"
@@ -810,6 +805,16 @@ export default function AdminPayroll() {
                 </label>
               </div>
             )}
+            <CompactField label={t('payrollKeterangan')} className="col-span-2 md:col-span-4">
+              <input
+                type="text"
+                className={inputClassCompact}
+                maxLength={500}
+                placeholder={t('payrollKeteranganHint')}
+                value={editForm.keterangan}
+                onChange={(e) => setEditForm((f) => ({ ...f, keterangan: e.target.value }))}
+              />
+            </CompactField>
             {editingRow?.has_active_loan && (
               <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
                 {t('payrollActiveLoanHint', {

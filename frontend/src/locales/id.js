@@ -112,6 +112,8 @@ export default {
   payrollDaysAttended: 'Hari hadir',
   payrollDaysFromAttendance: 'Dihitung dari data absen masuk dalam periode gaji ini (tidak dapat diubah manual).',
   payrollUpahHarian: 'Upah harian',
+  payrollUpahHarianHint:
+    'Disimpan di profil karyawan dan dipakai otomatis setiap bulan sampai Anda mengubahnya (misalnya kenaikan gaji).',
   payrollMonthlyBasic: 'Gaji bulanan',
   payrollExpectedWorkDays: 'Hari wajib masuk (Sen–Sab)',
   payrollExpectedWorkDaysManual: 'Atur manual hari wajib masuk (untuk generate/perbarui)',
