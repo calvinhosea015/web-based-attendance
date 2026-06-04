@@ -126,8 +126,15 @@ export const paths = {
     `/v1/admin/payroll/periods/${period}/employees/${employeeId}/slip/export`,
   /** @param {string} period */
   adminPayrollSlipsAll: (period) => `/v1/admin/payroll/periods/${period}/slips/export`,
+  /** @param {string} period YYYY-MM */
+  financeFieldOmset: (period) => `/v1/finance/field-omset/periods/${period}`,
   employeeLoans: '/v1/employee/me/loans',
   employeeFieldCode: '/v1/employee/me/field-code',
+  employeeFieldDeliveriesToday: '/v1/employee/me/field-deliveries/today',
+  adminPabriks: '/v1/admin/pabriks',
+  /** @param {string|number} id */
+  adminPabrik: (id) => `/v1/admin/pabriks/${id}`,
+  adminPabrikItemRates: '/v1/admin/pabrik-item-rates',
   employeeFieldDeliveries: '/v1/employee/field-deliveries',
   adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
   adminLoanRequests: '/v1/admin/loan-requests',

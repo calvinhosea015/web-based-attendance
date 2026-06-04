@@ -19,6 +19,7 @@ import {
   isAccountingRole,
   isGeneralAffairsRole,
   isHeadOfFinanceRole,
+  usesMultipleOfficesRole,
   requiresFullName,
 } from '../roles.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
@@ -62,6 +63,7 @@ export default function AdminDashboard() {
     password: '',
     role: 'employee',
     office_id: '',
+    office_ids: [],
     full_name: '',
     remote_work_allowed: true,
     join_date: '',
@@ -169,7 +171,14 @@ export default function AdminDashboard() {
         ? Number(newUser.office_id)
         : NaN;
     const officeOk = Number.isFinite(parsedOffice) && parsedOffice >= 1;
-    if (isAttendanceRole(newUser.role) && !officeOk) {
+    const fieldOfficeIds = (newUser.office_ids || [])
+      .map((id) => Number(id))
+      .filter((n) => Number.isFinite(n) && n >= 1);
+    if (usesMultipleOfficesRole(newUser.role) && fieldOfficeIds.length < 1) {
+      setMessage(t('fieldOfficerOfficesRequired'));
+      return;
+    }
+    if (isAttendanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role) && !officeOk) {
       setMessage(t('officeRequiredEmployee'));
       return;
     }
@@ -194,8 +203,13 @@ export default function AdminDashboard() {
         role: newUser.role,
         full_name: newUser.full_name?.trim() || undefined,
       };
-      if (officeOk) payload.office_id = parsedOffice;
-      if (isAttendanceRole(newUser.role)) {
+      if (usesMultipleOfficesRole(newUser.role)) {
+        payload.office_ids = fieldOfficeIds;
+        payload.office_id = fieldOfficeIds[0];
+      } else if (officeOk) {
+        payload.office_id = parsedOffice;
+      }
+      if (isAttendanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role)) {
         payload.office_id = parsedOffice;
         payload.remote_work_allowed = Boolean(newUser.remote_work_allowed);
         if (newUser.join_date) payload.join_date = newUser.join_date;
@@ -218,6 +232,7 @@ export default function AdminDashboard() {
         password: '',
         role: 'employee',
         office_id: offices.length ? String(offices[0].id) : '',
+        office_ids: [],
         full_name: '',
         remote_work_allowed: true,
         join_date: '',
@@ -249,6 +264,11 @@ export default function AdminDashboard() {
       username: user.username,
       role: user.role,
       office_id: user.office_id != null ? String(user.office_id) : '',
+      office_ids: Array.isArray(user.office_ids)
+        ? user.office_ids.map(String)
+        : user.office_id != null
+          ? [String(user.office_id)]
+          : [],
       full_name: user.full_name || '',
       remote_work_allowed: user.remote_work_allowed !== false,
       join_date: toDateInputValue(user.join_date),
@@ -283,12 +303,23 @@ export default function AdminDashboard() {
           setMessage(t('fullNameRequired'));
           return;
         }
-        if (!editingUser.office_id) {
+        if (usesMultipleOfficesRole(editingUser.role)) {
+          const ids = (editingUser.office_ids || [])
+            .map((id) => Number(id))
+            .filter((n) => Number.isFinite(n) && n >= 1);
+          if (ids.length < 1) {
+            setMessage(t('fieldOfficerOfficesRequired'));
+            return;
+          }
+          body.office_ids = ids;
+          body.office_id = ids[0];
+        } else if (!editingUser.office_id) {
           setMessage(t('officeRequiredEmployee'));
           return;
+        } else {
+          body.office_id = Number(editingUser.office_id);
         }
         body.full_name = fn;
-        body.office_id = Number(editingUser.office_id);
         body.remote_work_allowed = Boolean(editingUser.remote_work_allowed);
         body.join_date = editingUser.join_date || null;
         body.birthday = editingUser.birthday || null;
@@ -453,7 +484,16 @@ export default function AdminDashboard() {
             <select
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={newUser.role}
-              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              onChange={(e) => {
+                const role = e.target.value;
+                setNewUser((prev) => {
+                  const next = { ...prev, role };
+                  if (usesMultipleOfficesRole(role) && !(prev.office_ids?.length) && prev.office_id) {
+                    next.office_ids = [String(prev.office_id)];
+                  }
+                  return next;
+                });
+              }}
             >
               <option value="employee">{t('roleEmployee')}</option>
               <option value="field_officer">{t('roleFieldOfficer')}</option>
@@ -575,23 +615,63 @@ export default function AdminDashboard() {
                 </label>
               </div>
             )}
-            {!isHeadOfFinanceRole(newUser.role) && (
-              <select
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={newUser.office_id}
-                onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
-              >
-                {offices.length ? (
-                  offices.map((office) => (
-                    <option key={office.id} value={office.id}>
-                      {office.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">{t('noOfficesAvailable')}</option>
-                )}
-              </select>
-            )}
+            {!isHeadOfFinanceRole(newUser.role) &&
+              (usesMultipleOfficesRole(newUser.role) ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-600">{t('fieldOfficerOfficesLabel')}</p>
+                  {offices.length ? (
+                    <div className="max-h-40 space-y-1.5 overflow-y-auto">
+                      {offices.map((office) => {
+                        const idStr = String(office.id);
+                        const checked = (newUser.office_ids || []).includes(idStr);
+                        return (
+                          <label
+                            key={office.id}
+                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setNewUser((prev) => {
+                                  const set = new Set(prev.office_ids || []);
+                                  if (set.has(idStr)) set.delete(idStr);
+                                  else set.add(idStr);
+                                  const office_ids = [...set];
+                                  return {
+                                    ...prev,
+                                    office_ids,
+                                    office_id: office_ids[0] || '',
+                                  };
+                                });
+                              }}
+                            />
+                            {office.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">{t('noOfficesAvailable')}</p>
+                  )}
+                </div>
+              ) : (
+                <select
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={newUser.office_id}
+                  onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
+                >
+                  {offices.length ? (
+                    offices.map((office) => (
+                      <option key={office.id} value={office.id}>
+                        {office.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">{t('noOfficesAvailable')}</option>
+                  )}
+                </select>
+              ))}
             <button
               type="submit"
               className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-500"
@@ -654,13 +734,19 @@ export default function AdminDashboard() {
                       value={editingUser.role}
                       onChange={(e) => {
                         const role = e.target.value;
-                        setEditingUser((prev) => ({
-                          ...prev,
-                          role,
-                          ...(isAttendanceRole(role) && !isAttendanceRole(prev.role)
-                            ? { remote_work_allowed: true }
-                            : {}),
-                        }));
+                        setEditingUser((prev) => {
+                          const next = {
+                            ...prev,
+                            role,
+                            ...(isAttendanceRole(role) && !isAttendanceRole(prev.role)
+                              ? { remote_work_allowed: true }
+                              : {}),
+                          };
+                          if (usesMultipleOfficesRole(role) && !(prev.office_ids?.length)) {
+                            next.office_ids = prev.office_id ? [String(prev.office_id)] : [];
+                          }
+                          return next;
+                        });
                       }}
                     >
                       <option value="employee">{t('roleEmployee')}</option>
@@ -671,20 +757,62 @@ export default function AdminDashboard() {
                       <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
                       <option value="admin">{t('roleAdmin')}</option>
                     </select>
-                    {!isHeadOfFinanceRole(editingUser.role) && (
-                      <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
-                        value={editingUser.office_id}
-                        onChange={(e) => setEditingUser({ ...editingUser, office_id: e.target.value })}
-                      >
-                        <option value="">{offices.length ? t('selectOffice') : t('noOfficesAvailable')}</option>
-                        {offices.map((office) => (
-                          <option key={office.id} value={office.id}>
-                            {office.name}
+                    {!isHeadOfFinanceRole(editingUser.role) &&
+                      (usesMultipleOfficesRole(editingUser.role) ? (
+                        <div className="rounded-md border border-slate-200 bg-slate-50/80 p-2">
+                          <p className="mb-1 text-[10px] font-medium uppercase text-slate-500">
+                            {t('fieldOfficerOfficesLabel')}
+                          </p>
+                          <div className="max-h-32 space-y-1 overflow-y-auto">
+                            {offices.map((office) => {
+                              const idStr = String(office.id);
+                              const checked = (editingUser.office_ids || []).includes(idStr);
+                              return (
+                                <label
+                                  key={office.id}
+                                  className="flex cursor-pointer items-center gap-2 text-xs text-slate-800"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setEditingUser((prev) => {
+                                        const set = new Set(prev.office_ids || []);
+                                        if (set.has(idStr)) set.delete(idStr);
+                                        else set.add(idStr);
+                                        const office_ids = [...set];
+                                        return {
+                                          ...prev,
+                                          office_ids,
+                                          office_id: office_ids[0] || '',
+                                        };
+                                      });
+                                    }}
+                                  />
+                                  {office.name}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <select
+                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          value={editingUser.office_id}
+                          onChange={(e) =>
+                            setEditingUser({ ...editingUser, office_id: e.target.value })
+                          }
+                        >
+                          <option value="">
+                            {offices.length ? t('selectOffice') : t('noOfficesAvailable')}
                           </option>
-                        ))}
-                      </select>
-                    )}
+                          {offices.map((office) => (
+                            <option key={office.id} value={office.id}>
+                              {office.name}
+                            </option>
+                          ))}
+                        </select>
+                      ))}
                     {isAttendanceRole(editingUser.role) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700">
                         <input

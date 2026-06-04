@@ -70,8 +70,8 @@ function normalizeRequiredWorkDays(value) {
   return Math.max(0, Math.floor(n));
 }
 
-/** Gaji pokok = hari kerja × upah harian (Petugas Lapangan / Umum). */
-function computeGajiPokok(daysAttended, upahHarian) {
+/** Gaji = hari kerja × upah harian (Petugas Lapangan / Umum). */
+function computeGaji(daysAttended, upahHarian) {
   const days = Math.max(0, Math.floor(num(daysAttended)));
   return days * num(upahHarian);
 }
@@ -333,13 +333,102 @@ class PayrollService {
     employeeRepository,
     loanRequestRepository,
     leaveRequestRepository,
-    attendanceRepository
+    attendanceRepository,
+    fieldDeliveryRepository = null
   ) {
     this.payrollRepository = payrollRepository;
     this.employeeRepository = employeeRepository;
     this.loanRequestRepository = loanRequestRepository;
     this.leaveRequestRepository = leaveRequestRepository;
     this.attendanceRepository = attendanceRepository;
+    this.fieldDeliveryRepository = fieldDeliveryRepository;
+  }
+
+  async sumFieldOfficerBonusForPeriod(employeeId, periodStart, periodEnd) {
+    if (!this.fieldDeliveryRepository) return 0;
+    return this.fieldDeliveryRepository.sumBonusBetween(employeeId, periodStart, periodEnd);
+  }
+
+  async sumFieldOfficerOmsetForPeriod(employeeId, periodStart, periodEnd) {
+    if (!this.fieldDeliveryRepository) return 0;
+    return this.fieldDeliveryRepository.sumOmsetBetween(employeeId, periodStart, periodEnd);
+  }
+
+  /** Omset & bonus from petugas lapangan delivery codes for a payroll period. */
+  async getFieldOfficerOmsetReport(period) {
+    const bounds = parsePeriod(period);
+    if (!this.fieldDeliveryRepository) {
+      return {
+        ...this.periodMeta(bounds.payroll_period),
+        period_start: bounds.period_start,
+        period_end: bounds.period_end,
+        total_omset: 0,
+        total_bonus: 0,
+        delivery_count: 0,
+        employees: [],
+      };
+    }
+    const deliveries = await this.fieldDeliveryRepository.listDeliveriesInPeriod(
+      bounds.period_start,
+      bounds.period_end
+    );
+    const byEmployee = new Map();
+    for (const row of deliveries) {
+      const key = row.employee_id;
+      if (!byEmployee.has(key)) {
+        byEmployee.set(key, {
+          employee_id: row.employee_id,
+          full_name: row.full_name,
+          employee_code: row.employee_code,
+          omset_total: 0,
+          bonus_total: 0,
+          delivery_count: 0,
+          deliveries: [],
+        });
+      }
+      const bucket = byEmployee.get(key);
+      const omset = Number(row.omset_amount) || 0;
+      const bonus = Number(row.bonus_amount) || 0;
+      bucket.omset_total += omset;
+      bucket.bonus_total += bonus;
+      bucket.delivery_count += 1;
+      bucket.deliveries.push({
+        id: row.id,
+        valid_on: row.valid_on,
+        checkout_code: row.checkout_code,
+        pabrik_code: row.pabrik_code,
+        kode_barang: row.kode_barang,
+        norek: row.norek,
+        nomor_tanda_terima: row.nomor_tanda_terima,
+        nomor_surat_jalan: row.nomor_surat_jalan,
+        nopol: row.nopol,
+        no_bs: row.no_bs,
+        kotor: Number(row.kotor),
+        berat_bersih: Number(row.berat_bersih),
+        selisih: Number(row.selisih),
+        tonase_per_item: Number(row.tonase_per_item),
+        omset_amount: omset,
+        bonus_amount: bonus,
+        created_at: row.created_at,
+      });
+    }
+    const employees = [...byEmployee.values()].map((e) => ({
+      ...e,
+      omset_total: Math.round(e.omset_total * 100) / 100,
+      bonus_total: Math.round(e.bonus_total * 100) / 100,
+    }));
+    employees.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
+    const total_omset = employees.reduce((s, e) => s + e.omset_total, 0);
+    const total_bonus = employees.reduce((s, e) => s + e.bonus_total, 0);
+    return {
+      ...this.periodMeta(bounds.payroll_period),
+      period_start: bounds.period_start,
+      period_end: bounds.period_end,
+      total_omset: Math.round(total_omset * 100) / 100,
+      total_bonus: Math.round(total_bonus * 100) / 100,
+      delivery_count: deliveries.length,
+      employees,
+    };
   }
 
   async previewLoanDeduction(employeeId, payrollPeriod) {
@@ -527,7 +616,7 @@ class PayrollService {
   }) {
     const transportEligible = prev?.transport_eligible ?? Boolean(emp.transport_eligible);
     const diligenceEligible = prev?.diligence_eligible ?? false;
-    let gajiPokok;
+    let gaji;
     let resolvedUpahHarian = upahHarian;
     let resolvedDays = days;
     if (receivesMonthlyAbsenceDeduction(role)) {
@@ -540,11 +629,11 @@ class PayrollService {
         expectedDays,
         daysAttended: days,
       });
-      gajiPokok = monthlyCalc.basic_salary;
+      gaji = monthlyCalc.basic_salary;
       resolvedUpahHarian = 0;
       resolvedDays = monthlyCalc.days_attended;
     } else {
-      gajiPokok = computeGajiPokok(days, upahHarian);
+      gaji = computeGaji(days, upahHarian);
     }
     const { transport_allowance_amount: transportAmount, diligence_allowance_amount: diligenceAmount } =
       resolveAllowanceRateFields({
@@ -562,7 +651,7 @@ class PayrollService {
 
     return normalizeRolePayrollFields(
       {
-        basic_salary: gajiPokok,
+        basic_salary: gaji,
         tunjangan_masa_kerja: tunjanganMasaKerja,
         transport_eligible: transportEligible,
         transport_allowance_amount: transportAmount,
@@ -642,7 +731,7 @@ class PayrollService {
     return total;
   }
 
-  /** Lembur = (gaji pokok / required days / 8 / 60) × total overtime minutes in period. */
+  /** Lembur = (gaji / required days / 8 / 60) × total overtime minutes in period. */
   async computeLemburPayForPeriod(employeeId, bounds, employee, requiredWorkDays) {
     const minutes = await this.sumStaffKantorOvertimeMinutes(
       employeeId,
@@ -650,13 +739,13 @@ class PayrollService {
       bounds.period_end
     );
     return computeLemburPay({
-      gajiPokok: num(employee.basic_salary),
+      gaji: num(employee.basic_salary),
       requiredWorkDays,
       overtimeMinutes: minutes,
     });
   }
 
-  /** Potongan terlambat = (gaji pokok / required days / 8 / 60) × sum(late_minutes) in period. */
+  /** Potongan terlambat = (gaji / required days / 8 / 60) × sum(late_minutes) in period. */
   async computeLateDeductionForPeriod(employeeId, bounds, employee, requiredWorkDays) {
     const lateMinutes = await this.attendanceRepository.sumLateMinutesInPeriod(
       employeeId,
@@ -664,13 +753,13 @@ class PayrollService {
       bounds.period_end
     );
     return computeLateDeductionPay({
-      gajiPokok: num(employee.basic_salary),
+      gaji: num(employee.basic_salary),
       requiredWorkDays,
       lateMinutes,
     });
   }
 
-  /** Refresh days_attended and gaji pokok from attendance; keep other payroll fields. */
+  /** Refresh days_attended and gaji from attendance; keep other payroll fields. */
   async syncPayrollRowFromAttendance(row, bounds) {
     const empId = row.employee_id;
     let role = row.user_role;
@@ -699,7 +788,7 @@ class PayrollService {
 
     const settings = await this.payrollRepository.getSettings();
     const upahHarian = resolveUpahHarian(row, employee, role, settings);
-    let gajiPokok;
+    let gaji;
 
     const expectedDays =
       hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
@@ -717,10 +806,10 @@ class PayrollService {
         expectedDays,
         daysAttended: days,
       });
-      gajiPokok = monthlyCalc.basic_salary;
+      gaji = monthlyCalc.basic_salary;
       if (row.absence_deduction == null) absenceForTotals = monthlyCalc.absence_deduction;
     } else {
-      gajiPokok = computeGajiPokok(days, upahHarian);
+      gaji = computeGaji(days, upahHarian);
       if (
         isFieldOfficer(role) &&
         expectedDays != null &&
@@ -765,9 +854,24 @@ class PayrollService {
       settings,
     });
 
+    let bonusOmset = num(row.bonus_omset);
+    let omsetTotal = num(row.omset_total);
+    if (isFieldOfficer(role)) {
+      bonusOmset = await this.sumFieldOfficerBonusForPeriod(
+        empId,
+        bounds.period_start,
+        bounds.period_end
+      );
+      omsetTotal = await this.sumFieldOfficerOmsetForPeriod(
+        empId,
+        bounds.period_start,
+        bounds.period_end
+      );
+    }
+
     const fields = normalizeRolePayrollFields(
       {
-        basic_salary: gajiPokok,
+        basic_salary: gaji,
         tunjangan_masa_kerja: tunjanganMasaKerja,
         transport_eligible: transportEligible,
         transport_allowance_amount: allowanceRates.transport_allowance_amount,
@@ -777,7 +881,8 @@ class PayrollService {
         insentif: num(row.insentif),
         diligence_eligible: diligenceEligible,
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
-        bonus_omset: num(row.bonus_omset),
+        bonus_omset: bonusOmset,
+        omset_total: omsetTotal,
         other_deductions: Math.max(
           0,
           num(row.other_deductions ?? row.deductions) - num(row.late_deduction)
@@ -804,7 +909,7 @@ class PayrollService {
       period_start: bounds.period_start,
       period_end: bounds.period_end,
       upah_harian: upahHarian,
-      basic_salary: totals.basic_salary ?? gajiPokok,
+      basic_salary: totals.basic_salary ?? gaji,
       days_attended: days,
       expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
@@ -815,6 +920,7 @@ class PayrollService {
       diligence_eligible: fields.diligence_eligible,
       diligence_bonus: totals.diligence_bonus,
       bonus_omset: fields.bonus_omset,
+      omset_total: fields.omset_total ?? omsetTotal,
       loan_deduction: totals.loan_deduction,
       late_deduction: totals.late_deduction,
       pph_21: totals.pph_21,
@@ -922,6 +1028,7 @@ class PayrollService {
           diligence_eligible: manualFields.diligence_eligible,
           diligence_bonus: totals.diligence_bonus,
           bonus_omset: manualFields.bonus_omset,
+          omset_total: num(prev?.omset_total),
           loan_deduction: manualFields.loan_deduction,
           late_deduction: manualFields.late_deduction,
           pph_21: totals.pph_21,
@@ -995,6 +1102,18 @@ class PayrollService {
       }
       fields = normalizeRolePayrollFields(fields, role);
       fields.loan_deduction = await this.resolveLoanDeduction(emp.id, bounds.payroll_period);
+      if (isFieldOfficer(role)) {
+        fields.bonus_omset = await this.sumFieldOfficerBonusForPeriod(
+          emp.id,
+          bounds.period_start,
+          bounds.period_end
+        );
+        fields.omset_total = await this.sumFieldOfficerOmsetForPeriod(
+          emp.id,
+          bounds.period_start,
+          bounds.period_end
+        );
+      }
       if (
         isFieldOfficer(role) &&
         expectedDays != null &&
@@ -1033,6 +1152,7 @@ class PayrollService {
         diligence_eligible: fields.diligence_eligible,
         diligence_bonus: totals.diligence_bonus,
         bonus_omset: fields.bonus_omset,
+        omset_total: isFieldOfficer(role) ? fields.omset_total ?? 0 : 0,
         loan_deduction: totals.loan_deduction,
         late_deduction: totals.late_deduction,
         pph_21: totals.pph_21,
@@ -1184,6 +1304,7 @@ class PayrollService {
         diligence_eligible: fields.diligence_eligible,
         diligence_bonus: totals.diligence_bonus,
         bonus_omset: fields.bonus_omset,
+        omset_total: num(existing.omset_total),
         loan_deduction: fields.loan_deduction,
         late_deduction: fields.late_deduction,
         pph_21: totals.pph_21,
@@ -1218,7 +1339,7 @@ class PayrollService {
             bounds.period_end,
             role
           );
-    let gajiPokok;
+    let gaji;
     let monthlyBasicGross = num(employee.basic_salary);
     let absenceForTotals = 0;
     const expectedDays =
@@ -1245,9 +1366,9 @@ class PayrollService {
           daysAttended: daysN,
         }).absence_deduction;
       }
-      gajiPokok = Math.max(0, monthlyBasicGross - absenceForTotals);
+      gaji = Math.max(0, monthlyBasicGross - absenceForTotals);
     } else {
-      gajiPokok = computeGajiPokok(daysN, upahHarian);
+      gaji = computeGaji(daysN, upahHarian);
       if (isFieldOfficer(role) && expectedDays != null) {
         if (payload.absence_deduction != null) {
           absenceForTotals = num(payload.absence_deduction);
@@ -1324,7 +1445,7 @@ class PayrollService {
 
     const fields = normalizeRolePayrollFields(
       {
-        basic_salary: gajiPokok,
+        basic_salary: gaji,
         tunjangan_masa_kerja:
           payload.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)
             ? num(payload.tunjangan_masa_kerja)
@@ -1335,7 +1456,7 @@ class PayrollService {
         insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
         diligence_eligible: diligenceEligible,
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
-        bonus_omset: payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
+        bonus_omset: 0,
         other_deductions:
           payload.other_deductions != null
             ? num(payload.other_deductions)
@@ -1354,6 +1475,27 @@ class PayrollService {
       },
       role
     );
+
+    if (payload.bonus_omset != null) {
+      fields.bonus_omset = num(payload.bonus_omset);
+    } else if (isFieldOfficer(role)) {
+      fields.bonus_omset = await this.sumFieldOfficerBonusForPeriod(
+        empId,
+        bounds.period_start,
+        bounds.period_end
+      );
+    } else {
+      fields.bonus_omset = num(existing.bonus_omset);
+    }
+
+    let omsetTotal = num(existing.omset_total);
+    if (isFieldOfficer(role)) {
+      omsetTotal = await this.sumFieldOfficerOmsetForPeriod(
+        empId,
+        bounds.period_start,
+        bounds.period_end
+      );
+    }
 
     const totals = computeTotals(
       withSlipTotalsContext(fields, role, {
@@ -1376,7 +1518,7 @@ class PayrollService {
       period_start: bounds.period_start,
       period_end: bounds.period_end,
       upah_harian: upahHarian,
-      basic_salary: totals.basic_salary ?? gajiPokok,
+      basic_salary: totals.basic_salary ?? gaji,
       days_attended: daysN,
       expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
@@ -1387,6 +1529,7 @@ class PayrollService {
       diligence_eligible: fields.diligence_eligible,
       diligence_bonus: totals.diligence_bonus,
       bonus_omset: fields.bonus_omset,
+      omset_total: omsetTotal,
       loan_deduction: totals.loan_deduction,
       late_deduction: totals.late_deduction,
       pph_21: totals.pph_21,
@@ -1500,7 +1643,7 @@ module.exports = {
   PayrollService,
   parsePeriod,
   computeTotals,
-  computeGajiPokok,
+  computeGaji,
   computeMonthlyStaffPayroll,
   isMonthlyOfficeStaff,
 };

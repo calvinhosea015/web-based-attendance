@@ -69,35 +69,35 @@ function computeStaffKantorOvertimeMinutes(checkOutIso) {
   return Math.max(0, Math.floor((co.getTime() - overtimeStart.getTime()) / 60000));
 }
 
-/** gaji_pokok / required_days / 8 / 60 (per minute). */
-function staffKantorPerMinuteRate(gajiPokok, requiredWorkDays) {
+/** gaji / required_days / 8 / 60 (per minute). */
+function staffKantorPerMinuteRate(gaji, requiredWorkDays) {
   const days = Math.max(1, Math.floor(Number(requiredWorkDays) || 0));
-  const basic = Number(gajiPokok) || 0;
+  const basic = Number(gaji) || 0;
   if (!basic) return 0;
   return basic / days / 8 / 60;
 }
 
 /** Pay or deduction from minute count (lembur, potongan terlambat). */
-function computeStaffKantorPerMinuteAmount({ gajiPokok, requiredWorkDays, minutes }) {
-  const rate = staffKantorPerMinuteRate(gajiPokok, requiredWorkDays);
+function computeStaffKantorPerMinuteAmount({ gaji, requiredWorkDays, minutes }) {
+  const rate = staffKantorPerMinuteRate(gaji, requiredWorkDays);
   const m = Math.max(0, Math.floor(Number(minutes) || 0));
   if (!m || !rate) return 0;
   return Math.round(rate * m);
 }
 
-/** Lembur pay = gaji_pokok / required_days / 8 / 60 × overtime_minutes */
-function computeLemburPay({ gajiPokok, requiredWorkDays, overtimeMinutes }) {
+/** Lembur pay = gaji / required_days / 8 / 60 × overtime_minutes */
+function computeLemburPay({ gaji, requiredWorkDays, overtimeMinutes }) {
   return computeStaffKantorPerMinuteAmount({
-    gajiPokok,
+    gaji,
     requiredWorkDays,
     minutes: overtimeMinutes,
   });
 }
 
-/** Potongan datang terlambat = gaji_pokok / required_days / 8 / 60 × late_minutes */
-function computeLateDeductionPay({ gajiPokok, requiredWorkDays, lateMinutes }) {
+/** Potongan datang terlambat = gaji / required_days / 8 / 60 × late_minutes */
+function computeLateDeductionPay({ gaji, requiredWorkDays, lateMinutes }) {
   return computeStaffKantorPerMinuteAmount({
-    gajiPokok,
+    gaji,
     requiredWorkDays,
     minutes: lateMinutes,
   });

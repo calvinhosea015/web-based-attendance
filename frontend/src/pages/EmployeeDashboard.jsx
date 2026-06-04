@@ -10,12 +10,14 @@ import {
   canAccessEmployeePayrollPortal,
   isPayrollOnlyRole,
   ROLE_EMPLOYEE,
+  ROLE_FIELD_OFFICER,
   isAccountingRole,
   isGeneralAffairsRole,
 } from '../roles.js';
 import {
   isFieldCheckoutFormatValid,
   parseFieldCheckoutDisplay,
+  splitFieldCheckoutLines,
 } from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
@@ -78,6 +80,7 @@ export default function EmployeeDashboard() {
   const [geoPreview, setGeoPreview] = useState(null);
   const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
   const [fieldDeliveries, setFieldDeliveries] = useState([]);
+  const [todayDeliveries, setTodayDeliveries] = useState({ entries: [], today_bonus_total: 0 });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -108,7 +111,8 @@ export default function EmployeeDashboard() {
           return;
         }
         const isStaffKantor = role === ROLE_EMPLOYEE;
-        const [s, h, ln, pr, fd, lb, lr] = await Promise.all([
+        const isFieldOfficerRole = role === ROLE_FIELD_OFFICER;
+        const [s, h, ln, pr, fd, lb, lr, td] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
           api.get(paths.employeeLoans).catch(() => ({ data: [] })),
@@ -122,12 +126,19 @@ export default function EmployeeDashboard() {
           isStaffKantor
             ? api.get(paths.employeeLeaveRequests).catch(() => ({ data: [] }))
             : Promise.resolve({ data: [] }),
+          isFieldOfficerRole
+            ? api.get(paths.employeeFieldDeliveriesToday).catch(() => ({ data: { entries: [] } }))
+            : Promise.resolve({ data: { entries: [] } }),
         ]);
         setSummary(s.data);
         setHistory(h.data);
         setLoans(ln.data || []);
         setPayroll(pr.data || []);
         setFieldDeliveries(fd.data || []);
+        setTodayDeliveries({
+          entries: td.data?.entries || [],
+          today_bonus_total: Number(td.data?.today_bonus_total || 0),
+        });
         setLeaveBalances(lb.data || []);
         setLeaveRequests(lr.data || []);
       } catch (e) {
@@ -173,14 +184,32 @@ export default function EmployeeDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when office assignment loads
   }, [summary?.assigned_office?.id]);
 
+  const loadTodayDeliveries = async (role) => {
+    if (role !== ROLE_FIELD_OFFICER) {
+      setTodayDeliveries({ entries: [], today_bonus_total: 0 });
+      return;
+    }
+    try {
+      const { data } = await api.get(paths.employeeFieldDeliveriesToday);
+      setTodayDeliveries({
+        entries: data?.entries || [],
+        today_bonus_total: Number(data?.today_bonus_total || 0),
+      });
+    } catch {
+      setTodayDeliveries({ entries: [], today_bonus_total: 0 });
+    }
+  };
+
   const refreshEmployee = async () => {
     try {
+      const role = localStorage.getItem('role');
       const [s, h] = await Promise.all([
         api.get(paths.employeeSummary),
         api.get(paths.employeeAttendance),
       ]);
       setSummary(s.data);
       setHistory(h.data);
+      await loadTodayDeliveries(role);
     } catch (e) {
       console.error(e);
       setMessage(formatApiError(e));
@@ -236,12 +265,13 @@ export default function EmployeeDashboard() {
   };
 
   const handleSubmitFieldCode = async () => {
-    const code = fieldCodeDraft.trim();
-    if (!code) {
+    const lines = splitFieldCheckoutLines(fieldCodeDraft);
+    if (!lines.length) {
       setMessage(t('checkoutCodeRequired'));
       return;
     }
-    if (!isFieldCheckoutFormatValid(code)) {
+    const invalid = lines.find((line) => !isFieldCheckoutFormatValid(line));
+    if (invalid) {
       setMessage(t('checkoutCodeInvalidFormat'));
       return;
     }
@@ -249,8 +279,13 @@ export default function EmployeeDashboard() {
     setFieldCodeSubmitting(true);
     try {
       await ensureCsrf();
-      await api.post(paths.employeeFieldCode, { code });
-      setMessage(t('fieldCodeAccepted'));
+      const { data } = await api.post(paths.employeeFieldCode, { code: fieldCodeDraft.trim() });
+      const count = data?.count ?? lines.length;
+      setMessage(
+        count > 1
+          ? t('fieldCodesAccepted', { count, bonus: formatIdr(data?.today_bonus_total) })
+          : t('fieldCodeAcceptedBonus', { bonus: formatIdr(data?.today_bonus_total) })
+      );
       setFieldCodeDraft('');
       await refreshEmployee();
     } catch (err) {
@@ -401,8 +436,14 @@ export default function EmployeeDashboard() {
 
   const today = summary?.today;
   const assignedOffice = summary?.assigned_office;
+  const assignedOffices =
+    summary?.assigned_offices?.length > 0
+      ? summary.assigned_offices
+      : assignedOffice?.id
+        ? [assignedOffice]
+        : [];
   const canRemote = summary?.remote_work_allowed !== false;
-  const canClockIn = Boolean(assignedOffice?.id);
+  const canClockIn = assignedOffices.some((o) => o?.id);
   const isFieldOfficer = summary?.field_officer_mode === true;
   const isUmum = summary?.umum_mode === true;
   const isGeneralAffairs =
@@ -442,17 +483,25 @@ export default function EmployeeDashboard() {
           : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
-  const office = assignedOffice;
   const baseRadius = summary?.check_in_radius_meters ?? 500;
   const gpsBufferCap = summary?.check_in_gps_buffer_cap_meters ?? 200;
   const maxAllowedPreview =
-    office?.lat != null && office?.lng != null
+    assignedOffices.some((o) => o?.lat != null && o?.lng != null)
       ? baseRadius + Math.min(geoPreview?.accuracy_m ?? 0, gpsBufferCap)
       : null;
-  const distancePreview =
-    geoPreview && office?.lat != null && office?.lng != null
-      ? Math.round(haversineMeters(geoPreview.lat, geoPreview.lng, office.lat, office.lng))
-      : null;
+  let nearestOfficePreview = null;
+  if (geoPreview) {
+    for (const o of assignedOffices) {
+      if (o.lat == null || o.lng == null) continue;
+      const d = Math.round(haversineMeters(geoPreview.lat, geoPreview.lng, o.lat, o.lng));
+      if (!nearestOfficePreview || d < nearestOfficePreview.distance) {
+        nearestOfficePreview = { office: o, distance: d };
+      }
+    }
+  }
+  const distancePreview = nearestOfficePreview?.distance ?? null;
+  const withinAssignedRadius =
+    distancePreview != null && maxAllowedPreview != null && distancePreview <= maxAllowedPreview;
 
   const payrollOnly = isPayrollOnlyRole(localStorage.getItem('role'));
 
@@ -469,9 +518,18 @@ export default function EmployeeDashboard() {
             </h1>
             <p className="mt-1 text-sm text-slate-600">{t('headOfFinanceNoAttendance')}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            {t('logout')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate('/finance/field-omset')}
+            >
+              {t('fieldOmsetReportTitle')}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              {t('logout')}
+            </Button>
+          </div>
         </div>
         {message && (
           <Alert tone="error">{message}</Alert>
@@ -621,17 +679,31 @@ export default function EmployeeDashboard() {
         <div className="mt-4 space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-              {t('assignedOffice')}
+              {isFieldOfficer && assignedOffices.length > 1
+                ? t('assignedOffices')
+                : t('assignedOffice')}
             </label>
-            {assignedOffice?.id ? (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
-                {assignedOffice.name || t('officeIdFallback', { id: assignedOffice.id })}
-              </div>
+            {assignedOffices.length ? (
+              <ul className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                {assignedOffices.map((o) => (
+                  <li key={o.id}>
+                    {o.name || t('officeIdFallback', { id: o.id })}
+                    {nearestOfficePreview?.office?.id === o.id && distancePreview != null ? (
+                      <span className="ml-1 text-xs text-slate-500">
+                        ({t('locationNearest')})
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             ) : (
               <div className="text-sm text-amber-800">{t('noOfficeAssigned')}</div>
             )}
+            {isFieldOfficer && assignedOffices.length > 1 ? (
+              <p className="mt-1 text-xs text-slate-500">{t('fieldOfficerMultiLocationHint')}</p>
+            ) : null}
           </div>
-          {assignedOffice?.id && (
+          {assignedOffices.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-700">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -658,13 +730,23 @@ export default function EmployeeDashboard() {
                   {distancePreview != null && maxAllowedPreview != null ? (
                     <p
                       className={
-                        distancePreview > maxAllowedPreview ? 'text-amber-800' : 'text-emerald-800'
+                        !withinAssignedRadius ? 'text-amber-800' : 'text-emerald-800'
                       }
                     >
-                      {t('locationDistance', {
-                        distance: distancePreview,
-                        allowed: Math.round(maxAllowedPreview),
-                      })}
+                      {isFieldOfficer && assignedOffices.length > 1
+                        ? t('locationDistanceMulti', {
+                            distance: distancePreview,
+                            allowed: Math.round(maxAllowedPreview),
+                            office:
+                              nearestOfficePreview?.office?.name ||
+                              t('officeIdFallback', {
+                                id: nearestOfficePreview?.office?.id,
+                              }),
+                          })
+                        : t('locationDistance', {
+                            distance: distancePreview,
+                            allowed: Math.round(maxAllowedPreview),
+                          })}
                     </p>
                   ) : (
                     <p className="text-amber-800">{t('locationDistanceUnknown')}</p>
@@ -686,14 +768,13 @@ export default function EmployeeDashboard() {
           ) : nextAction === 'check_in' ? (
             <p className="text-xs text-slate-500">{t('remoteWorkDisabledByAdmin')}</p>
           ) : null}
-          {isFieldOfficer && summary?.has_checkout_code_today === false && (
+          {isFieldOfficer && (
             <Field
               label={t('fieldCheckoutCode')}
               hint={t('fieldCodeSubmitHint')}
             >
-              <input
-                type="text"
-                className={inputClass}
+              <textarea
+                className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
                 value={fieldCodeDraft}
                 onChange={(e) => setFieldCodeDraft(e.target.value)}
                 autoComplete="off"
@@ -703,11 +784,40 @@ export default function EmployeeDashboard() {
                 type="button"
                 variant="primary"
                 className="mt-2 w-full sm:w-auto"
-                disabled={fieldCodeSubmitting || !isFieldCheckoutFormatValid(fieldCodeDraft)}
+                disabled={
+                  fieldCodeSubmitting ||
+                  !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
+                    isFieldCheckoutFormatValid(line)
+                  ) ||
+                  !splitFieldCheckoutLines(fieldCodeDraft).length
+                }
                 onClick={handleSubmitFieldCode}
               >
                 {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
               </Button>
+              {todayDeliveries.entries.length > 0 && (
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs">
+                  <p className="font-medium text-slate-800">
+                    {t('fieldDeliveryTodayTotal', {
+                      count: todayDeliveries.entries.length,
+                      bonus: formatIdr(todayDeliveries.today_bonus_total),
+                    })}
+                  </p>
+                  <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+                    {todayDeliveries.entries.map((entry) => (
+                      <li key={entry.id} className="border-t border-slate-100 pt-2 font-mono">
+                        <div className="break-all text-slate-700">{entry.checkout_code}</div>
+                        <div className="mt-0.5 text-slate-500">
+                          {t('fieldDeliveryLineBonus', {
+                            selisih: entry.selisih,
+                            bonus: formatIdr(entry.bonus_amount),
+                          })}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Field>
           )}
           {isFieldOfficer && nextAction === 'check_out' && (

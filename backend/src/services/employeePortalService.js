@@ -11,6 +11,10 @@ const {
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
+const {
+  resolveAssignedOfficesForEmployee,
+  primaryOfficeFromList,
+} = require('../utils/employeeOffices');
 
 class EmployeePortalService {
   constructor(
@@ -19,14 +23,18 @@ class EmployeePortalService {
     employeeRepository,
     payrollRepository,
     fieldCodeEntryRepository = null,
-    payrollService = null
+    fieldDeliveryRepository = null,
+    payrollService = null,
+    employeeOfficeRepository = null
   ) {
     this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
     this.employeeRepository = employeeRepository;
     this.payrollRepository = payrollRepository;
     this.fieldCodeEntryRepository = fieldCodeEntryRepository;
+    this.fieldDeliveryRepository = fieldDeliveryRepository;
     this.payrollService = payrollService;
+    this.employeeOfficeRepository = employeeOfficeRepository;
   }
 
   async meSummary(auth) {
@@ -81,27 +89,35 @@ class EmployeePortalService {
     const todayRow = open || sessions[sessions.length - 1] || null;
     const weekHours = await this.attendanceRepository.sumWorkHoursThisWeek(auth.employeeId);
     const dayStrForCode = dayStr;
-    const fieldCodeEntry =
-      fieldOfficer && this.fieldCodeEntryRepository
-        ? await this.fieldCodeEntryRepository.findForEmployeeOnDate(auth.employeeId, dayStrForCode)
-        : null;
-    const hasCheckoutCodeToday = fieldOfficer
-      ? Boolean(fieldCodeEntry)
-      : sessions.some(
-          (s) => s.check_out != null && s.checkout_code != null && String(s.checkout_code).trim() !== ''
+    let hasCheckoutCodeToday;
+    if (fieldOfficer) {
+      if (this.fieldDeliveryRepository) {
+        const count = await this.fieldDeliveryRepository.countForEmployeeOnDate(
+          auth.employeeId,
+          dayStrForCode
         );
+        hasCheckoutCodeToday = count > 0;
+      } else if (this.fieldCodeEntryRepository) {
+        const fieldCodeEntry = await this.fieldCodeEntryRepository.findForEmployeeOnDate(
+          auth.employeeId,
+          dayStrForCode
+        );
+        hasCheckoutCodeToday = Boolean(fieldCodeEntry);
+      } else {
+        hasCheckoutCodeToday = false;
+      }
+    } else {
+      hasCheckoutCodeToday = sessions.some(
+          (s) => s.check_out != null && s.checkout_code != null && String(s.checkout_code).trim() !== ''
+      );
+    }
 
-    const assignedOffice =
-      userRow && userRow.office_id != null
-        ? {
-            id: userRow.office_id,
-            name: userRow.assigned_office_name || '',
-            lat:
-              userRow.assigned_office_lat != null ? Number(userRow.assigned_office_lat) : null,
-            lng:
-              userRow.assigned_office_lng != null ? Number(userRow.assigned_office_lng) : null,
-          }
-        : null;
+    const assignedOffices = await resolveAssignedOfficesForEmployee(
+      this.employeeOfficeRepository,
+      auth.employeeId,
+      userRow
+    );
+    const assignedOffice = primaryOfficeFromList(assignedOffices);
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
 
     let shift;
@@ -131,6 +147,8 @@ class EmployeePortalService {
       role: auth.role,
       employee,
       assigned_office: assignedOffice,
+      assigned_offices: assignedOffices,
+      assigned_location_count: assignedOffices.length,
       check_in_radius_meters: config.officeRadiusMeters,
       check_in_gps_buffer_cap_meters: config.officeRadiusGpsBufferCapMeters,
       remote_work_allowed: remoteWorkAllowed,

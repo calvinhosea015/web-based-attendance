@@ -1,6 +1,11 @@
 const { body, param, query } = require('express-validator');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
-const { VALID_ROLES, isAttendanceRole, isHeadOfFinance } = require('../constants/roles');
+const {
+  VALID_ROLES,
+  isAttendanceRole,
+  isHeadOfFinance,
+  usesMultipleOffices,
+} = require('../constants/roles');
 const { FIELD_OFFICER_CHECKOUT_MAX_LENGTH } = require('../constants/fieldOfficer');
 const { validateFieldCheckoutCode } = require('../utils/fieldCheckoutPayload');
 
@@ -59,19 +64,30 @@ const checkInValidators = [
 const checkOutValidators = [...clockValidators, fieldCheckoutCodeBodyValidator('checkout_code')];
 
 const fieldCodeSubmitValidators = [
-  body('code')
-    .trim()
-    .notEmpty()
-    .isString()
-    .isLength({ max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH })
-    .custom((value) => {
-      try {
-        validateFieldCheckoutCode(value);
-        return true;
-      } catch (e) {
-        throw new Error(e.message);
-      }
-    }),
+  body('code').optional().isString().isLength({ max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH }),
+  body('codes').optional().isArray({ max: 50 }),
+  body('codes.*').optional().isString().isLength({ max: FIELD_OFFICER_CHECKOUT_MAX_LENGTH }),
+  body().custom((_, { req }) => {
+    const hasCode = req.body?.code != null && String(req.body.code).trim() !== '';
+    const hasCodes = Array.isArray(req.body?.codes) && req.body.codes.some((c) => String(c).trim());
+    if (!hasCode && !hasCodes) {
+      throw new Error('At least one delivery code is required.');
+    }
+    return true;
+  }),
+];
+
+const pabrikItemRateBodyValidators = [
+  body('pabrik_code').trim().notEmpty().isString().isLength({ max: 32 }),
+  body('kode_barang').trim().notEmpty().isString().isLength({ max: 64 }),
+  body('tonase_per_item').isFloat({ min: 0 }),
+];
+
+const pabrikItemRateIdValidator = [param('id').isInt({ min: 1 })];
+
+const pabrikUpdateValidators = [
+  param('id').isInt({ min: 1 }),
+  body('google_maps_url').optional({ nullable: true }).trim().isLength({ max: 2000 }),
 ];
 
 function passwordPolicyValidator() {
@@ -89,10 +105,22 @@ const createUserValidators = [
   body('username').trim().notEmpty(),
   passwordPolicyValidator(),
   body('role').isIn(VALID_ROLES),
+  body('office_ids').optional().isArray({ min: 1, max: 32 }),
+  body('office_ids.*').optional().isInt({ min: 1 }),
   body('office_id')
     .optional({ nullable: true })
     .custom((value, { req }) => {
-      if (isAttendanceRole(req.body.role)) {
+      if (usesMultipleOffices(req.body.role)) {
+        const ids = Array.isArray(req.body.office_ids)
+          ? req.body.office_ids.map((v) => Number(v)).filter((n) => n >= 1)
+          : [];
+        if (ids.length < 1) {
+          const n = Number(value);
+          if (!Number.isFinite(n) || n < 1) {
+            throw new Error('office_ids (at least one location) is required for field officers');
+          }
+        }
+      } else if (isAttendanceRole(req.body.role)) {
         if (value === undefined || value === null || value === '') {
           throw new Error('office_id is required for employees');
         }
@@ -127,6 +155,8 @@ const updateUserValidators = [
   body('username').optional().trim().notEmpty(),
   body('role').optional().isIn(VALID_ROLES),
   body('office_id').optional({ values: 'null' }),
+  body('office_ids').optional().isArray({ min: 1, max: 32 }),
+  body('office_ids.*').optional().isInt({ min: 1 }),
   body('full_name').optional({ values: 'null' }).isString(),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
   optionalDateBody('join_date'),
@@ -242,6 +272,9 @@ module.exports = {
   checkInValidators,
   checkOutValidators,
   fieldCodeSubmitValidators,
+  pabrikItemRateBodyValidators,
+  pabrikItemRateIdValidator,
+  pabrikUpdateValidators,
   createUserValidators,
   changePasswordValidators,
   updateUserValidators,

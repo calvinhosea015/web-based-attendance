@@ -38,6 +38,11 @@ function isFieldOfficer(role) {
   return role === ROLES.FIELD_OFFICER;
 }
 
+/** Petugas lapangan may be assigned to multiple check-in locations. */
+function usesMultipleOffices(role) {
+  return isFieldOfficer(role);
+}
+
 /** Staff Kantor — office employee (not field officer or umum). */
 function isStaffKantor(role) {
   return role === ROLES.EMPLOYEE;
@@ -91,6 +96,7 @@ module.exports = {
   isValidRole,
   isAttendanceRole,
   isFieldOfficer,
+  usesMultipleOffices,
   isStaffKantor,
   isUmum,
   isAccounting,

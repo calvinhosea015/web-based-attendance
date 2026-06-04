@@ -487,7 +487,7 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   companyCell.font = FONT_COMPANY;
   companyCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  setCell(ws, ROW.PERIODE, COL.C, 'Periode', {
+  setCell(ws, ROW.PERIODE, COL.C, 'Periode Gaji', {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
   setCell(ws, ROW.PERIODE, COL.D, periodeLabel(period), {

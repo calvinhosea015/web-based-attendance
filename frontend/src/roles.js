@@ -40,12 +40,21 @@ export function isHeadOfFinanceRole(role) {
   return role === ROLE_HEAD_OF_FINANCE;
 }
 
+export function usesMultipleOfficesRole(role) {
+  return role === ROLE_FIELD_OFFICER;
+}
+
 export function isPayrollOnlyRole(role) {
   return isHeadOfFinanceRole(role);
 }
 
 export function canAccessEmployeePayrollPortal(role) {
   return isAttendanceRole(role) || isHeadOfFinanceRole(role);
+}
+
+/** Omset from petugas lapangan delivery codes — admin & head of finance only. */
+export function canViewFieldOmsetReport(role) {
+  return role === ROLE_ADMIN || isHeadOfFinanceRole(role);
 }
 
 /** Pegawai, petugas lapangan, and accounting require full name. */

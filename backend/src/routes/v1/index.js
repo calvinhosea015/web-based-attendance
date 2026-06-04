@@ -26,7 +26,15 @@ const { LeaveSettingsRepository } = require('../../repositories/leaveSettingsRep
 const { LoanService } = require('../../services/loanService');
 const { LeaveService } = require('../../services/leaveService');
 const { FieldCodeEntryRepository } = require('../../repositories/fieldCodeEntryRepository');
+const { FieldDeliveryRepository } = require('../../repositories/fieldDeliveryRepository');
+const { PabrikItemRateRepository } = require('../../repositories/pabrikItemRateRepository');
+const { PabrikRepository } = require('../../repositories/pabrikRepository');
+const { EmployeeOfficeRepository } = require('../../repositories/employeeOfficeRepository');
 const { FieldCheckoutCodeService } = require('../../services/fieldCheckoutCodeService');
+const { PabrikItemRateService } = require('../../services/pabrikItemRateService');
+const { PabrikService } = require('../../services/pabrikService');
+const { makePabrikItemRateController } = require('../../controllers/pabrikItemRateController');
+const { makePabrikController } = require('../../controllers/pabrikController');
 const { makeAuthController } = require('../../controllers/authController');
 const { makeOfficeController } = require('../../controllers/officeController');
 const { makeAttendanceController } = require('../../controllers/attendanceController');
@@ -47,6 +55,10 @@ function buildV1Router() {
   const officeRepository = new OfficeRepository();
   const attendanceRepository = new AttendanceRepository();
   const fieldCodeEntryRepository = new FieldCodeEntryRepository();
+  const fieldDeliveryRepository = new FieldDeliveryRepository();
+  const pabrikItemRateRepository = new PabrikItemRateRepository();
+  const pabrikRepository = new PabrikRepository();
+  const employeeOfficeRepository = new EmployeeOfficeRepository();
   const payrollRepository = new PayrollRepository();
   const refreshTokenRepository = new RefreshTokenRepository();
   const auditLogRepository = new AuditLogRepository();
@@ -58,15 +70,25 @@ function buildV1Router() {
 
   const authService = new AuthService(userRepository, refreshTokenRepository, auditLogRepository);
   const officeService = new OfficeService(officeRepository);
-  const fieldCheckoutCodeService = new FieldCheckoutCodeService(fieldCodeEntryRepository);
+  const fieldCheckoutCodeService = new FieldCheckoutCodeService(
+    fieldDeliveryRepository,
+    pabrikItemRateRepository,
+    fieldCodeEntryRepository
+  );
+  const pabrikItemRateService = new PabrikItemRateService(
+    pabrikItemRateRepository,
+    pabrikRepository
+  );
+  const pabrikService = new PabrikService(pabrikRepository);
   const attendanceService = new AttendanceService(
     attendanceRepository,
     officeRepository,
     employeeRepository,
     userRepository,
-    fieldCheckoutCodeService
+    fieldCheckoutCodeService,
+    employeeOfficeRepository
   );
-  const userService = new UserService(userRepository, employeeRepository);
+  const userService = new UserService(userRepository, employeeRepository, employeeOfficeRepository);
   const dashboardService = new DashboardService(
     attendanceRepository,
     employeeRepository,
@@ -80,7 +102,8 @@ function buildV1Router() {
     employeeRepository,
     loanRequestRepository,
     leaveRequestRepository,
-    attendanceRepository
+    attendanceRepository,
+    fieldDeliveryRepository
   );
   const employeePortalService = new EmployeePortalService(
     userRepository,
@@ -88,7 +111,9 @@ function buildV1Router() {
     employeeRepository,
     payrollRepository,
     fieldCodeEntryRepository,
-    payrollService
+    fieldDeliveryRepository,
+    payrollService,
+    employeeOfficeRepository
   );
   const enterpriseAdminService = new EnterpriseAdminService(
     notificationRepository,
@@ -121,6 +146,8 @@ function buildV1Router() {
   const loanController = makeLoanController(loanService);
   const leaveController = makeLeaveController(leaveService);
   const fieldCheckoutCodeController = makeFieldCheckoutCodeController(fieldCheckoutCodeService);
+  const pabrikItemRateController = makePabrikItemRateController(pabrikItemRateService);
+  const pabrikController = makePabrikController(pabrikService);
 
   const v1 = Router();
   v1.use('/auth', buildAuthRoutes(authController));
@@ -137,6 +164,8 @@ function buildV1Router() {
       loanController,
       leaveController,
       fieldCheckoutCodeController,
+      pabrikItemRateController,
+      pabrikController,
     })
   );
   return v1;

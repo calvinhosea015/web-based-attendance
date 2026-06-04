@@ -8,6 +8,7 @@ import AdminPayroll from './pages/AdminPayroll.jsx';
 import AdminLoans from './pages/AdminLoans.jsx';
 import AdminLeave from './pages/AdminLeave.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
+import FinanceFieldOmset from './pages/FinanceFieldOmset.jsx';
 
 function PublicHeader({ showName = true, showLogo = true, monochrome = false }) {
   const { t, i18n } = useTranslation();
@@ -57,7 +58,8 @@ function PublicHeader({ showName = true, showLogo = true, monochrome = false }) 
 export default function App() {
   const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
-  const isAdminRoute = pathname.startsWith('/admin');
+  const isAdminRoute =
+    pathname.startsWith('/admin') || pathname.startsWith('/finance');
   const isLoginRoute = pathname === '/login';
 
   useEffect(() => {
@@ -87,6 +89,7 @@ export default function App() {
           <Route path="/admin/loans" element={<AdminLoans />} />
           <Route path="/admin/leave" element={<AdminLeave />} />
           <Route path="/employee" element={<EmployeeDashboard />} />
+          <Route path="/finance/field-omset" element={<FinanceFieldOmset />} />
           <Route path="/user" element={<Navigate to="/employee" replace />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>

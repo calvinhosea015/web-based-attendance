@@ -6,6 +6,9 @@ function makeFieldCheckoutCodeController(fieldCheckoutCodeService) {
       const result = await fieldCheckoutCodeService.submit(req.auth, req.body);
       res.status(201).json(result);
     }),
+    listToday: asyncHandler(async (req, res) => {
+      res.json(await fieldCheckoutCodeService.listMyDeliveriesToday(req.auth));
+    }),
   };
 }
 

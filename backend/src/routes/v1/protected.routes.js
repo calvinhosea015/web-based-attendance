@@ -28,6 +28,9 @@ const {
   loanSubmitValidators,
   loanDecideValidators,
   fieldCodeSubmitValidators,
+  pabrikItemRateBodyValidators,
+  pabrikItemRateIdValidator,
+  pabrikUpdateValidators,
   fieldDeliveryQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,
@@ -48,6 +51,8 @@ function buildProtectedRoutes(deps) {
     payrollController,
     loanController,
     fieldCheckoutCodeController,
+    pabrikItemRateController,
+    pabrikController,
     leaveController,
   } = deps;
 
@@ -184,6 +189,41 @@ function buildProtectedRoutes(deps) {
   r.get('/admin/analytics/payroll/trends', requireRole('admin'), analyticsController.payrollTrends);
 
   r.get('/admin/payroll/settings', requireRole('admin'), payrollController.getSettings);
+  r.get('/admin/pabriks', requireRole('admin'), pabrikController.list);
+  r.put(
+    '/admin/pabriks/:id',
+    requireRole('admin'),
+    pabrikUpdateValidators,
+    validateRequest,
+    pabrikController.update
+  );
+  r.get(
+    '/admin/pabrik-item-rates',
+    requireRole('admin'),
+    pabrikItemRateController.list
+  );
+  r.post(
+    '/admin/pabrik-item-rates',
+    requireRole('admin'),
+    pabrikItemRateBodyValidators,
+    validateRequest,
+    pabrikItemRateController.create
+  );
+  r.put(
+    '/admin/pabrik-item-rates/:id',
+    requireRole('admin'),
+    pabrikItemRateIdValidator,
+    pabrikItemRateBodyValidators,
+    validateRequest,
+    pabrikItemRateController.update
+  );
+  r.delete(
+    '/admin/pabrik-item-rates/:id',
+    requireRole('admin'),
+    pabrikItemRateIdValidator,
+    validateRequest,
+    pabrikItemRateController.remove
+  );
   r.put(
     '/admin/payroll/settings',
     requireRole('admin'),
@@ -253,6 +293,13 @@ function buildProtectedRoutes(deps) {
     validateRequest,
     payrollController.updateEmployeeDefaults
   );
+  r.get(
+    '/finance/field-omset/periods/:period',
+    requireRole('admin', 'head_of_finance'),
+    ...payrollPeriodParamValidator,
+    validateRequest,
+    payrollController.getFieldOfficerOmsetReport
+  );
 
   r.post(
     '/employee/me/loans',
@@ -319,6 +366,11 @@ function buildProtectedRoutes(deps) {
     fieldDeliveryQueryValidators,
     validateRequest,
     dashboardController.employeeFieldDeliveries
+  );
+  r.get(
+    '/employee/me/field-deliveries/today',
+    requireAttendanceRole,
+    fieldCheckoutCodeController.listToday
   );
   r.post(
     '/employee/me/field-code',

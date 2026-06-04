@@ -5,19 +5,23 @@ const {
 } = require('../constants/fieldOfficer');
 
 const SEGMENT_LABELS = [
-  'pabrik',
-  'norek',
+  'kode pabrik',
+  'norek (5 digit)',
   'nomor tanda terima',
-  'surat jalan',
-  'nomor polisi',
-  'bs',
+  'nomor surat jalan',
+  'nopol',
+  'no bs',
   'kode barang',
   'kotor',
-  'berat',
+  'berat bersih',
 ];
 
+const FORMAT_HINT =
+  'kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih';
+
 const INT_MAX_DIGITS = 12;
-const NOMOR_POLISI_MAX_LEN = 32;
+const PABRIK_CODE_MAX_LEN = 32;
+const NOPOL_MAX_LEN = 32;
 const KODE_BARANG_MAX_LEN = 64;
 
 function normalizeCode(raw) {
@@ -34,6 +38,18 @@ function parseNonNegativeInt(value, label) {
   return Number(value);
 }
 
+function parseNonNegativeNumber(value, label) {
+  const normalized = String(value).replace(',', '.');
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new AppError(`Invalid checkout field: ${label} must be a number.`, 400, 'INVALID_CHECKOUT_CODE');
+  }
+  const n = Number(normalized);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new AppError(`Invalid checkout field: ${label} must be zero or positive.`, 400, 'INVALID_CHECKOUT_CODE');
+  }
+  return n;
+}
+
 function parseNonEmptyString(value, label, maxLen) {
   if (!value) {
     throw new AppError(`Invalid checkout field: ${label} is required.`, 400, 'INVALID_CHECKOUT_CODE');
@@ -44,9 +60,29 @@ function parseNonEmptyString(value, label, maxLen) {
   return value;
 }
 
+function parsePabrikCode(value) {
+  const code = parseNonEmptyString(value, SEGMENT_LABELS[0], PABRIK_CODE_MAX_LEN);
+  if (!/^[A-Za-z0-9_-]+$/.test(code)) {
+    throw new AppError(
+      'Invalid checkout field: kode pabrik may only contain letters, numbers, hyphen, and underscore.',
+      400,
+      'INVALID_CHECKOUT_CODE'
+    );
+  }
+  return code;
+}
+
+function parseNorek(value) {
+  const norek = String(value).trim();
+  if (!/^\d{5}$/.test(norek)) {
+    throw new AppError('Invalid checkout field: norek must be exactly 5 digits.', 400, 'INVALID_CHECKOUT_CODE');
+  }
+  return norek;
+}
+
 /**
- * Petugas lapangan checkout string:
- * pabrik*norek*nomor tanda terima*surat jalan*nomor polisi*bs*kode barang*kotor*berat
+ * Petugas lapangan delivery string (9 segments, *):
+ * kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih
  */
 function validateFieldCheckoutCode(raw) {
   const code = normalizeCode(raw);
@@ -60,8 +96,7 @@ function validateFieldCheckoutCode(raw) {
   const parts = code.split('*').map((p) => p.trim());
   if (parts.length !== FIELD_OFFICER_CHECKOUT_SEGMENT_COUNT) {
     throw new AppError(
-      `Checkout data must have ${FIELD_OFFICER_CHECKOUT_SEGMENT_COUNT} fields separated by * ` +
-        '(pabrik*norek*nomor tanda terima*surat jalan*nomor polisi*bs*kode barang*kotor*berat).',
+      `Checkout data must have ${FIELD_OFFICER_CHECKOUT_SEGMENT_COUNT} fields separated by * (${FORMAT_HINT}).`,
       400,
       'INVALID_CHECKOUT_CODE'
     );
@@ -72,28 +107,68 @@ function validateFieldCheckoutCode(raw) {
     norekRaw,
     nomorTandaTerimaRaw,
     suratJalanRaw,
-    nomorPolisiRaw,
+    nopolRaw,
     bsRaw,
     kodeBarangRaw,
     kotorRaw,
-    beratRaw,
+    beratBersihRaw,
   ] = parts;
+
+  const kotor = parseNonNegativeNumber(kotorRaw, SEGMENT_LABELS[7]);
+  const berat_bersih = parseNonNegativeNumber(beratBersihRaw, SEGMENT_LABELS[8]);
+  if (berat_bersih > kotor) {
+    throw new AppError('Invalid checkout field: berat bersih cannot exceed kotor.', 400, 'INVALID_CHECKOUT_CODE');
+  }
 
   return {
     raw: code,
-    pabrik: parseNonNegativeInt(pabrikRaw, SEGMENT_LABELS[0]),
-    norek: parseNonNegativeInt(norekRaw, SEGMENT_LABELS[1]),
+    pabrik_code: parsePabrikCode(pabrikRaw),
+    pabrik: parsePabrikCode(pabrikRaw),
+    norek: parseNorek(norekRaw),
     nomor_tanda_terima: parseNonNegativeInt(nomorTandaTerimaRaw, SEGMENT_LABELS[2]),
+    nomor_surat_jalan: parseNonNegativeInt(suratJalanRaw, SEGMENT_LABELS[3]),
     surat_jalan: parseNonNegativeInt(suratJalanRaw, SEGMENT_LABELS[3]),
-    nomor_polisi: parseNonEmptyString(nomorPolisiRaw, SEGMENT_LABELS[4], NOMOR_POLISI_MAX_LEN),
+    nopol: parseNonEmptyString(nopolRaw, SEGMENT_LABELS[4], NOPOL_MAX_LEN),
+    nomor_polisi: parseNonEmptyString(nopolRaw, SEGMENT_LABELS[4], NOPOL_MAX_LEN),
+    no_bs: parseNonNegativeInt(bsRaw, SEGMENT_LABELS[5]),
     bs: parseNonNegativeInt(bsRaw, SEGMENT_LABELS[5]),
-    kode_barang: parseNonEmptyString(kodeBarangRaw, SEGMENT_LABELS[6], KODE_BARANG_MAX_LEN),
-    kotor: parseNonNegativeInt(kotorRaw, SEGMENT_LABELS[7]),
-    berat: parseNonNegativeInt(beratRaw, SEGMENT_LABELS[8]),
+    kode_barang: parseNonEmptyString(kodeBarangRaw, SEGMENT_LABELS[6], KODE_BARANG_MAX_LEN)
+      .replace(/\s+/g, ' ')
+      .toUpperCase(),
+    kotor,
+    berat_bersih,
+    berat: berat_bersih,
+    selisih: kotor - berat_bersih,
   };
+}
+
+/** Split textarea / payload into individual code lines. */
+function normalizeFieldCheckoutCodes(payload) {
+  const list = [];
+  if (Array.isArray(payload?.codes)) {
+    for (const item of payload.codes) {
+      const c = normalizeCode(item);
+      if (c) list.push(c);
+    }
+  }
+  const single = normalizeCode(payload?.code);
+  if (single) {
+    if (single.includes('\n')) {
+      for (const line of single.split(/\r?\n/)) {
+        const c = normalizeCode(line);
+        if (c) list.push(c);
+      }
+    } else {
+      list.push(single);
+    }
+  }
+  return list;
 }
 
 module.exports = {
   validateFieldCheckoutCode,
   normalizeCode,
+  normalizeFieldCheckoutCodes,
+  FORMAT_HINT,
+  SEGMENT_LABELS,
 };

@@ -13,7 +13,9 @@ const {
   isAccounting,
   isGeneralAffairs,
   isHeadOfFinance,
+  usesMultipleOffices,
 } = require('../constants/roles');
+const { normalizeOfficeIdList } = require('../utils/employeeOffices');
 const { validateCustomWorkHours } = require('../utils/customWorkShift');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
 
@@ -24,14 +26,50 @@ function stripUserSecrets(row) {
 }
 
 class UserService {
-  constructor(userRepository, employeeRepository) {
+  constructor(userRepository, employeeRepository, employeeOfficeRepository = null) {
     this.userRepository = userRepository;
     this.employeeRepository = employeeRepository;
+    this.employeeOfficeRepository = employeeOfficeRepository;
     this.metaRepository = new MetaRepository();
   }
 
+  async syncFieldOfficerOffices(employeeId, role, officeId, officeIds) {
+    if (!usesMultipleOffices(role) || !employeeId || !this.employeeOfficeRepository) return;
+    const ids = normalizeOfficeIdList(officeIds, officeId);
+    if (ids.length < 1) {
+      throw new AppError(
+        'Field officers need at least one assigned work location (office_ids).',
+        400,
+        'OFFICE_REQUIRED'
+      );
+    }
+    await this.employeeOfficeRepository.setOffices(employeeId, ids);
+  }
+
+  resolveOfficeIdForUser(role, officeId, officeIds) {
+    const ids = normalizeOfficeIdList(officeIds, officeId);
+    if (usesMultipleOffices(role)) {
+      if (ids.length < 1) return null;
+      return ids[0];
+    }
+    return officeId;
+  }
+
   async list() {
-    return this.userRepository.listSummary();
+    const rows = await this.userRepository.listSummary();
+    if (!this.employeeOfficeRepository) return rows;
+    const empIds = rows
+      .filter((r) => usesMultipleOffices(r.role) && r.employee_id != null)
+      .map((r) => Number(r.employee_id));
+    const map = await this.employeeOfficeRepository.mapOfficeIdsByEmployees(empIds);
+    return rows.map((row) => {
+      if (!usesMultipleOffices(row.role) || row.employee_id == null) return row;
+      const office_ids = map.get(Number(row.employee_id)) || [];
+      return {
+        ...row,
+        office_ids: office_ids.length ? office_ids : row.office_id != null ? [Number(row.office_id)] : [],
+      };
+    });
   }
 
   async createUser(payload) {
@@ -51,8 +89,16 @@ class UserService {
     if (!isValidRole(role)) {
       throw new AppError('Invalid role.', 400, 'ROLE');
     }
-    if (isAttendanceRole(role) && !officeId) {
-      throw new AppError('Employees require an assigned office (office_id).', 400, 'OFFICE_REQUIRED');
+    const officeIds = normalizeOfficeIdList(payload.office_ids, officeId);
+    const resolvedOfficeId = this.resolveOfficeIdForUser(role, officeId, officeIds);
+    if (isAttendanceRole(role) && !resolvedOfficeId) {
+      throw new AppError(
+        usesMultipleOffices(role)
+          ? 'Field officers require at least one assigned work location (office_ids).'
+          : 'Employees require an assigned office (office_id).',
+        400,
+        'OFFICE_REQUIRED'
+      );
     }
 
     const has = (k) => Object.prototype.hasOwnProperty.call(payload, k);
@@ -146,11 +192,22 @@ class UserService {
         username,
         passwordHash,
         role,
-        officeId: isAttendanceRole(role) ? officeId : officeId || null,
+        officeId: isAttendanceRole(role) ? resolvedOfficeId : officeId || null,
         employeeId,
       });
+      if (employeeId) {
+        await this.syncFieldOfficerOffices(employeeId, role, resolvedOfficeId, officeIds);
+      }
       if (createdEmployee) {
-        return { ...userRow, employee_code: createdEmployee.employee_id };
+        const office_ids =
+          usesMultipleOffices(role) && this.employeeOfficeRepository
+            ? await this.employeeOfficeRepository.listOfficeIdsByEmployee(employeeId)
+            : undefined;
+        return {
+          ...userRow,
+          employee_code: createdEmployee.employee_id,
+          ...(office_ids ? { office_ids } : {}),
+        };
       }
       return userRow;
     } catch (e) {
@@ -203,6 +260,7 @@ class UserService {
       'custom_work_start',
       'custom_work_end',
       'basic_salary',
+      'office_ids',
     ];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
@@ -290,6 +348,21 @@ class UserService {
         if (!Number.isFinite(newOfficeIdValue) || newOfficeIdValue < 1) {
           throw new AppError('Invalid office_id.', 400);
         }
+      }
+    }
+
+    let newOfficeIdsValue;
+    if (has('office_ids')) {
+      newOfficeIdsValue = normalizeOfficeIdList(payload.office_ids, newOfficeIdValue);
+      if (usesMultipleOffices(effectiveRole) && newOfficeIdsValue.length < 1) {
+        throw new AppError(
+          'Field officers need at least one assigned work location.',
+          400,
+          'OFFICE_REQUIRED'
+        );
+      }
+      if (usesMultipleOffices(effectiveRole) && newOfficeIdsValue.length) {
+        newOfficeIdValue = newOfficeIdsValue[0];
       }
     }
 
@@ -389,6 +462,12 @@ class UserService {
       if (isAttendanceRole(effectiveRole)) {
         await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
       }
+      await this.syncFieldOfficerOffices(
+        emp.id,
+        effectiveRole,
+        office,
+        has('office_ids') ? newOfficeIdsValue : normalizeOfficeIdList(payload.office_ids, office)
+      );
       await syncEmployeePolicies();
       await syncEmployeeHrFields();
       const updated = stripUserSecrets(await this.userRepository.findById(userId));
@@ -419,7 +498,26 @@ class UserService {
 
     await syncEmployeePolicies();
     await syncEmployeeHrFields();
-    return stripUserSecrets(await this.userRepository.findById(userId));
+
+    if (empFk) {
+      if (usesMultipleOffices(prevRole) && !usesMultipleOffices(effectiveRole) && this.employeeOfficeRepository) {
+        await this.employeeOfficeRepository.setOffices(empFk, []);
+      } else if (usesMultipleOffices(effectiveRole) && (has('office_ids') || has('office_id'))) {
+        await this.syncFieldOfficerOffices(
+          empFk,
+          effectiveRole,
+          newOfficeIdValue !== undefined ? newOfficeIdValue : user.office_id,
+          has('office_ids') ? newOfficeIdsValue : undefined
+        );
+      }
+    }
+
+    const updated = stripUserSecrets(await this.userRepository.findById(userId));
+    if (empFk && usesMultipleOffices(effectiveRole) && this.employeeOfficeRepository) {
+      const office_ids = await this.employeeOfficeRepository.listOfficeIdsByEmployee(empFk);
+      return { ...updated, office_ids };
+    }
+    return updated;
   }
 }
 

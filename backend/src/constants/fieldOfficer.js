@@ -6,7 +6,7 @@ const FIELD_OFFICER_CHECKOUT_MAX_LENGTH = 512;
 
 /** Example format shown in UI hints. */
 const FIELD_OFFICER_CHECKOUT_FORMAT_HINT =
-  'pabrik*norek*nomor tanda terima*surat jalan*nomor polisi*bs*kode barang*kotor*berat';
+  'kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih';
 
 module.exports = {
   FIELD_OFFICER_CHECKOUT_SEGMENT_COUNT,

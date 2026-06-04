@@ -48,6 +48,9 @@ function makePayrollController(payrollService) {
       );
       res.send(buffer);
     }),
+    getFieldOfficerOmsetReport: asyncHandler(async (req, res) => {
+      res.json(await payrollService.getFieldOfficerOmsetReport(req.params.period));
+    }),
   };
 }
 

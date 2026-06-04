@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { query } = require('./pool');
+const { PABRIK_CATALOG } = require('../constants/pabrikCatalog');
 
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS departments (
@@ -510,6 +511,119 @@ async function migrateFieldCheckoutTables() {
   await query(
     `CREATE INDEX IF NOT EXISTS idx_field_code_entries_date ON field_code_entries(valid_on DESC)`
   );
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS pabrik_item_rates (
+      id SERIAL PRIMARY KEY,
+      pabrik_code VARCHAR(32) NOT NULL,
+      kode_barang VARCHAR(64) NOT NULL,
+      tonase_per_item NUMERIC(14,4) NOT NULL DEFAULT 0 CHECK (tonase_per_item >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (pabrik_code, kode_barang)
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS field_delivery_entries (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      valid_on DATE NOT NULL,
+      checkout_code TEXT NOT NULL,
+      pabrik_code VARCHAR(32) NOT NULL,
+      norek VARCHAR(5) NOT NULL,
+      nomor_tanda_terima BIGINT NOT NULL,
+      nomor_surat_jalan BIGINT NOT NULL,
+      nopol VARCHAR(32) NOT NULL,
+      no_bs BIGINT NOT NULL,
+      kode_barang VARCHAR(64) NOT NULL,
+      kotor NUMERIC(14,2) NOT NULL,
+      berat_bersih NUMERIC(14,2) NOT NULL,
+      selisih NUMERIC(14,2) NOT NULL,
+      tonase_per_item NUMERIC(14,4) NOT NULL DEFAULT 0,
+      bonus_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+      omset_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+      attendance_id INTEGER REFERENCES attendance(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(
+    `ALTER TABLE field_delivery_entries ADD COLUMN IF NOT EXISTS omset_amount NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `UPDATE field_delivery_entries
+     SET omset_amount = ROUND((tonase_per_item * selisih)::numeric, 2)
+     WHERE omset_amount = 0 AND tonase_per_item > 0 AND selisih > 0`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS omset_total NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_field_delivery_employee_date
+     ON field_delivery_entries(employee_id, valid_on)`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_field_delivery_valid_on ON field_delivery_entries(valid_on DESC)`
+  );
+}
+
+async function migrateEmployeeOffices() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS employee_offices (
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      office_id INTEGER NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+      PRIMARY KEY (employee_id, office_id)
+    )
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_employee_offices_office ON employee_offices(office_id)`
+  );
+  await query(
+    `INSERT INTO employee_offices (employee_id, office_id)
+     SELECT u.employee_id, u.office_id
+     FROM users u
+     WHERE u.role = 'field_officer'
+       AND u.employee_id IS NOT NULL
+       AND u.office_id IS NOT NULL
+     ON CONFLICT DO NOTHING`
+  );
+}
+
+async function migratePabrikCatalog() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS pabriks (
+      id SERIAL PRIMARY KEY,
+      pabrik_code VARCHAR(32) NOT NULL UNIQUE,
+      nama_pabrik VARCHAR(255) NOT NULL,
+      google_maps_url TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_pabriks_sort ON pabriks(sort_order ASC, pabrik_code ASC)`
+  );
+
+  for (const row of PABRIK_CATALOG) {
+    await query(
+      `INSERT INTO pabriks (pabrik_code, nama_pabrik, sort_order)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (pabrik_code) DO UPDATE SET
+         nama_pabrik = EXCLUDED.nama_pabrik,
+         sort_order = EXCLUDED.sort_order,
+         updated_at = NOW()`,
+      [row.code, row.name, row.sort_order]
+    );
+    for (const kode of row.items) {
+      await query(
+        `INSERT INTO pabrik_item_rates (pabrik_code, kode_barang, tonase_per_item)
+         VALUES ($1, $2, 0)
+         ON CONFLICT (pabrik_code, kode_barang) DO NOTHING`,
+        [row.code, kode]
+      );
+    }
+  }
 }
 
 async function migrate() {
@@ -520,6 +634,8 @@ async function migrate() {
   await migrateEnterpriseColumns();
   await migrateAttendanceCheckoutCode();
   await migrateFieldCheckoutTables();
+  await migrateEmployeeOffices();
+  await migratePabrikCatalog();
   await migrateLeaveFeatures();
   await normalizeEmployeeClockMode();
   await migratePayrollColumns();

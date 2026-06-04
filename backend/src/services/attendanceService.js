@@ -1,4 +1,5 @@
-const { haversineMeters } = require('../utils/geo');
+const { findCheckInOffice, nearestAssignedOffice, allowedRadiusMeters } = require('../utils/officeAttendance');
+const { resolveAssignedOfficesForEmployee } = require('../utils/employeeOffices');
 const { validateClockGeoOrThrow } = require('../utils/geoTrust');
 const { AppError } = require('../utils/errors');
 const {
@@ -198,13 +199,15 @@ class AttendanceService {
     officeRepository,
     employeeRepository,
     userRepository,
-    fieldCheckoutCodeService = null
+    fieldCheckoutCodeService = null,
+    employeeOfficeRepository = null
   ) {
     this.attendanceRepository = attendanceRepository;
     this.officeRepository = officeRepository;
     this.employeeRepository = employeeRepository;
     this.userRepository = userRepository;
     this.fieldCheckoutCodeService = fieldCheckoutCodeService;
+    this.employeeOfficeRepository = employeeOfficeRepository;
   }
 
   async checkIn(auth, body, reqMeta) {
@@ -212,9 +215,17 @@ class AttendanceService {
       throw new AppError('Only linked employees can clock in.', 403, 'NOT_EMPLOYEE');
     }
     const userRow = await this.userRepository.findById(auth.userId);
-    if (!userRow || !userRow.office_id) {
+    const fieldOfficer = isFieldOfficer(auth.role);
+    const assignedOffices = await resolveAssignedOfficesForEmployee(
+      this.employeeOfficeRepository,
+      auth.employeeId,
+      userRow
+    );
+    if (!assignedOffices.length) {
       throw new AppError(
-        'No office is assigned to your account. Ask an admin to assign an office before clocking in.',
+        fieldOfficer
+          ? 'No work locations are assigned to your account. Ask an admin to assign at least one office.'
+          : 'No office is assigned to your account. Ask an admin to assign an office before clocking in.',
         400,
         'NO_OFFICE'
       );
@@ -240,7 +251,6 @@ class AttendanceService {
       throw new AppError('You still have an open session. Clock out before starting another.', 400, 'ALREADY_IN');
     }
 
-    const fieldOfficer = isFieldOfficer(auth.role);
     const umum = isUmum(auth.role);
     const onceDailyInOut = usesOncePerDayInOut(auth.role);
     if (onceDailyInOut) {
@@ -273,33 +283,50 @@ class AttendanceService {
       config
     );
 
-    const officeId = userRow.office_id;
-    const office = await this.officeRepository.findById(officeId);
-    if (!office) throw new AppError('Selected office not found.', 400, 'OFFICE_NOT_FOUND');
-    if (office.lat == null || office.lng == null || Number.isNaN(Number(office.lat)) || Number.isNaN(Number(office.lng))) {
+    const officesWithCoords = assignedOffices.filter(
+      (o) =>
+        o.lat != null &&
+        o.lng != null &&
+        !Number.isNaN(Number(o.lat)) &&
+        !Number.isNaN(Number(o.lng))
+    );
+    if (!remoteWork && !officesWithCoords.length) {
       throw new AppError(
-        'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.',
+        'Your assigned location(s) have no map coordinates. Ask an admin to update the office Google Maps link.',
         400,
         'OFFICE_COORDS'
       );
     }
+
+    let officeId;
+    let office;
     if (!remoteWork) {
-      const dist = haversineMeters(Number(lat), Number(lng), Number(office.lat), Number(office.lng));
-      const acc = Math.max(0, Number(accuracyMeters) || 0);
-      const accBuffer = Math.min(acc, config.officeRadiusGpsBufferCapMeters);
-      const allowed = config.officeRadiusMeters + accBuffer;
-      if (dist > allowed) {
+      const match = findCheckInOffice(lat, lng, accuracyMeters, officesWithCoords, config);
+      if (!match) {
+        const nearest = nearestAssignedOffice(lat, lng, officesWithCoords);
+        const allowed = Math.round(allowedRadiusMeters(accuracyMeters, config));
         throw new AppError(
-          'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.',
+          fieldOfficer
+            ? 'You are not within the allowed radius of any of your assigned work locations. Wait for a better GPS fix or move closer to an assigned site.'
+            : 'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.',
           400,
           'RADIUS',
           {
-            distance_m: Math.round(dist),
-            allowed_m: Math.round(allowed),
-            office_name: office.name || '',
+            distance_m: nearest ? Math.round(nearest.distance_m) : null,
+            allowed_m: allowed,
+            office_name: nearest?.office?.name || '',
+            assigned_location_count: assignedOffices.length,
           }
         );
       }
+      office = match.office;
+      officeId = match.office.id;
+    } else {
+      office = assignedOffices[0];
+      officeId = office.id;
+      const row = await this.officeRepository.findById(officeId);
+      if (!row) throw new AppError('Selected office not found.', 400, 'OFFICE_NOT_FOUND');
+      office = { id: row.id, name: row.name, lat: row.lat, lng: row.lng };
     }
 
     const checkInTime = new Date();
