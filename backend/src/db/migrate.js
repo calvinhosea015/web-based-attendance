@@ -276,6 +276,15 @@ async function migratePayrollLoanColumns() {
     `ALTER TABLE payroll_settings ADD COLUMN IF NOT EXISTS default_upah_harian NUMERIC(14,2) NOT NULL DEFAULT 0`
   );
   await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS absence_deduction NUMERIC(14,2)`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS bpjs_tk NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS bpjs_kes NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
     `UPDATE payroll SET other_deductions = deductions
      WHERE other_deductions = 0 AND deductions > 0`
   );

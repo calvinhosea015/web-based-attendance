@@ -178,7 +178,16 @@ function slipAmounts(row) {
     row.monthly_basic_gross != null
       ? num(row.monthly_basic_gross)
       : num(row.employee_basic_salary);
-  const absenceDeduction = monthlyStaff ? num(row.absence_deduction) : 0;
+  let absenceDeduction = monthlyStaff ? num(row.absence_deduction) : 0;
+  if (!monthlyStaff) {
+    if (row.absence_deduction != null) {
+      absenceDeduction = num(row.absence_deduction);
+    } else if (row.payroll_mode !== 'manual') {
+      const expected = expectedWorkDaysForSlip(row, row.payroll_period);
+      const absentDays = Math.max(0, expected - num(row.days_attended));
+      absenceDeduction = Math.round(absentDays * num(row.upah_harian));
+    }
+  }
 
   let gajiLine;
   if (monthlyStaff) {
@@ -199,8 +208,8 @@ function slipAmounts(row) {
     bonus: num(row.bonus_omset),
     potongan_absen: absenceDeduction,
     potongan_terlambat: num(row.late_deduction),
-    bpjs_tk: 0,
-    bpjs_kes: 0,
+    bpjs_tk: num(row.bpjs_tk),
+    bpjs_kes: num(row.bpjs_kes),
     pph21: num(row.pph_21),
     kasbon: num(row.loan_deduction),
     potongan_lain: num(row.other_deductions),

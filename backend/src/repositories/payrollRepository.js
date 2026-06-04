@@ -187,9 +187,11 @@ class PayrollRepository {
         upah_harian, basic_salary, days_attended, expected_work_days,
         tunjangan_masa_kerja, transport_eligible, transport_allowance,
         overtime_pay, insentif, diligence_eligible, diligence_bonus,
-        bonus_omset, loan_deduction, late_deduction, pph_21, other_deductions, deductions, allowances, final_salary, keterangan
+        bonus_omset, loan_deduction, late_deduction, pph_21, other_deductions,
+        absence_deduction, bpjs_tk, bpjs_kes,
+        deductions, allowances, final_salary, keterangan
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
       )
       ON CONFLICT (employee_id, payroll_period) DO UPDATE SET
         period_start = EXCLUDED.period_start,
@@ -210,6 +212,9 @@ class PayrollRepository {
         late_deduction = EXCLUDED.late_deduction,
         pph_21 = EXCLUDED.pph_21,
         other_deductions = EXCLUDED.other_deductions,
+        absence_deduction = EXCLUDED.absence_deduction,
+        bpjs_tk = EXCLUDED.bpjs_tk,
+        bpjs_kes = EXCLUDED.bpjs_kes,
         deductions = EXCLUDED.deductions,
         allowances = EXCLUDED.allowances,
         final_salary = EXCLUDED.final_salary,
@@ -236,6 +241,9 @@ class PayrollRepository {
         row.late_deduction ?? 0,
         row.pph_21 ?? 0,
         row.other_deductions ?? 0,
+        row.absence_deduction ?? null,
+        row.bpjs_tk ?? 0,
+        row.bpjs_kes ?? 0,
         row.deductions,
         row.allowances,
         row.final_salary,

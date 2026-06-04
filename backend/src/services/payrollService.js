@@ -178,13 +178,16 @@ function attachPayrollMode(row) {
       expectedDays: expected,
       daysAttended: row.days_attended,
     });
+    const absenceDeduction =
+      row.absence_deduction != null ? num(row.absence_deduction) : calc.absence_deduction;
     return {
       ...row,
       payroll_mode: 'accounting',
       monthly_basic_gross: calc.monthly_basic_gross,
       expected_work_days: calc.expected_work_days,
       days_absent: calc.days_absent,
-      absence_deduction: calc.absence_deduction,
+      absence_deduction: absenceDeduction,
+      basic_salary: row.basic_salary != null ? num(row.basic_salary) : calc.basic_salary,
     };
   }
   if (isGeneralAffairs(role)) {
@@ -201,13 +204,16 @@ function attachPayrollMode(row) {
       expectedDays: expected,
       daysAttended: row.days_attended,
     });
+    const absenceDeduction =
+      row.absence_deduction != null ? num(row.absence_deduction) : calc.absence_deduction;
     return {
       ...row,
       payroll_mode: 'general_affairs',
       monthly_basic_gross: calc.monthly_basic_gross,
       expected_work_days: calc.expected_work_days,
       days_absent: calc.days_absent,
-      absence_deduction: calc.absence_deduction,
+      absence_deduction: absenceDeduction,
+      basic_salary: row.basic_salary != null ? num(row.basic_salary) : calc.basic_salary,
     };
   }
   const payroll_mode = isMonthlyOfficeStaff(role) ? 'monthly' : 'daily';
@@ -227,13 +233,16 @@ function attachPayrollMode(row) {
     expectedDays: expected,
     daysAttended: row.days_attended,
   });
+  const absenceDeduction =
+    row.absence_deduction != null ? num(row.absence_deduction) : calc.absence_deduction;
   return {
     ...row,
     payroll_mode,
     monthly_basic_gross: calc.monthly_basic_gross,
     expected_work_days: calc.expected_work_days,
     days_absent: calc.days_absent,
-    absence_deduction: calc.absence_deduction,
+    absence_deduction: absenceDeduction,
+    basic_salary: row.basic_salary != null ? num(row.basic_salary) : calc.basic_salary,
   };
 }
 
@@ -249,11 +258,10 @@ function resolveAllowanceAmounts(fields, employee, settings) {
   return { transportAmount, diligenceAmount };
 }
 
-function computeTotals(fields, employee, settings) {
+function computeTotals(fields, employee, settings, role = null) {
   const { transportAmount, diligenceAmount } = resolveAllowanceAmounts(fields, employee, settings);
   const transportAllowance = fields.transport_eligible ? transportAmount : 0;
   const diligenceBonus = fields.diligence_eligible ? diligenceAmount : 0;
-  const basicSalary = num(fields.basic_salary);
   const tunjangan = num(fields.tunjangan_masa_kerja);
   const overtime = num(fields.overtime_pay);
   const insentif = num(fields.insentif);
@@ -262,10 +270,31 @@ function computeTotals(fields, employee, settings) {
   const lateDeduction = num(fields.late_deduction);
   const pph21 = num(fields.pph_21);
   const otherDeductions = num(fields.other_deductions);
-  const deductions = loanDeduction + lateDeduction + pph21 + otherDeductions;
+  const bpjsTk = num(fields.bpjs_tk);
+  const bpjsKes = num(fields.bpjs_kes);
+  const absenceDeduction = num(fields.absence_deduction);
+  const monthlyGross = num(fields.monthly_basic_gross);
+  const isMonthly = role && receivesMonthlyAbsenceDeduction(role);
+
+  let earningsBase = num(fields.basic_salary);
+  let basicSalary = earningsBase;
+  if (isMonthly) {
+    const gross = monthlyGross > 0 ? monthlyGross : earningsBase + absenceDeduction;
+    earningsBase = gross;
+    basicSalary = Math.max(0, gross - absenceDeduction);
+  }
+
+  const deductions =
+    absenceDeduction +
+    loanDeduction +
+    lateDeduction +
+    pph21 +
+    otherDeductions +
+    bpjsTk +
+    bpjsKes;
   const allowances =
     tunjangan + transportAllowance + overtime + insentif + diligenceBonus + bonusOmset;
-  const finalSalary = basicSalary + allowances - deductions;
+  const finalSalary = earningsBase + allowances - deductions;
   return {
     transport_allowance: transportAllowance,
     diligence_bonus: diligenceBonus,
@@ -273,11 +302,28 @@ function computeTotals(fields, employee, settings) {
     late_deduction: lateDeduction,
     pph_21: pph21,
     other_deductions: otherDeductions,
+    bpjs_tk: bpjsTk,
+    bpjs_kes: bpjsKes,
+    absence_deduction: absenceDeduction,
     deductions,
     allowances,
     final_salary: finalSalary,
+    basic_salary: basicSalary,
     transport_allowance_amount: transportAmount,
     diligence_allowance_amount: diligenceAmount,
+  };
+}
+
+function withSlipTotalsContext(fields, role, ctx = {}) {
+  const isMonthly = role && receivesMonthlyAbsenceDeduction(role);
+  return {
+    ...fields,
+    monthly_basic_gross: isMonthly
+      ? num(ctx.monthly_basic_gross ?? fields.monthly_basic_gross ?? ctx.employee_basic_salary)
+      : 0,
+    absence_deduction: num(ctx.absence_deduction ?? fields.absence_deduction ?? 0),
+    bpjs_tk: num(ctx.bpjs_tk ?? fields.bpjs_tk ?? 0),
+    bpjs_kes: num(ctx.bpjs_kes ?? fields.bpjs_kes ?? 0),
   };
 }
 
@@ -405,26 +451,39 @@ class PayrollService {
     });
 
     const totals = computeTotals(
-      normalizeRolePayrollFields(
+      withSlipTotalsContext(
+        normalizeRolePayrollFields(
+          {
+            basic_salary: num(merged.basic_salary),
+            tunjangan_masa_kerja: num(merged.tunjangan_masa_kerja),
+            transport_eligible: transportEligible,
+            diligence_eligible: diligenceEligible,
+            transport_allowance_amount: allowanceRates.transport_allowance_amount,
+            diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
+            overtime_pay: num(merged.overtime_pay),
+            insentif: num(merged.insentif),
+            bonus_omset: num(merged.bonus_omset),
+            loan_deduction: num(merged.loan_deduction),
+            late_deduction: num(merged.late_deduction),
+            pph_21: num(merged.pph_21),
+            other_deductions: num(merged.other_deductions ?? merged.deductions),
+            bpjs_tk: num(merged.bpjs_tk),
+            bpjs_kes: num(merged.bpjs_kes),
+          },
+          merged.user_role
+        ),
+        merged.user_role,
         {
-          basic_salary: num(merged.basic_salary),
-          tunjangan_masa_kerja: num(merged.tunjangan_masa_kerja),
-          transport_eligible: transportEligible,
-          diligence_eligible: diligenceEligible,
-          transport_allowance_amount: allowanceRates.transport_allowance_amount,
-          diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
-          overtime_pay: num(merged.overtime_pay),
-          insentif: num(merged.insentif),
-          bonus_omset: num(merged.bonus_omset),
-          loan_deduction: num(merged.loan_deduction),
-          late_deduction: num(merged.late_deduction),
-          pph_21: num(merged.pph_21),
-          other_deductions: num(merged.other_deductions ?? merged.deductions),
-        },
-        merged.user_role
+          monthly_basic_gross: merged.monthly_basic_gross,
+          absence_deduction: merged.absence_deduction,
+          employee_basic_salary: merged.employee_basic_salary,
+          bpjs_tk: merged.bpjs_tk,
+          bpjs_kes: merged.bpjs_kes,
+        }
       ),
       employee,
-      settings
+      settings,
+      merged.user_role
     );
 
     return {
@@ -642,21 +701,33 @@ class PayrollService {
     const upahHarian = resolveUpahHarian(row, employee, role, settings);
     let gajiPokok;
 
-    const expectedDays = hasMonthlyBasicPayroll(role)
-      ? this.resolveExpectedWorkDays({
-          payrollPeriod: bounds.payroll_period,
-          existing: row.expected_work_days,
-        })
-      : null;
+    const expectedDays =
+      hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
+        ? this.resolveExpectedWorkDays({
+            payrollPeriod: bounds.payroll_period,
+            existing: row.expected_work_days,
+          })
+        : null;
 
+    let monthlyCalc = null;
+    let absenceForTotals = num(row.absence_deduction);
     if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
-      gajiPokok = computeMonthlyStaffPayroll({
+      monthlyCalc = computeMonthlyStaffPayroll({
         monthlyBasic: num(employee.basic_salary),
         expectedDays,
         daysAttended: days,
-      }).basic_salary;
+      });
+      gajiPokok = monthlyCalc.basic_salary;
+      if (row.absence_deduction == null) absenceForTotals = monthlyCalc.absence_deduction;
     } else {
       gajiPokok = computeGajiPokok(days, upahHarian);
+      if (
+        isFieldOfficer(role) &&
+        expectedDays != null &&
+        row.absence_deduction == null
+      ) {
+        absenceForTotals = Math.max(0, expectedDays - days) * upahHarian;
+      }
     }
 
     let overtimePay = num(row.overtime_pay);
@@ -716,14 +787,24 @@ class PayrollService {
       role
     );
 
-    const totals = computeTotals(fields, employee, settings);
+    const totals = computeTotals(
+      withSlipTotalsContext(fields, role, {
+        monthly_basic_gross: monthlyCalc?.monthly_basic_gross ?? num(employee.basic_salary),
+        absence_deduction: absenceForTotals,
+        bpjs_tk: row.bpjs_tk,
+        bpjs_kes: row.bpjs_kes,
+      }),
+      employee,
+      settings,
+      role
+    );
     const saved = await this.payrollRepository.upsertRow({
       employee_id: empId,
       payroll_period: bounds.payroll_period,
       period_start: bounds.period_start,
       period_end: bounds.period_end,
       upah_harian: upahHarian,
-      basic_salary: gajiPokok,
+      basic_salary: totals.basic_salary ?? gajiPokok,
       days_attended: days,
       expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
@@ -738,6 +819,9 @@ class PayrollService {
       late_deduction: totals.late_deduction,
       pph_21: totals.pph_21,
       other_deductions: totals.other_deductions,
+      absence_deduction: totals.absence_deduction,
+      bpjs_tk: totals.bpjs_tk,
+      bpjs_kes: totals.bpjs_kes,
       deductions: totals.deductions,
       allowances: totals.allowances,
       final_salary: totals.final_salary,
@@ -815,14 +899,19 @@ class PayrollService {
 
       if (isHeadOfFinance(role)) {
         const manualFields = buildManualPayrollFields({ prev, emp, settings });
-        const totals = computeTotals(manualFields, emp, settings);
+        const manualFieldsWithSlip = {
+          ...manualFields,
+          bpjs_tk: num(prev?.bpjs_tk),
+          bpjs_kes: num(prev?.bpjs_kes),
+        };
+        const totals = computeTotals(manualFieldsWithSlip, emp, settings);
         const saved = await this.payrollRepository.upsertRow({
           employee_id: emp.id,
           payroll_period: bounds.payroll_period,
           period_start: bounds.period_start,
           period_end: bounds.period_end,
           upah_harian: 0,
-          basic_salary: manualFields.basic_salary,
+          basic_salary: totals.basic_salary ?? manualFields.basic_salary,
           days_attended: prev?.days_attended ?? 0,
           expected_work_days: null,
           tunjangan_masa_kerja: manualFields.tunjangan_masa_kerja,
@@ -837,6 +926,9 @@ class PayrollService {
           late_deduction: manualFields.late_deduction,
           pph_21: totals.pph_21,
           other_deductions: totals.other_deductions,
+          absence_deduction: 0,
+          bpjs_tk: totals.bpjs_tk,
+          bpjs_kes: totals.bpjs_kes,
           deductions: totals.deductions,
           allowances: totals.allowances,
           final_salary: totals.final_salary,
@@ -865,19 +957,27 @@ class PayrollService {
         role,
         monthlyBasicGross,
       });
-      const expectedDays = hasMonthlyBasicPayroll(role)
-        ? this.resolveExpectedWorkDays({
-            payrollPeriod: bounds.payroll_period,
-            explicit: requiredWorkDays,
-            existing: prev?.expected_work_days,
-          })
-        : null;
+      const expectedDays =
+        hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
+          ? this.resolveExpectedWorkDays({
+              payrollPeriod: bounds.payroll_period,
+              explicit: requiredWorkDays,
+              existing: prev?.expected_work_days,
+            })
+          : null;
+      let monthlyCalc = null;
+      let absenceForTotals =
+        prev?.absence_deduction != null ? num(prev.absence_deduction) : 0;
       if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
-        fields.basic_salary = computeMonthlyStaffPayroll({
+        monthlyCalc = computeMonthlyStaffPayroll({
           monthlyBasic: monthlyBasicGross,
           expectedDays,
           daysAttended: fields._resolvedDays ?? days,
-        }).basic_salary;
+        });
+        fields.basic_salary = monthlyCalc.basic_salary;
+        if (prev?.absence_deduction == null) {
+          absenceForTotals = monthlyCalc.absence_deduction;
+        }
         if (receivesStaffKantorAttendancePayroll(role)) {
           fields.overtime_pay = await this.computeLemburPayForPeriod(
             emp.id,
@@ -895,15 +995,34 @@ class PayrollService {
       }
       fields = normalizeRolePayrollFields(fields, role);
       fields.loan_deduction = await this.resolveLoanDeduction(emp.id, bounds.payroll_period);
+      if (
+        isFieldOfficer(role) &&
+        expectedDays != null &&
+        prev?.absence_deduction == null
+      ) {
+        absenceForTotals =
+          Math.max(0, expectedDays - (fields._resolvedDays ?? days)) *
+          (fields._resolvedUpahHarian ?? upahHarian);
+      }
 
-      const totals = computeTotals(fields, emp, settings);
+      const totals = computeTotals(
+        withSlipTotalsContext(fields, role, {
+          monthly_basic_gross: monthlyCalc?.monthly_basic_gross ?? monthlyBasicGross,
+          absence_deduction: absenceForTotals,
+          bpjs_tk: prev?.bpjs_tk,
+          bpjs_kes: prev?.bpjs_kes,
+        }),
+        emp,
+        settings,
+        role
+      );
       const saved = await this.payrollRepository.upsertRow({
         employee_id: emp.id,
         payroll_period: bounds.payroll_period,
         period_start: bounds.period_start,
         period_end: bounds.period_end,
         upah_harian: fields._resolvedUpahHarian ?? upahHarian,
-        basic_salary: fields.basic_salary,
+        basic_salary: totals.basic_salary ?? fields.basic_salary,
         days_attended: fields._resolvedDays ?? days,
         expected_work_days: expectedDays,
         tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
@@ -918,6 +1037,9 @@ class PayrollService {
         late_deduction: totals.late_deduction,
         pph_21: totals.pph_21,
         other_deductions: totals.other_deductions,
+        absence_deduction: totals.absence_deduction,
+        bpjs_tk: totals.bpjs_tk,
+        bpjs_kes: totals.bpjs_kes,
         deductions: totals.deductions,
         allowances: totals.allowances,
         final_salary: totals.final_salary,
@@ -948,7 +1070,6 @@ class PayrollService {
     if (!employee) throw new AppError('Employee not found.', 404, 'EMPLOYEE_NOT_FOUND');
     const role =
       (await this.payrollRepository.getRoleForEmployee(empId)) || ROLES.EMPLOYEE;
-    const monthlyStaff = isMonthlyOfficeStaff(role);
     const headOfFinance = isHeadOfFinance(role);
 
     const settings = await this.payrollRepository.getSettings();
@@ -1036,6 +1157,8 @@ class PayrollService {
         late_deduction:
           payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction),
         pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),
+        bpjs_tk: payload.bpjs_tk != null ? num(payload.bpjs_tk) : num(existing.bpjs_tk),
+        bpjs_kes: payload.bpjs_kes != null ? num(payload.bpjs_kes) : num(existing.bpjs_kes),
       };
       const totals = computeTotals(fields, employee, settings);
       const keterangan =
@@ -1050,7 +1173,7 @@ class PayrollService {
         period_start: bounds.period_start,
         period_end: bounds.period_end,
         upah_harian: 0,
-        basic_salary: fields.basic_salary,
+        basic_salary: totals.basic_salary ?? fields.basic_salary,
         days_attended: daysN,
         expected_work_days: null,
         tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
@@ -1065,6 +1188,9 @@ class PayrollService {
         late_deduction: fields.late_deduction,
         pph_21: totals.pph_21,
         other_deductions: totals.other_deductions,
+        absence_deduction: 0,
+        bpjs_tk: totals.bpjs_tk,
+        bpjs_kes: totals.bpjs_kes,
         deductions: totals.deductions,
         allowances: totals.allowances,
         final_salary: totals.final_salary,
@@ -1083,31 +1209,52 @@ class PayrollService {
       payload.upah_harian != null
         ? num(payload.upah_harian)
         : resolveUpahHarian(existing, employee, role, settings);
-    const daysN = await this.resolveDaysAttended(
-      empId,
-      bounds.period_start,
-      bounds.period_end,
-      role
-    );
+    const daysN =
+      payload.days_attended != null
+        ? Math.max(0, Math.floor(num(payload.days_attended)))
+        : await this.resolveDaysAttended(
+            empId,
+            bounds.period_start,
+            bounds.period_end,
+            role
+          );
     let gajiPokok;
     let monthlyBasicGross = num(employee.basic_salary);
+    let absenceForTotals = 0;
+    const expectedDays =
+      hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
+        ? payload.expected_work_days != null
+          ? Math.max(0, Math.floor(num(payload.expected_work_days)))
+          : this.resolveExpectedWorkDays({
+              payrollPeriod: bounds.payroll_period,
+              existing: existing.expected_work_days,
+            })
+        : null;
     if (receivesMonthlyAbsenceDeduction(role)) {
       if (payload.monthly_basic_gross != null) {
         monthlyBasicGross = num(payload.monthly_basic_gross);
       } else if (payload.basic_salary != null) {
         monthlyBasicGross = num(payload.basic_salary);
       }
-      const expectedDays = this.resolveExpectedWorkDays({
-        payrollPeriod: bounds.payroll_period,
-        existing: existing.expected_work_days,
-      });
-      gajiPokok = computeMonthlyStaffPayroll({
-        monthlyBasic: monthlyBasicGross,
-        expectedDays,
-        daysAttended: daysN,
-      }).basic_salary;
+      if (payload.absence_deduction != null) {
+        absenceForTotals = num(payload.absence_deduction);
+      } else {
+        absenceForTotals = computeMonthlyStaffPayroll({
+          monthlyBasic: monthlyBasicGross,
+          expectedDays,
+          daysAttended: daysN,
+        }).absence_deduction;
+      }
+      gajiPokok = Math.max(0, monthlyBasicGross - absenceForTotals);
     } else {
       gajiPokok = computeGajiPokok(daysN, upahHarian);
+      if (isFieldOfficer(role) && expectedDays != null) {
+        if (payload.absence_deduction != null) {
+          absenceForTotals = num(payload.absence_deduction);
+        } else {
+          absenceForTotals = Math.max(0, expectedDays - daysN) * upahHarian;
+        }
+      }
     }
 
     const transportEligible =
@@ -1142,10 +1289,7 @@ class PayrollService {
     }
 
     const expectedDaysForLate = receivesStaffKantorAttendancePayroll(role)
-      ? this.resolveExpectedWorkDays({
-          payrollPeriod: bounds.payroll_period,
-          existing: existing.expected_work_days,
-        })
+      ? expectedDays
       : null;
 
     let lateDeduction =
@@ -1205,11 +1349,23 @@ class PayrollService {
         loan_deduction: loanDeduction,
         late_deduction: lateDeduction,
         pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),
+        bpjs_tk: payload.bpjs_tk != null ? num(payload.bpjs_tk) : num(existing.bpjs_tk),
+        bpjs_kes: payload.bpjs_kes != null ? num(payload.bpjs_kes) : num(existing.bpjs_kes),
       },
       role
     );
 
-    const totals = computeTotals(fields, employee, settings);
+    const totals = computeTotals(
+      withSlipTotalsContext(fields, role, {
+        monthly_basic_gross: monthlyBasicGross,
+        absence_deduction: absenceForTotals,
+        bpjs_tk: fields.bpjs_tk,
+        bpjs_kes: fields.bpjs_kes,
+      }),
+      employee,
+      settings,
+      role
+    );
     const keterangan =
       payload.keterangan !== undefined
         ? normalizeKeterangan(payload.keterangan)
@@ -1220,14 +1376,9 @@ class PayrollService {
       period_start: bounds.period_start,
       period_end: bounds.period_end,
       upah_harian: upahHarian,
-      basic_salary: gajiPokok,
+      basic_salary: totals.basic_salary ?? gajiPokok,
       days_attended: daysN,
-      expected_work_days: hasMonthlyBasicPayroll(role)
-        ? this.resolveExpectedWorkDays({
-            payrollPeriod: bounds.payroll_period,
-            existing: existing.expected_work_days,
-          })
-        : null,
+      expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
       transport_eligible: fields.transport_eligible,
       transport_allowance: totals.transport_allowance,
@@ -1240,6 +1391,9 @@ class PayrollService {
       late_deduction: totals.late_deduction,
       pph_21: totals.pph_21,
       other_deductions: totals.other_deductions,
+      absence_deduction: totals.absence_deduction,
+      bpjs_tk: totals.bpjs_tk,
+      bpjs_kes: totals.bpjs_kes,
       deductions: totals.deductions,
       allowances: totals.allowances,
       final_salary: totals.final_salary,
@@ -1263,10 +1417,12 @@ class PayrollService {
       defaultsPayload.basic_salary = monthlyBasicGross;
     }
     if (payload.transport_allowance_amount != null) {
-      defaultsPayload.transport_allowance_amount = transportAmount;
+      defaultsPayload.transport_allowance_amount =
+        allowanceRates.transport_allowance_amount;
     }
     if (payload.diligence_allowance_amount != null) {
-      defaultsPayload.diligence_allowance_amount = diligenceAmount;
+      defaultsPayload.diligence_allowance_amount =
+        allowanceRates.diligence_allowance_amount;
     }
     if (Object.keys(defaultsPayload).length) {
       await this.employeeRepository.updatePayrollDefaults(empId, defaultsPayload);
