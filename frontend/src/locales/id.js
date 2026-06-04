@@ -85,6 +85,10 @@ export default {
   payrollSummary: 'Ringkasan penggajian',
   payrollTitle: 'Penggajian',
   payrollSubtitle: 'Gaji bulanan berdasarkan kehadiran dan tunjangan.',
+  deployUiBuild: 'UI',
+  deployApiBuild: 'API',
+  deployUiStaleHint:
+    'Fitur baru di halaman ini butuh deploy frontend (Vercel). Push ke Git hanya memperbarui Railway jika root servis = backend.',
   backToDashboard: 'Kembali ke dasbor',
   payrollPeriod: 'Periode gaji',
   payrollMonth: 'Bulan',

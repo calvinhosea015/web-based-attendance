@@ -85,6 +85,10 @@ export default {
   payrollSummary: 'Payroll summary',
   payrollTitle: 'Payroll',
   payrollSubtitle: 'Monthly payroll by attendance and allowances.',
+  deployUiBuild: 'UI',
+  deployApiBuild: 'API',
+  deployUiStaleHint:
+    'New UI features require a frontend deploy (Vercel). Pushing Git only updates Railway when the service root is backend.',
   backToDashboard: 'Back to dashboard',
   payrollPeriod: 'Payroll period',
   payrollMonth: 'Month',

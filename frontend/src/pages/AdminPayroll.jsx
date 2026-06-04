@@ -29,6 +29,21 @@ function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
 }
 
+const UI_BUILD_SHA = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'dev';
+
+function apiHostForHealth() {
+  const base = String(import.meta.env.VITE_API_BASE || '/api').replace(/\/+$/, '');
+  if (base.endsWith('/api')) return base.slice(0, -4) || '';
+  if (/^https?:\/\//i.test(base)) {
+    try {
+      return new URL(base).origin;
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
 export default function AdminPayroll() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -51,6 +66,7 @@ export default function AdminPayroll() {
   const [requiredWorkDays, setRequiredWorkDays] = useState(null);
   const [payrollHolidays, setPayrollHolidays] = useState([]);
   const [manualRequiredDays, setManualRequiredDays] = useState('');
+  const [apiBuildSha, setApiBuildSha] = useState(null);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -133,6 +149,18 @@ export default function AdminPayroll() {
     }
     loadPeriod();
   }, [navigate, loadPeriod]);
+
+  useEffect(() => {
+    const host = apiHostForHealth();
+    if (!host) return;
+    fetch(`${host}/health`)
+      .then((r) => r.json())
+      .then((data) => {
+        const sha = data?.commit ? String(data.commit).slice(0, 7) : null;
+        setApiBuildSha(sha);
+      })
+      .catch(() => setApiBuildSha(null));
+  }, []);
 
   const handleSaveSettings = async (e) => {
     e.preventDefault();
@@ -265,10 +293,18 @@ export default function AdminPayroll() {
     });
   }, [editForm, period, requiredWorkDays]);
 
+  const deploySubtitle = [
+    t('payrollSubtitle'),
+    `${t('deployUiBuild')}: ${UI_BUILD_SHA}`,
+    apiBuildSha ? `${t('deployApiBuild')}: ${apiBuildSha}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <AdminLayout
       title={t('payrollTitle')}
-      subtitle={t('payrollSubtitle')}
+      subtitle={deploySubtitle}
       actions={
         <Button
           variant="secondary"
@@ -285,6 +321,8 @@ export default function AdminPayroll() {
             {message}
           </Alert>
         )}
+
+        <p className="text-xs text-slate-500">{t('deployUiStaleHint')}</p>
 
         {payrollHolidays.length > 0 && (
           <p className="text-sm text-slate-600">
