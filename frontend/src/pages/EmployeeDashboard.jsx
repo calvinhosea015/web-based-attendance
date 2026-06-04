@@ -742,8 +742,9 @@ export default function EmployeeDashboard() {
           <ul className="space-y-3 text-sm">
             {payroll.map((row) => {
               const loanDeduction = Number(row.loan_deduction || 0);
+              const pph21 = Number(row.pph_21 || 0);
               const otherDeductions = Number(row.other_deductions || 0);
-              const deductions = loanDeduction + otherDeductions;
+              const deductions = loanDeduction + pph21 + otherDeductions;
               return (
                 <li
                   key={row.id}
@@ -787,6 +788,14 @@ export default function EmployeeDashboard() {
                           {t('payrollLoanDeduction')}
                         </dt>
                         <dd className="font-medium text-rose-700">Rp {formatIdr(loanDeduction)}</dd>
+                      </div>
+                    )}
+                    {pph21 > 0 && (
+                      <div>
+                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                          {t('payrollPph21')}
+                        </dt>
+                        <dd className="font-medium text-rose-700">Rp {formatIdr(pph21)}</dd>
                       </div>
                     )}
                     {otherDeductions > 0 && (

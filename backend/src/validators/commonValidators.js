@@ -181,6 +181,8 @@ const payrollEntryValidators = [
   body('bonus_omset').optional().isFloat({ min: 0 }),
   body('deductions').optional().isFloat({ min: 0 }),
   body('other_deductions').optional().isFloat({ min: 0 }),
+  body('pph_21').optional().isFloat({ min: 0 }),
+  body('late_deduction').optional().isFloat({ min: 0 }),
   body('loan_deduction').optional().isFloat({ min: 0 }),
   body('transport_allowance_amount').optional().isFloat({ min: 0 }),
   body('diligence_allowance_amount').optional().isFloat({ min: 0 }),

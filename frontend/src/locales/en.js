@@ -108,6 +108,7 @@ export default {
   payrollActiveLoanHint: 'Active loan — {{monthly}}/mo · remaining Rp {{remaining}}',
   payrollLoanPreview: 'Will deduct Rp {{amount}} on save/generate',
   payrollOtherDeductions: 'Other deductions',
+  payrollPph21: 'PPh 21',
   payrollDaysAttended: 'Days attended',
   payrollDaysFromAttendance: 'Counted from check-in records in this pay period (not editable).',
   payrollUpahHarian: 'Daily wage',

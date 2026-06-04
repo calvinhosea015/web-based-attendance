@@ -108,6 +108,7 @@ export default {
   payrollActiveLoanHint: 'Pinjaman aktif — {{monthly}}/bln · sisa Rp {{remaining}}',
   payrollLoanPreview: 'Akan dipotong Rp {{amount}} saat simpan/generate',
   payrollOtherDeductions: 'Potongan lainnya',
+  payrollPph21: 'PPh 21',
   payrollDaysAttended: 'Hari hadir',
   payrollDaysFromAttendance: 'Dihitung dari data absen masuk dalam periode gaji ini (tidak dapat diubah manual).',
   payrollUpahHarian: 'Upah harian',

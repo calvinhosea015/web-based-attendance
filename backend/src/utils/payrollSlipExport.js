@@ -199,7 +199,7 @@ function slipAmounts(row) {
     potongan_terlambat: num(row.late_deduction),
     bpjs_tk: 0,
     bpjs_kes: 0,
-    pph21: 0,
+    pph21: num(row.pph_21),
     kasbon: num(row.loan_deduction),
     potongan_lain: num(row.other_deductions),
   };

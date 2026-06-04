@@ -183,9 +183,9 @@ class PayrollRepository {
         upah_harian, basic_salary, days_attended, expected_work_days,
         tunjangan_masa_kerja, transport_eligible, transport_allowance,
         overtime_pay, insentif, diligence_eligible, diligence_bonus,
-        bonus_omset, loan_deduction, late_deduction, other_deductions, deductions, allowances, final_salary, keterangan
+        bonus_omset, loan_deduction, late_deduction, pph_21, other_deductions, deductions, allowances, final_salary, keterangan
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
       )
       ON CONFLICT (employee_id, payroll_period) DO UPDATE SET
         period_start = EXCLUDED.period_start,
@@ -204,6 +204,7 @@ class PayrollRepository {
         bonus_omset = EXCLUDED.bonus_omset,
         loan_deduction = EXCLUDED.loan_deduction,
         late_deduction = EXCLUDED.late_deduction,
+        pph_21 = EXCLUDED.pph_21,
         other_deductions = EXCLUDED.other_deductions,
         deductions = EXCLUDED.deductions,
         allowances = EXCLUDED.allowances,
@@ -229,6 +230,7 @@ class PayrollRepository {
         row.bonus_omset,
         row.loan_deduction ?? 0,
         row.late_deduction ?? 0,
+        row.pph_21 ?? 0,
         row.other_deductions ?? 0,
         row.deductions,
         row.allowances,

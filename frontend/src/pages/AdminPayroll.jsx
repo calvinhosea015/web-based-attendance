@@ -193,6 +193,7 @@ export default function AdminPayroll() {
         Number(row.loan_deduction_preview || 0)
       ),
       other_deductions: row.other_deductions ?? row.deductions ?? 0,
+      pph_21: row.pph_21 ?? 0,
       late_deduction: row.late_deduction ?? 0,
       basic_salary: row.basic_salary ?? 0,
       keterangan: row.keterangan ?? '',
@@ -761,6 +762,17 @@ export default function AdminPayroll() {
                 />
               </CompactField>
             )}
+            <CompactField label={t('payrollPph21')}>
+              <input
+                type="number"
+                min="0"
+                className={inputClassCompact}
+                value={editForm.pph_21}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, pph_21: Number(e.target.value) }))
+                }
+              />
+            </CompactField>
             <CompactField label={t('payrollOtherDeductions')}>
               <input
                 type="number"

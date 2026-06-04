@@ -100,6 +100,7 @@ function buildManualPayrollFields({ prev, emp, settings }) {
     other_deductions: num(prev?.other_deductions ?? prev?.deductions ?? 0),
     loan_deduction: num(prev?.loan_deduction ?? 0),
     late_deduction: num(prev?.late_deduction ?? 0),
+    pph_21: num(prev?.pph_21 ?? 0),
   };
 }
 
@@ -240,8 +241,9 @@ function computeTotals(fields, employee, settings) {
   const bonusOmset = num(fields.bonus_omset);
   const loanDeduction = num(fields.loan_deduction);
   const lateDeduction = num(fields.late_deduction);
+  const pph21 = num(fields.pph_21);
   const otherDeductions = num(fields.other_deductions);
-  const deductions = loanDeduction + lateDeduction + otherDeductions;
+  const deductions = loanDeduction + lateDeduction + pph21 + otherDeductions;
   const allowances =
     tunjangan + transportAllowance + overtime + insentif + diligenceBonus + bonusOmset;
   const finalSalary = basicSalary + allowances - deductions;
@@ -250,6 +252,7 @@ function computeTotals(fields, employee, settings) {
     diligence_bonus: diligenceBonus,
     loan_deduction: loanDeduction,
     late_deduction: lateDeduction,
+    pph_21: pph21,
     other_deductions: otherDeductions,
     deductions,
     allowances,
@@ -396,6 +399,7 @@ class PayrollService {
           bonus_omset: num(merged.bonus_omset),
           loan_deduction: num(merged.loan_deduction),
           late_deduction: num(merged.late_deduction),
+          pph_21: num(merged.pph_21),
           other_deductions: num(merged.other_deductions ?? merged.deductions),
         },
         merged.user_role
@@ -495,6 +499,7 @@ class PayrollService {
         other_deductions: prev?.other_deductions ?? prev?.deductions ?? 0,
         loan_deduction: 0,
         late_deduction: prev?.late_deduction ?? 0,
+        pph_21: prev?.pph_21 ?? 0,
         _employee: employee,
         _payrollPeriod: payrollPeriod,
         _prev: prev,
@@ -688,6 +693,7 @@ class PayrollService {
         transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay: overtimePay,
         late_deduction: lateDeduction,
+        pph_21: num(row.pph_21),
         insentif: num(row.insentif),
         diligence_eligible: diligenceEligible,
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
@@ -721,6 +727,7 @@ class PayrollService {
       bonus_omset: fields.bonus_omset,
       loan_deduction: totals.loan_deduction,
       late_deduction: totals.late_deduction,
+      pph_21: totals.pph_21,
       other_deductions: totals.other_deductions,
       deductions: totals.deductions,
       allowances: totals.allowances,
@@ -817,6 +824,7 @@ class PayrollService {
           bonus_omset: manualFields.bonus_omset,
           loan_deduction: manualFields.loan_deduction,
           late_deduction: manualFields.late_deduction,
+          pph_21: totals.pph_21,
           other_deductions: totals.other_deductions,
           deductions: totals.deductions,
           allowances: totals.allowances,
@@ -903,6 +911,7 @@ class PayrollService {
         bonus_omset: fields.bonus_omset,
         loan_deduction: totals.loan_deduction,
         late_deduction: totals.late_deduction,
+        pph_21: totals.pph_21,
         other_deductions: totals.other_deductions,
         deductions: totals.deductions,
         allowances: totals.allowances,
@@ -968,6 +977,7 @@ class PayrollService {
         diligence_eligible: false,
         other_deductions: 0,
         loan_deduction: 0,
+        pph_21: 0,
       };
     }
 
@@ -1021,6 +1031,7 @@ class PayrollService {
           payload.loan_deduction != null ? num(payload.loan_deduction) : num(existing.loan_deduction),
         late_deduction:
           payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction),
+        pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),
       };
       const totals = computeTotals(fields, employee, settings);
       const keterangan =
@@ -1048,6 +1059,7 @@ class PayrollService {
         bonus_omset: fields.bonus_omset,
         loan_deduction: fields.loan_deduction,
         late_deduction: fields.late_deduction,
+        pph_21: totals.pph_21,
         other_deductions: totals.other_deductions,
         deductions: totals.deductions,
         allowances: totals.allowances,
@@ -1191,6 +1203,7 @@ class PayrollService {
                 ),
         loan_deduction: loanDeduction,
         late_deduction: lateDeduction,
+        pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),
       },
       role
     );
@@ -1224,6 +1237,7 @@ class PayrollService {
       bonus_omset: fields.bonus_omset,
       loan_deduction: totals.loan_deduction,
       late_deduction: totals.late_deduction,
+      pph_21: totals.pph_21,
       other_deductions: totals.other_deductions,
       deductions: totals.deductions,
       allowances: totals.allowances,
