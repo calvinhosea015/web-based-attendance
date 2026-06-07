@@ -50,6 +50,8 @@ export default function FieldOperationsPanel({
     office_id: '',
   });
   const [itemAddDraft, setItemAddDraft] = useState({});
+  const [priceDraft, setPriceDraft] = useState({});
+  const [priceSavingId, setPriceSavingId] = useState(null);
   const [pabrikSaving, setPabrikSaving] = useState(false);
   const [factorySaving, setFactorySaving] = useState(false);
   const [itemSavingCode, setItemSavingCode] = useState(null);
@@ -94,19 +96,26 @@ export default function FieldOperationsPanel({
       const { data } = await api.get(paths.adminPabriks);
       const list = Array.isArray(data?.pabriks) ? data.pabriks : [];
       setPabriks(list);
-      setPabrikRates(
-        list.flatMap((p) =>
-          (p.items || []).map((item) => ({
-            ...item,
-            pabrik_code: p.pabrik_code,
-            nama_pabrik: p.nama_pabrik,
-          }))
+      const rates = list.flatMap((p) =>
+        (p.items || []).map((item) => ({
+          ...item,
+          pabrik_code: p.pabrik_code,
+          nama_pabrik: p.nama_pabrik,
+        }))
+      );
+      setPabrikRates(rates);
+      setPriceDraft(
+        Object.fromEntries(
+          rates.map((r) => [
+            r.id,
+            Number(r.price_per_item) > 0 ? String(r.price_per_item) : '',
+          ])
         )
       );
     } catch (err) {
       setPabriks([]);
       setPabrikRates([]);
-      setPabrikMapsDraft({});
+      setPriceDraft({});
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
       setPabrikLoading(false);
@@ -234,6 +243,42 @@ export default function FieldOperationsPanel({
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
       setPabrikOfficeLinkSavingId(null);
+    }
+  };
+
+  const handleSaveInlinePrice = async (row) => {
+    const draft = priceDraft[row.id] ?? '';
+    const price = Number(draft) || 0;
+    const current = Number(row.price_per_item) || 0;
+    if (price === current) return;
+    if (price <= 0 && Number(row.tonase_per_item) <= 0) {
+      notify(t('pabrikItemRateRequired'), 'error');
+      setPriceDraft((d) => ({
+        ...d,
+        [row.id]: current > 0 ? String(current) : '',
+      }));
+      return;
+    }
+    setPriceSavingId(row.id);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.put(`${paths.adminPabrikItemRates}/${row.id}`, {
+        pabrik_code: row.pabrik_code,
+        kode_barang: row.kode_barang,
+        tonase_per_item: row.tonase_per_item,
+        price_per_item: price,
+      });
+      await loadPabriks();
+      notify(t('pabrikPriceSaved'), 'success');
+    } catch (err) {
+      setPriceDraft((d) => ({
+        ...d,
+        [row.id]: current > 0 ? String(current) : '',
+      }));
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setPriceSavingId(null);
     }
   };
 
@@ -685,10 +730,34 @@ export default function FieldOperationsPanel({
                         <td className="px-2 py-2 text-right tabular-nums">
                           {row.tonase_per_item}
                         </td>
-                        <td className="px-2 py-2 text-right tabular-nums">
-                          {Number(row.price_per_item) > 0
-                            ? `Rp ${formatIdr(row.price_per_item)}`
-                            : '—'}
+                        <td className="px-2 py-2 text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            className="w-28 rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm tabular-nums focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50"
+                            value={priceDraft[row.id] ?? ''}
+                            placeholder="0"
+                            disabled={priceSavingId === row.id}
+                            onChange={(e) =>
+                              setPriceDraft((d) => ({ ...d, [row.id]: e.target.value }))
+                            }
+                            onBlur={() => handleSaveInlinePrice(row)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                              }
+                              if (e.key === 'Escape') {
+                                const current = Number(row.price_per_item) || 0;
+                                setPriceDraft((d) => ({
+                                  ...d,
+                                  [row.id]: current > 0 ? String(current) : '',
+                                }));
+                                e.currentTarget.blur();
+                              }
+                            }}
+                          />
                         </td>
                         <td className="px-2 py-2 text-right">
                           <Button

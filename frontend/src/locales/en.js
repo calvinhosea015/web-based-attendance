@@ -196,7 +196,7 @@ export default {
   pabrikItemSaveTonase: 'Save tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
-    'Set tonase and/or price per item (factory + item code). Omset = price × selisih when price is set, else tonase × selisih. Bonus = omset × 2%.',
+    'Set tonase via the form above; edit price per item directly in the table (saved on blur or Enter). Omset = price × selisih when price is set, else tonase × selisih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Download tonase bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',
@@ -213,6 +213,7 @@ export default {
   pabrikItemAdd: 'Add',
   pabrikItemRatesEmpty: 'No tonase rows yet. Select a factory and set tonase per item code.',
   pabrikRateSaved: 'Tonase rate saved.',
+  pabrikPriceSaved: 'Price per item saved.',
   pabrikRateDeleted: 'Rate deleted.',
   fieldOmsetReportTitle: 'Field officer omset',
   fieldOmsetReportSubtitle:

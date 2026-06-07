@@ -197,7 +197,7 @@ export default {
   pabrikItemSaveTonase: 'Simpan tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
-    'Isi tonase dan/atau harga per kode barang. Omset = harga × selisih jika harga diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
+    'Isi tonase lewat formulir di atas; edit harga per item langsung di tabel (tersimpan saat blur atau Enter). Omset = harga × selisih jika harga diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Unduh laporan tonase bonus',
   pabrikTonaseExportHint:
     'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
@@ -214,6 +214,7 @@ export default {
   pabrikItemAdd: 'Tambah',
   pabrikItemRatesEmpty: 'Belum ada baris tonase. Pilih pabrik lalu isi tonase per kode barang.',
   pabrikRateSaved: 'Tarif tonase disimpan.',
+  pabrikPriceSaved: 'Harga per item disimpan.',
   pabrikRateDeleted: 'Tarif dihapus.',
   fieldOmsetReportTitle: 'Omset petugas lapangan',
   fieldOmsetReportSubtitle:
