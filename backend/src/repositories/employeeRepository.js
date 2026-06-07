@@ -79,6 +79,17 @@ class EmployeeRepository {
     return r.rows[0].c;
   }
 
+  async listActiveFieldOfficers() {
+    const r = await query(
+      `SELECT e.id AS employee_id, e.full_name, e.employee_id AS employee_code
+       FROM employees e
+       JOIN users u ON u.employee_id = e.id AND u.role = 'field_officer'
+       WHERE e.status = 'active'
+       ORDER BY e.full_name ASC`
+    );
+    return r.rows;
+  }
+
   async findById(id) {
     const r = await query(
       `SELECT e.*, d.name AS department_name, p.title AS position_title

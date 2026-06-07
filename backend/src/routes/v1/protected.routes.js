@@ -34,6 +34,7 @@ const {
   pabrikCreateValidators,
   pabrikUpdateValidators,
   fieldDeliveryQueryValidators,
+  dateRangeQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,
   leaveDecideValidators,
@@ -315,6 +316,13 @@ function buildProtectedRoutes(deps) {
     ...payrollPeriodParamValidator,
     validateRequest,
     payrollController.getFieldOfficerOmsetReport
+  );
+  r.get(
+    '/admin/field-tonase-bonus/export',
+    requireRole('admin'),
+    dateRangeQueryValidators,
+    validateRequest,
+    payrollController.exportFieldTonaseBonus
   );
 
   r.post(

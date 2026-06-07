@@ -188,6 +188,13 @@ export default {
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
     'Isi tonase per kode barang. Bonus = tonase × selisih × 2%. Chip hijau = tonase sudah diisi.',
+  pabrikTonaseExportTitle: 'Unduh laporan tonase bonus',
+  pabrikTonaseExportHint:
+    'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
+  pabrikTonaseDateFrom: 'Dari tanggal',
+  pabrikTonaseDateTo: 'Sampai tanggal',
+  pabrikTonaseDownload: 'Unduh Excel',
+  pabrikTonaseExported: 'Laporan tonase bonus diunduh.',
   pabrikItemPabrikCode: 'Kode pabrik',
   pabrikItemKodeBarang: 'Kode barang',
   pabrikItemTonase: 'Tonase per item',
@@ -203,8 +210,12 @@ export default {
   fieldOmsetBonusTotal: 'Bonus (2%)',
   fieldOmsetTotal: 'Omset',
   fieldOmsetByEmployee: 'Per petugas lapangan',
-  fieldOmsetByEmployeeHint: 'Buka detail untuk melihat tiap baris kode pengiriman dalam periode.',
+  fieldOmsetByEmployeeHint:
+    '{{count}} petugas lapangan pada periode ini. Buka detail untuk melihat tiap baris pengiriman.',
   fieldOmsetEmpty: 'Belum ada kode pengiriman pada periode gaji ini.',
+  fieldOmsetNoOfficers: 'Tidak ada petugas lapangan aktif.',
+  fieldOmsetOfficerCountHint: 'Dari {{count}} petugas lapangan',
+  fieldOmsetOfficerNoDeliveries: 'Tidak ada pengiriman pada periode ini.',
   fieldOmsetDeliveries: 'Pengiriman',
   fieldOmsetRefresh: 'Muat laporan',
   fieldOmsetShowLines: 'Detail',

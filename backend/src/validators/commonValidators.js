@@ -254,6 +254,11 @@ const fieldDeliveryQueryValidators = [
   query('days').optional().isInt({ min: 1, max: 365 }),
 ];
 
+const dateRangeQueryValidators = [
+  query('from').matches(/^\d{4}-\d{2}-\d{2}$/),
+  query('to').matches(/^\d{4}-\d{2}-\d{2}$/),
+];
+
 const leaveSettingsValidators = [
   body('medical_days_per_year').isFloat({ min: 0 }),
   body('unpaid_days_per_year').isFloat({ min: 0 }),
@@ -303,6 +308,7 @@ module.exports = {
   loanSubmitValidators,
   loanDecideValidators,
   fieldDeliveryQueryValidators,
+  dateRangeQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,
   leaveDecideValidators,

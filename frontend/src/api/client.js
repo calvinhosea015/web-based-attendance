@@ -135,6 +135,7 @@ export const paths = {
   /** @param {string|number} id */
   adminPabrik: (id) => `/v1/admin/pabriks/${id}`,
   adminPabrikItemRates: '/v1/admin/pabrik-item-rates',
+  adminFieldTonaseBonusExport: '/v1/admin/field-tonase-bonus/export',
   employeeFieldDeliveries: '/v1/employee/field-deliveries',
   adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
   adminLoanRequests: '/v1/admin/loan-requests',

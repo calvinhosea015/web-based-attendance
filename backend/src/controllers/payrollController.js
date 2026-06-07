@@ -51,6 +51,18 @@ function makePayrollController(payrollService) {
     getFieldOfficerOmsetReport: asyncHandler(async (req, res) => {
       res.json(await payrollService.getFieldOfficerOmsetReport(req.params.period));
     }),
+    exportFieldTonaseBonus: asyncHandler(async (req, res) => {
+      const { buffer, filename } = await payrollService.exportFieldTonaseBonusReport(
+        req.query.from,
+        req.query.to
+      );
+      res.setHeader('Content-Disposition', attachmentDisposition(filename));
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.send(buffer);
+    }),
   };
 }
 

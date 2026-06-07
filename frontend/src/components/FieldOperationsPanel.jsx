@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Button, Card, Field, StatTile, inputClass } from './ui.jsx';
-import { api, paths, ensureCsrf } from '../api/client.js';
+import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import {
   currentPayrollPeriodKey,
+  payrollCycleBounds,
   payrollCycleLabel,
   periodLabelCalendar,
 } from '../utils/payrollPeriod.js';
@@ -47,6 +48,9 @@ export default function FieldOperationsPanel({
   const [itemSavingCode, setItemSavingCode] = useState(null);
   const [factoryDeletingId, setFactoryDeletingId] = useState(null);
   const [pabrikLoading, setPabrikLoading] = useState(false);
+  const [tonaseExportFrom, setTonaseExportFrom] = useState('');
+  const [tonaseExportTo, setTonaseExportTo] = useState('');
+  const [tonaseExporting, setTonaseExporting] = useState(false);
 
   const [report, setReport] = useState(null);
   const [omsetLoading, setOmsetLoading] = useState(false);
@@ -112,6 +116,14 @@ export default function FieldOperationsPanel({
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    const bounds = payrollCycleBounds(period);
+    if (bounds) {
+      setTonaseExportFrom(bounds.period_start);
+      setTonaseExportTo(bounds.period_end);
+    }
+  }, [period]);
 
   const pabrikItemOptions = useMemo(() => {
     const pabrik = pabriks.find((p) => p.pabrik_code === pabrikForm.pabrik_code);
@@ -225,6 +237,24 @@ export default function FieldOperationsPanel({
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
       setPabrikSaving(false);
+    }
+  };
+
+  const handleDownloadTonaseBonus = async () => {
+    if (!tonaseExportFrom || !tonaseExportTo) return;
+    setTonaseExporting(true);
+    notify('');
+    try {
+      const res = await api.get(paths.adminFieldTonaseBonusExport, {
+        params: { from: tonaseExportFrom, to: tonaseExportTo },
+        responseType: 'blob',
+      });
+      downloadBlobResponse(res, `tonase_bonus_${tonaseExportFrom}_${tonaseExportTo}.xlsx`);
+      notify(t('pabrikTonaseExported'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setTonaseExporting(false);
     }
   };
 
@@ -466,6 +496,40 @@ export default function FieldOperationsPanel({
       {showTonase && (
         <section id="pabrik-tonase" className="scroll-mt-24">
           <Card title={t('pabrikItemRatesTitle')} description={t('pabrikItemRatesHint')}>
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <p className="mb-3 text-sm font-medium text-slate-800">
+                {t('pabrikTonaseExportTitle')}
+              </p>
+              <p className="mb-3 text-xs text-slate-500">{t('pabrikTonaseExportHint')}</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <Field label={t('pabrikTonaseDateFrom')}>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={tonaseExportFrom}
+                    onChange={(e) => setTonaseExportFrom(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label={t('pabrikTonaseDateTo')}>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={tonaseExportTo}
+                    onChange={(e) => setTonaseExportTo(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={tonaseExporting || !tonaseExportFrom || !tonaseExportTo}
+                  onClick={handleDownloadTonaseBonus}
+                >
+                  {tonaseExporting ? t('loading') : t('pabrikTonaseDownload')}
+                </Button>
+              </div>
+            </div>
             <form className="mb-4 grid gap-3 sm:grid-cols-4" onSubmit={handleSavePabrikRate}>
               <Field label={t('pabrikItemPabrikCode')}>
                 <select
@@ -587,90 +651,113 @@ export default function FieldOperationsPanel({
                   <StatTile
                     label={t('fieldOmsetDeliveries')}
                     value={report.delivery_count}
-                    sub={t('fieldOmsetByEmployeeHint')}
+                    sub={t('fieldOmsetOfficerCountHint', { count: report.employees.length })}
                   />
                 </div>
                 {!report.employees?.length ? (
-                  <p className="text-sm text-slate-600">{t('fieldOmsetEmpty')}</p>
+                  <p className="text-sm text-slate-600">{t('fieldOmsetNoOfficers')}</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-left text-sm">
-                      <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                          <th className="px-3 py-2">{t('employee')}</th>
-                          <th className="px-3 py-2 text-right">{t('fieldOmsetDeliveries')}</th>
-                          <th className="px-3 py-2 text-right">{t('fieldOmsetTotal')}</th>
-                          <th className="px-3 py-2 text-right">{t('fieldOmsetBonusTotal')}</th>
-                          <th className="px-3 py-2" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {report.employees.map((emp) => (
-                          <React.Fragment key={emp.employee_id}>
-                            <tr className="hover:bg-slate-50/80">
-                              <td className="px-3 py-3">
-                                <div className="font-medium text-slate-900">{emp.full_name}</div>
-                                <div className="text-xs text-slate-500">{emp.employee_code}</div>
-                              </td>
-                              <td className="px-3 py-3 text-right tabular-nums">
-                                {emp.delivery_count}
-                              </td>
-                              <td className="px-3 py-3 text-right tabular-nums font-medium text-slate-900">
-                                Rp {formatIdr(emp.omset_total)}
-                              </td>
-                              <td className="px-3 py-3 text-right tabular-nums text-brand-700">
-                                Rp {formatIdr(emp.bonus_total)}
-                              </td>
-                              <td className="px-3 py-3 text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    setExpandedId((id) =>
-                                      id === emp.employee_id ? null : emp.employee_id
-                                    )
-                                  }
-                                >
-                                  {expandedId === emp.employee_id
-                                    ? t('fieldOmsetHideLines')
-                                    : t('fieldOmsetShowLines')}
-                                </Button>
-                              </td>
-                            </tr>
-                            {expandedId === emp.employee_id && (
-                              <tr>
-                                <td colSpan={5} className="bg-slate-50/80 px-3 py-3">
-                                  <ul className="space-y-2 text-xs text-slate-700">
-                                    {emp.deliveries.map((d) => (
-                                      <li
-                                        key={d.id}
-                                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                                      >
-                                        <div className="flex flex-wrap justify-between gap-2">
-                                          <span className="font-medium text-slate-900">
-                                            {d.valid_on} · {d.pabrik_code} · {d.kode_barang}
-                                          </span>
-                                          <span>
-                                            {t('fieldOmsetLineAmounts', {
-                                              omset: formatIdr(d.omset_amount),
-                                              bonus: formatIdr(d.bonus_amount),
-                                            })}
-                                          </span>
-                                        </div>
-                                        <div className="mt-1 text-slate-500">
-                                          {t('fieldDelivery_selisih')}: {d.selisih} kg ·{' '}
-                                          {t('pabrikItemTonase')}: {d.tonase_per_item}
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {t('fieldOmsetByEmployee')}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {t('fieldOmsetByEmployeeHint', { count: report.employees.length })}
+                      </p>
+                    </div>
+                    {report.delivery_count === 0 ? (
+                      <p className="text-sm text-slate-600">{t('fieldOmsetEmpty')}</p>
+                    ) : null}
+                    <div className="space-y-3">
+                      {report.employees.map((emp) => (
+                        <div
+                          key={emp.employee_id}
+                          className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="font-semibold text-slate-900">{emp.full_name}</div>
+                              <div className="text-xs text-slate-500">{emp.employee_code}</div>
+                            </div>
+                            <div className="grid gap-3 text-right sm:grid-cols-3 sm:gap-6">
+                              <div>
+                                <div className="text-xs uppercase tracking-wide text-slate-500">
+                                  {t('fieldOmsetDeliveries')}
+                                </div>
+                                <div className="mt-0.5 tabular-nums font-medium text-slate-900">
+                                  {emp.delivery_count}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs uppercase tracking-wide text-slate-500">
+                                  {t('fieldOmsetTotal')}
+                                </div>
+                                <div className="mt-0.5 tabular-nums font-medium text-slate-900">
+                                  Rp {formatIdr(emp.omset_total)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs uppercase tracking-wide text-slate-500">
+                                  {t('fieldOmsetBonusTotal')}
+                                </div>
+                                <div className="mt-0.5 tabular-nums font-medium text-brand-700">
+                                  Rp {formatIdr(emp.bonus_total)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {emp.deliveries.length > 0 ? (
+                            <div className="mt-3 border-t border-slate-200 pt-3">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setExpandedId((id) =>
+                                    id === emp.employee_id ? null : emp.employee_id
+                                  )
+                                }
+                              >
+                                {expandedId === emp.employee_id
+                                  ? t('fieldOmsetHideLines')
+                                  : t('fieldOmsetShowLines')}
+                              </Button>
+                              {expandedId === emp.employee_id ? (
+                                <ul className="mt-2 space-y-2 text-xs text-slate-700">
+                                  {emp.deliveries.map((d) => (
+                                    <li
+                                      key={d.id}
+                                      className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                                    >
+                                      <div className="flex flex-wrap justify-between gap-2">
+                                        <span className="font-medium text-slate-900">
+                                          {d.valid_on} · {d.pabrik_code} · {d.kode_barang}
+                                        </span>
+                                        <span>
+                                          {t('fieldOmsetLineAmounts', {
+                                            omset: formatIdr(d.omset_amount),
+                                            bonus: formatIdr(d.bonus_amount),
+                                          })}
+                                        </span>
+                                      </div>
+                                      <div className="mt-1 text-slate-500">
+                                        {t('fieldDelivery_selisih')}: {d.selisih} kg ·{' '}
+                                        {t('pabrikItemTonase')}: {d.tonase_per_item}
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <p className="mt-3 border-t border-slate-200 pt-3 text-xs text-slate-500">
+                              {t('fieldOmsetOfficerNoDeliveries')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

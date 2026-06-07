@@ -7,6 +7,11 @@ const {
   periodLabel,
 } = require('../utils/payrollSlipExport');
 const {
+  buildFieldTonaseBonusWorkbook,
+  writeFieldTonaseBonusBuffer,
+  exportFilename: fieldTonaseBonusExportFilename,
+} = require('../utils/fieldTonaseBonusExport');
+const {
   payrollCycleBounds,
   payrollCycleLabel,
   periodLabelCalendar,
@@ -412,11 +417,40 @@ class PayrollService {
         created_at: row.created_at,
       });
     }
-    const employees = [...byEmployee.values()].map((e) => ({
-      ...e,
-      omset_total: Math.round(e.omset_total * 100) / 100,
-      bonus_total: Math.round(e.bonus_total * 100) / 100,
-    }));
+    const roster = this.employeeRepository
+      ? await this.employeeRepository.listActiveFieldOfficers()
+      : [];
+    const seen = new Set();
+    const employees = [];
+    for (const officer of roster) {
+      seen.add(officer.employee_id);
+      const bucket = byEmployee.get(officer.employee_id);
+      employees.push(
+        bucket
+          ? {
+              ...bucket,
+              omset_total: Math.round(bucket.omset_total * 100) / 100,
+              bonus_total: Math.round(bucket.bonus_total * 100) / 100,
+            }
+          : {
+              employee_id: officer.employee_id,
+              full_name: officer.full_name,
+              employee_code: officer.employee_code,
+              omset_total: 0,
+              bonus_total: 0,
+              delivery_count: 0,
+              deliveries: [],
+            }
+      );
+    }
+    for (const bucket of byEmployee.values()) {
+      if (seen.has(bucket.employee_id)) continue;
+      employees.push({
+        ...bucket,
+        omset_total: Math.round(bucket.omset_total * 100) / 100,
+        bonus_total: Math.round(bucket.bonus_total * 100) / 100,
+      });
+    }
     employees.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
     const total_omset = employees.reduce((s, e) => s + e.omset_total, 0);
     const total_bonus = employees.reduce((s, e) => s + e.bonus_total, 0);
@@ -1613,6 +1647,50 @@ class PayrollService {
     const buffer = await writeSlipBuffer(wb);
     const filename = employeeSlipExportFilename(row);
     return { buffer, filename };
+  }
+
+  parseExportDateRange(from, to) {
+    const dateFrom = String(from ?? '').trim();
+    const dateTo = String(to ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+      throw new AppError('Invalid date format. Use YYYY-MM-DD.', 400, 'VALIDATION');
+    }
+    if (dateFrom > dateTo) {
+      throw new AppError('Start date must be on or before end date.', 400, 'VALIDATION');
+    }
+    const start = new Date(`${dateFrom}T00:00:00Z`);
+    const end = new Date(`${dateTo}T00:00:00Z`);
+    const dayMs = 24 * 60 * 60 * 1000;
+    const spanDays = Math.floor((end - start) / dayMs) + 1;
+    if (spanDays > 366) {
+      throw new AppError('Date range cannot exceed 366 days.', 400, 'VALIDATION');
+    }
+    return { dateFrom, dateTo };
+  }
+
+  /** Excel export: tonase bonus aggregated per factory & item for a custom date range. */
+  async exportFieldTonaseBonusReport(from, to) {
+    const { dateFrom, dateTo } = this.parseExportDateRange(from, to);
+    if (!this.fieldDeliveryRepository) {
+      throw new AppError('Field delivery data is not available.', 503, 'UNAVAILABLE');
+    }
+    const [summaryRows, deliveries] = await Promise.all([
+      this.fieldDeliveryRepository.summarizeByFactoryItem(dateFrom, dateTo),
+      this.fieldDeliveryRepository.listDeliveriesInPeriod(dateFrom, dateTo),
+    ]);
+    const wb = await buildFieldTonaseBonusWorkbook({
+      summaryRows,
+      deliveries,
+      dateFrom,
+      dateTo,
+    });
+    const buffer = await writeFieldTonaseBonusBuffer(wb);
+    return {
+      buffer,
+      filename: fieldTonaseBonusExportFilename(dateFrom, dateTo),
+      delivery_count: deliveries.length,
+      summary_count: summaryRows.length,
+    };
   }
 
   async exportAllSlips(period) {
