@@ -55,6 +55,8 @@ const MESSAGE_CODE = {
   'Checkout data is required to check out.': 'CHECKOUT_CODE_REQUIRED',
   'Selected office not found.': 'OFFICE_NOT_FOUND',
   'Office not found.': 'OFFICE_NOT_FOUND',
+  'Selected office has no Google Maps link. Add a map link to the office first.':
+    'OFFICE_NO_MAP',
   'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.':
     'OFFICE_COORDS',
   'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.':

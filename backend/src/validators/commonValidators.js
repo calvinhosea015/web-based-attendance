@@ -91,12 +91,28 @@ const pabrikCreateValidators = [
   body('pabrik_code').trim().notEmpty().isString().isLength({ max: 32 }),
   body('nama_pabrik').trim().notEmpty().isString().isLength({ max: 255 }),
   body('google_maps_url').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+  body('office_id')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === null || value === '') return true;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office id');
+      return true;
+    }),
 ];
 
 const pabrikUpdateValidators = [
   param('id').isInt({ min: 1 }),
   body('nama_pabrik').optional().trim().notEmpty().isString().isLength({ max: 255 }),
   body('google_maps_url').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+  body('office_id')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === null || value === '') return true;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office id');
+      return true;
+    }),
 ];
 
 function passwordPolicyValidator() {

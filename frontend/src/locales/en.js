@@ -173,6 +173,13 @@ export default {
   pabrikDeleteItem: 'Remove item code',
   pabrikItemAdded: 'Item code added.',
   pabrikNama: 'Factory name',
+  pabrikLinkOffice: 'Link to office site',
+  pabrikLinkOfficeNone: 'Custom Google Maps link',
+  pabrikLinkOfficeHint:
+    'Pick an office to reuse its Google Maps link from the database, or enter a custom link below.',
+  pabrikMapsFromOffice: 'Using map link from office: {{name}}',
+  pabrikOfficeLinked: 'Factory linked to office map.',
+  pabrikOfficeNoMap: 'no map link',
   pabrikGoogleMaps: 'Google Maps link',
   pabrikGoogleMapsPlaceholder: 'https://maps.google.com/...',
   pabrikSaveMaps: 'Save link',
@@ -529,6 +536,7 @@ export default {
     FIELD_CODE_REQUIRED:
       'Enter delivery data (9 fields separated by *) before you can check out.',
     OFFICE_NOT_FOUND: 'Office not found.',
+    OFFICE_NO_MAP: 'Selected office has no Google Maps link. Add one in Admin → Offices first.',
     OFFICE_COORDS:
       'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.',
     RADIUS:

@@ -604,6 +604,12 @@ async function migratePabrikCatalog() {
   await query(
     `CREATE INDEX IF NOT EXISTS idx_pabriks_sort ON pabriks(sort_order ASC, pabrik_code ASC)`
   );
+  await query(
+    `ALTER TABLE pabriks ADD COLUMN IF NOT EXISTS office_id INTEGER REFERENCES offices(id) ON DELETE SET NULL`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_pabriks_office ON pabriks(office_id) WHERE office_id IS NOT NULL`
+  );
 
   for (const row of PABRIK_CATALOG) {
     await query(

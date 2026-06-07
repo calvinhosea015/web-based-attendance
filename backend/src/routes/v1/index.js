@@ -79,7 +79,7 @@ function buildV1Router() {
     pabrikItemRateRepository,
     pabrikRepository
   );
-  const pabrikService = new PabrikService(pabrikRepository);
+  const pabrikService = new PabrikService(pabrikRepository, officeRepository);
   const attendanceService = new AttendanceService(
     attendanceRepository,
     officeRepository,

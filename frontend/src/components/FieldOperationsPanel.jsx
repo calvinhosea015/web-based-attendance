@@ -32,6 +32,8 @@ export default function FieldOperationsPanel({
   const [pabrikRates, setPabrikRates] = useState([]);
   const [pabrikMapsDraft, setPabrikMapsDraft] = useState({});
   const [pabrikMapsSavingId, setPabrikMapsSavingId] = useState(null);
+  const [pabrikOfficeLinkSavingId, setPabrikOfficeLinkSavingId] = useState(null);
+  const [offices, setOffices] = useState([]);
   const [expandedPabrikCode, setExpandedPabrikCode] = useState(null);
   const [pabrikForm, setPabrikForm] = useState({
     pabrik_code: '',
@@ -60,6 +62,16 @@ export default function FieldOperationsPanel({
     setMessage(text);
     setMessageTone(tone);
   };
+
+  const loadOffices = useCallback(async () => {
+    if (!showPabrik) return;
+    try {
+      const { data } = await api.get(paths.offices);
+      setOffices(Array.isArray(data) ? data : []);
+    } catch {
+      setOffices([]);
+    }
+  }, [showPabrik]);
 
   const loadPabriks = useCallback(async () => {
     if (!showPabrik && !showTonase) return;
@@ -108,6 +120,10 @@ export default function FieldOperationsPanel({
     notify('');
     await Promise.all([loadPabriks(), loadReport()]);
   }, [loadPabriks, loadReport]);
+
+  useEffect(() => {
+    loadOffices();
+  }, [loadOffices]);
 
   useEffect(() => {
     loadPabriks();
@@ -189,6 +205,23 @@ export default function FieldOperationsPanel({
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
       setItemSavingCode(null);
+    }
+  };
+
+  const handleLinkPabrikOffice = async (pabrikId, officeId) => {
+    setPabrikOfficeLinkSavingId(pabrikId);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.put(paths.adminPabrik(pabrikId), {
+        office_id: officeId ? Number(officeId) : null,
+      });
+      await loadPabriks();
+      notify(t('pabrikOfficeLinked'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setPabrikOfficeLinkSavingId(null);
     }
   };
 
@@ -381,43 +414,71 @@ export default function FieldOperationsPanel({
                         </Button>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <Field label={t('pabrikGoogleMaps')}>
-                        <input
+                    <div className="mt-3 space-y-3">
+                      <Field label={t('pabrikLinkOffice')}>
+                        <select
                           className={inputClass}
-                          type="url"
-                          placeholder={t('pabrikGoogleMapsPlaceholder')}
-                          value={pabrikMapsDraft[pabrik.id] ?? ''}
-                          onChange={(e) =>
-                            setPabrikMapsDraft((d) => ({
-                              ...d,
-                              [pabrik.id]: e.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <div className="flex items-end gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={pabrikMapsSavingId === pabrik.id}
-                          onClick={() => handleSavePabrikMaps(pabrik.id)}
+                          value={pabrik.office_id ?? ''}
+                          disabled={pabrikOfficeLinkSavingId === pabrik.id}
+                          onChange={(e) => handleLinkPabrikOffice(pabrik.id, e.target.value)}
                         >
-                          {pabrikMapsSavingId === pabrik.id
-                            ? t('loading')
-                            : t('pabrikSaveMaps')}
-                        </Button>
-                        {pabrikMapsDraft[pabrik.id] ? (
-                          <a
-                            href={pabrikMapsDraft[pabrik.id]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                          <option value="">{t('pabrikLinkOfficeNone')}</option>
+                          {offices.map((office) => (
+                            <option key={office.id} value={office.id} disabled={!office.link}>
+                              {office.name}
+                              {!office.link ? ` (${t('pabrikOfficeNoMap')})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      {pabrik.office_id ? (
+                        <p className="text-xs text-slate-600">
+                          {t('pabrikMapsFromOffice', { name: pabrik.office_name || '—' })}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500">{t('pabrikLinkOfficeHint')}</p>
+                      )}
+                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <Field label={t('pabrikGoogleMaps')}>
+                          <input
+                            className={inputClass}
+                            type="url"
+                            placeholder={t('pabrikGoogleMapsPlaceholder')}
+                            value={pabrikMapsDraft[pabrik.id] ?? ''}
+                            disabled={Boolean(pabrik.office_id)}
+                            onChange={(e) =>
+                              setPabrikMapsDraft((d) => ({
+                                ...d,
+                                [pabrik.id]: e.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                        <div className="flex items-end gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={
+                              pabrikMapsSavingId === pabrik.id || Boolean(pabrik.office_id)
+                            }
+                            onClick={() => handleSavePabrikMaps(pabrik.id)}
                           >
-                            {t('pabrikOpenMaps')}
-                          </a>
-                        ) : null}
+                            {pabrikMapsSavingId === pabrik.id
+                              ? t('loading')
+                              : t('pabrikSaveMaps')}
+                          </Button>
+                          {(pabrikMapsDraft[pabrik.id] || pabrik.google_maps_url) ? (
+                            <a
+                              href={pabrik.google_maps_url || pabrikMapsDraft[pabrik.id]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                            >
+                              {t('pabrikOpenMaps')}
+                            </a>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                     {expandedPabrikCode === pabrik.pabrik_code && (

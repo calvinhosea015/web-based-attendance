@@ -1,16 +1,25 @@
 const { pool, query } = require('../db/pool');
 
+const PABRIK_SELECT = `
+  p.id,
+  p.pabrik_code,
+  p.nama_pabrik,
+  p.office_id,
+  o.name AS office_name,
+  o.link AS office_link,
+  CASE
+    WHEN p.office_id IS NOT NULL THEN o.link
+    ELSE p.google_maps_url
+  END AS google_maps_url,
+  p.sort_order,
+  p.created_at,
+  p.updated_at`;
+
 class PabrikRepository {
   async listWithItems() {
     const r = await query(
       `SELECT
-        p.id,
-        p.pabrik_code,
-        p.nama_pabrik,
-        p.google_maps_url,
-        p.sort_order,
-        p.created_at,
-        p.updated_at,
+        ${PABRIK_SELECT},
         COALESCE(
           json_agg(
             json_build_object(
@@ -23,8 +32,9 @@ class PabrikRepository {
           '[]'
         ) AS items
        FROM pabriks p
+       LEFT JOIN offices o ON o.id = p.office_id
        LEFT JOIN pabrik_item_rates r ON r.pabrik_code = p.pabrik_code
-       GROUP BY p.id
+       GROUP BY p.id, o.id
        ORDER BY p.sort_order ASC, p.pabrik_code ASC`
     );
     return r.rows.map((row) => ({
@@ -35,8 +45,10 @@ class PabrikRepository {
 
   async findById(id) {
     const r = await query(
-      `SELECT id, pabrik_code, nama_pabrik, google_maps_url, sort_order, created_at, updated_at
-       FROM pabriks WHERE id = $1`,
+      `SELECT ${PABRIK_SELECT}
+       FROM pabriks p
+       LEFT JOIN offices o ON o.id = p.office_id
+       WHERE p.id = $1`,
       [id]
     );
     return r.rows[0] || null;
@@ -44,8 +56,11 @@ class PabrikRepository {
 
   async findByCode(pabrikCode) {
     const r = await query(
-      `SELECT id, pabrik_code, nama_pabrik, google_maps_url, sort_order
-       FROM pabriks WHERE pabrik_code = $1`,
+      `SELECT p.id, p.pabrik_code, p.nama_pabrik, p.office_id, p.sort_order,
+              CASE WHEN p.office_id IS NOT NULL THEN o.link ELSE p.google_maps_url END AS google_maps_url
+       FROM pabriks p
+       LEFT JOIN offices o ON o.id = p.office_id
+       WHERE p.pabrik_code = $1`,
       [String(pabrikCode).trim()]
     );
     return r.rows[0] || null;
@@ -56,17 +71,17 @@ class PabrikRepository {
     return Number(r.rows[0]?.n) || 1;
   }
 
-  async create({ pabrik_code, nama_pabrik, google_maps_url, sort_order }) {
+  async create({ pabrik_code, nama_pabrik, google_maps_url, office_id, sort_order }) {
     const r = await query(
-      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, sort_order)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, pabrik_code, nama_pabrik, google_maps_url, sort_order, created_at, updated_at`,
-      [pabrik_code, nama_pabrik, google_maps_url, sort_order]
+      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, office_id, sort_order)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
+      [pabrik_code, nama_pabrik, google_maps_url, office_id ?? null, sort_order]
     );
-    return r.rows[0];
+    return this.findById(r.rows[0].id);
   }
 
-  async updateById(id, { nama_pabrik, google_maps_url }) {
+  async updateById(id, { nama_pabrik, google_maps_url, office_id }) {
     const sets = [];
     const params = [id];
     let idx = 2;
@@ -75,24 +90,32 @@ class PabrikRepository {
       params.push(nama_pabrik);
       idx += 1;
     }
+    if (office_id !== undefined) {
+      sets.push(`office_id = $${idx}`);
+      params.push(office_id);
+      idx += 1;
+      if (office_id != null) {
+        sets.push('google_maps_url = NULL');
+      }
+    }
     if (google_maps_url !== undefined) {
       sets.push(`google_maps_url = $${idx}`);
       params.push(google_maps_url);
       idx += 1;
+      if (office_id === undefined) {
+        sets.push('office_id = NULL');
+      }
     }
     if (!sets.length) return this.findById(id);
-    const r = await query(
-      `UPDATE pabriks
-       SET ${sets.join(', ')}, updated_at = NOW()
-       WHERE id = $1
-       RETURNING id, pabrik_code, nama_pabrik, google_maps_url, sort_order, updated_at`,
+    await query(
+      `UPDATE pabriks SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`,
       params
     );
-    return r.rows[0] || null;
+    return this.findById(id);
   }
 
   async updateGoogleMaps(id, google_maps_url) {
-    return this.updateById(id, { google_maps_url });
+    return this.updateById(id, { google_maps_url, office_id: null });
   }
 
   async deleteById(id) {

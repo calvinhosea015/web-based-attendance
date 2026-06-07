@@ -174,6 +174,13 @@ export default {
   pabrikDeleteItem: 'Hapus kode barang',
   pabrikItemAdded: 'Kode barang ditambahkan.',
   pabrikNama: 'Nama pabrik',
+  pabrikLinkOffice: 'Hubungkan ke lokasi kantor',
+  pabrikLinkOfficeNone: 'Link Google Maps kustom',
+  pabrikLinkOfficeHint:
+    'Pilih kantor untuk memakai link Google Maps yang sudah ada di database, atau isi link kustom di bawah.',
+  pabrikMapsFromOffice: 'Memakai link peta dari kantor: {{name}}',
+  pabrikOfficeLinked: 'Pabrik terhubung ke peta kantor.',
+  pabrikOfficeNoMap: 'belum ada link peta',
   pabrikGoogleMaps: 'Link Google Maps',
   pabrikGoogleMapsPlaceholder: 'https://maps.google.com/...',
   pabrikSaveMaps: 'Simpan link',
@@ -533,6 +540,8 @@ export default {
     FIELD_CODE_REQUIRED:
       'Masukkan data pengiriman (9 field dipisah *) sebelum absen keluar.',
     OFFICE_NOT_FOUND: 'Kantor tidak ditemukan.',
+    OFFICE_NO_MAP:
+      'Kantor yang dipilih belum punya link Google Maps. Tambahkan dulu di Admin → Kantor.',
     OFFICE_COORDS:
       'Kantor ini tidak punya koordinat peta. Minta admin membuat ulang kantor dari tautan Google Maps yang valid.',
     RADIUS:
