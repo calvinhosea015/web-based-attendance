@@ -14,10 +14,6 @@ function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
 }
 
-function itemRateConfigured(item) {
-  return Number(item?.tonase_per_item) > 0 || Number(item?.price_per_item) > 0;
-}
-
 /**
  * @param {{ period?: string, onPeriodChange?: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean }} props
  */
@@ -28,13 +24,13 @@ export default function FieldOperationsPanel({
   showPabrik = true,
   showTonase = true,
 }) {
+  const showCatalog = showPabrik || showTonase;
   const omsetPeriod = periodProp ?? currentPayrollPeriodKey();
   const { t } = useTranslation();
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('info');
 
   const [pabriks, setPabriks] = useState([]);
-  const [pabrikRates, setPabrikRates] = useState([]);
   const [pabrikOfficeLinkSavingId, setPabrikOfficeLinkSavingId] = useState(null);
   const [offices, setOffices] = useState([]);
   const [expandedPabrikCode, setExpandedPabrikCode] = useState(null);
@@ -53,8 +49,6 @@ export default function FieldOperationsPanel({
   const [tonaseExportFrom, setTonaseExportFrom] = useState('');
   const [tonaseExportTo, setTonaseExportTo] = useState('');
   const [tonaseExporting, setTonaseExporting] = useState(false);
-  const [tonaseFilterPabrik, setTonaseFilterPabrik] = useState('');
-  const [tonaseFilterItem, setTonaseFilterItem] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogFilterOffice, setCatalogFilterOffice] = useState('');
   const [showAddFactoryForm, setShowAddFactoryForm] = useState(false);
@@ -69,56 +63,48 @@ export default function FieldOperationsPanel({
   };
 
   const loadOffices = useCallback(async () => {
-    if (!showPabrik) return;
+    if (!showCatalog) return;
     try {
       const { data } = await api.get(paths.offices);
       setOffices(Array.isArray(data) ? data : []);
     } catch {
       setOffices([]);
     }
-  }, [showPabrik]);
+  }, [showCatalog]);
 
   useEffect(() => {
-    if (!showPabrik || offices.length === 0) return;
+    if (!showCatalog || offices.length === 0) return;
     setNewFactoryForm((f) => {
       if (f.office_id) return f;
       const withLink = offices.find((o) => o.link);
       return { ...f, office_id: withLink ? String(withLink.id) : '' };
     });
-  }, [offices, showPabrik]);
+  }, [offices, showCatalog]);
 
   const loadPabriks = useCallback(async () => {
-    if (!showPabrik && !showTonase) return;
+    if (!showCatalog) return;
     setPabrikLoading(true);
     try {
       const { data } = await api.get(paths.adminPabriks);
       const list = Array.isArray(data?.pabriks) ? data.pabriks : [];
       setPabriks(list);
-      const rates = list.flatMap((p) =>
-        (p.items || []).map((item) => ({
-          ...item,
-          pabrik_code: p.pabrik_code,
-          nama_pabrik: p.nama_pabrik,
-        }))
-      );
-      setPabrikRates(rates);
+      const items = list.flatMap((p) => p.items || []);
       setPriceDraft(
         Object.fromEntries(
-          rates.map((r) => [
-            r.id,
-            Number(r.price_per_item) > 0 ? String(r.price_per_item) : '',
+          items.map((item) => [
+            item.id,
+            Number(item.price_per_item) > 0 ? String(item.price_per_item) : '',
           ])
         )
       );
     } catch (err) {
       setPabriks([]);
-      setPabrikRates([]);
       setPriceDraft({});
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
       setPabrikLoading(false);
     }
-  }, [showPabrik, showTonase, t]);
+  }, [showCatalog, t]);
 
   const loadReport = useCallback(async () => {
     if (!showOmset) return;
@@ -190,19 +176,6 @@ export default function FieldOperationsPanel({
     },
     [catalogSearch]
   );
-
-  const filteredPabrikRates = useMemo(() => {
-    const itemQuery = tonaseFilterItem.trim().toUpperCase();
-    return pabrikRates.filter((row) => {
-      if (tonaseFilterPabrik && row.pabrik_code !== tonaseFilterPabrik) return false;
-      if (itemQuery && !String(row.kode_barang).toUpperCase().includes(itemQuery)) {
-        return false;
-      }
-      return true;
-    });
-  }, [pabrikRates, tonaseFilterPabrik, tonaseFilterItem]);
-
-  const tonaseFiltersActive = Boolean(tonaseFilterPabrik || tonaseFilterItem.trim());
 
   const handleCreateFactory = async (e) => {
     e.preventDefault();
@@ -364,7 +337,7 @@ export default function FieldOperationsPanel({
         </Alert>
       )}
 
-      {showPabrik && (
+      {showCatalog && (
         <section id="pabrik-catalog" className="scroll-mt-24">
           <Card
             title={t('pabrikCatalogTitle')}
@@ -388,6 +361,41 @@ export default function FieldOperationsPanel({
                 value={catalogStats.priced}
                 sub={t('pabrikCatalogStatPricedSub')}
               />
+            </div>
+
+            <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <p className="mb-1 text-sm font-medium text-slate-800">
+                {t('pabrikTonaseExportTitle')}
+              </p>
+              <p className="mb-3 text-xs text-slate-500">{t('pabrikTonaseExportHint')}</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <Field label={t('pabrikTonaseDateFrom')}>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={tonaseExportFrom}
+                    onChange={(e) => setTonaseExportFrom(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label={t('pabrikTonaseDateTo')}>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={tonaseExportTo}
+                    onChange={(e) => setTonaseExportTo(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={tonaseExporting || !tonaseExportFrom || !tonaseExportTo}
+                  onClick={handleDownloadTonaseBonus}
+                >
+                  {tonaseExporting ? t('loading') : t('pabrikTonaseDownload')}
+                </Button>
+              </div>
             </div>
 
             {showAddFactoryForm && (
@@ -617,16 +625,14 @@ export default function FieldOperationsPanel({
                                 <tr className="bg-slate-50/70">
                                   <td colSpan={6} className="px-3 py-4">
                                     <div className="rounded-lg border border-slate-200 bg-white p-4">
-                                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                        <p className="text-sm font-medium text-slate-800">
-                                          {t('pabrikCatalogManageItems', {
-                                            factory: pabrik.nama_pabrik,
-                                          })}
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                          {t('pabrikCatalogAddItemHint')}
-                                        </p>
-                                      </div>
+                                      <p className="mb-3 text-sm font-medium text-slate-800">
+                                        {t('pabrikCatalogManageItems', {
+                                          factory: pabrik.nama_pabrik,
+                                        })}
+                                      </p>
+                                      <p className="mb-3 text-xs text-slate-500">
+                                        {t('pabrikCatalogAddItemHint')}
+                                      </p>
                                       <form
                                         className="mb-4 flex flex-wrap items-end gap-2 border-b border-slate-100 pb-4"
                                         onSubmit={(e) => handleAddItemCode(e, pabrik)}
@@ -677,14 +683,17 @@ export default function FieldOperationsPanel({
                                                 <th className="px-2 py-2 text-right">
                                                   {t('pabrikItemPrice')}
                                                 </th>
-                                                <th className="px-2 py-2 text-right">
-                                                  {t('status')}
-                                                </th>
                                                 <th className="px-2 py-2 text-right" />
                                               </tr>
                                             </thead>
                                             <tbody>
-                                              {visibleItems.map((item) => (
+                                              {visibleItems.map((item) => {
+                                                const rateRow = {
+                                                  ...item,
+                                                  pabrik_code: pabrik.pabrik_code,
+                                                  nama_pabrik: pabrik.nama_pabrik,
+                                                };
+                                                return (
                                                 <tr
                                                   key={`${pabrik.pabrik_code}-${item.kode_barang}`}
                                                   className="border-b border-slate-100 last:border-0"
@@ -697,21 +706,39 @@ export default function FieldOperationsPanel({
                                                       ? item.tonase_per_item
                                                       : '—'}
                                                   </td>
-                                                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">
-                                                    {Number(item.price_per_item) > 0
-                                                      ? `Rp ${formatIdr(item.price_per_item)}`
-                                                      : '—'}
-                                                  </td>
                                                   <td className="px-2 py-2 text-right">
-                                                    {itemRateConfigured(item) ? (
-                                                      <Badge variant="success">
-                                                        {t('pabrikCatalogRateSet')}
-                                                      </Badge>
-                                                    ) : (
-                                                      <Badge variant="muted">
-                                                        {t('pabrikTonaseNotSet')}
-                                                      </Badge>
-                                                    )}
+                                                    <input
+                                                      type="number"
+                                                      min="0"
+                                                      step="1"
+                                                      className="w-28 rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm tabular-nums focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50"
+                                                      value={priceDraft[item.id] ?? ''}
+                                                      placeholder="0"
+                                                      disabled={priceSavingId === item.id}
+                                                      onChange={(e) =>
+                                                        setPriceDraft((d) => ({
+                                                          ...d,
+                                                          [item.id]: e.target.value,
+                                                        }))
+                                                      }
+                                                      onBlur={() => handleSaveInlinePrice(rateRow)}
+                                                      onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                          e.preventDefault();
+                                                          e.currentTarget.blur();
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                          const current =
+                                                            Number(item.price_per_item) || 0;
+                                                          setPriceDraft((d) => ({
+                                                            ...d,
+                                                            [item.id]:
+                                                              current > 0 ? String(current) : '',
+                                                          }));
+                                                          e.currentTarget.blur();
+                                                        }
+                                                      }}
+                                                    />
                                                   </td>
                                                   <td className="px-2 py-2 text-right">
                                                     <Button
@@ -725,7 +752,8 @@ export default function FieldOperationsPanel({
                                                     </Button>
                                                   </td>
                                                 </tr>
-                                              ))}
+                                                );
+                                              })}
                                             </tbody>
                                           </table>
                                         </div>
@@ -740,166 +768,6 @@ export default function FieldOperationsPanel({
                       </tbody>
                     </table>
                   </div>
-                )}
-              </>
-            )}
-          </Card>
-        </section>
-      )}
-
-      {showTonase && (
-        <section id="pabrik-tonase" className="scroll-mt-24">
-          <Card title={t('pabrikItemRatesTitle')} description={t('pabrikItemRatesHint')}>
-            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-              <p className="mb-3 text-sm font-medium text-slate-800">
-                {t('pabrikTonaseExportTitle')}
-              </p>
-              <p className="mb-3 text-xs text-slate-500">{t('pabrikTonaseExportHint')}</p>
-              <div className="flex flex-wrap items-end gap-3">
-                <Field label={t('pabrikTonaseDateFrom')}>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={tonaseExportFrom}
-                    onChange={(e) => setTonaseExportFrom(e.target.value)}
-                    required
-                  />
-                </Field>
-                <Field label={t('pabrikTonaseDateTo')}>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={tonaseExportTo}
-                    onChange={(e) => setTonaseExportTo(e.target.value)}
-                    required
-                  />
-                </Field>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={tonaseExporting || !tonaseExportFrom || !tonaseExportTo}
-                  onClick={handleDownloadTonaseBonus}
-                >
-                  {tonaseExporting ? t('loading') : t('pabrikTonaseDownload')}
-                </Button>
-              </div>
-            </div>
-            {pabrikRates.length === 0 ? (
-              <p className="text-sm text-slate-600">{t('pabrikItemRatesEmpty')}</p>
-            ) : (
-              <>
-                <div className="mb-3 flex flex-wrap items-end gap-3">
-                  <Field label={t('pabrikTonaseFilterFactory')} className="min-w-[10rem]">
-                    <select
-                      className={inputClass}
-                      value={tonaseFilterPabrik}
-                      onChange={(e) => setTonaseFilterPabrik(e.target.value)}
-                    >
-                      <option value="">{t('pabrikTonaseFilterAll')}</option>
-                      {pabriks.map((p) => (
-                        <option key={p.id} value={p.pabrik_code}>
-                          {p.pabrik_code} — {p.nama_pabrik}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label={t('pabrikTonaseFilterItem')} className="min-w-[10rem] flex-1">
-                    <input
-                      className={inputClass}
-                      value={tonaseFilterItem}
-                      onChange={(e) => setTonaseFilterItem(e.target.value)}
-                      placeholder={t('pabrikTonaseFilterItemPlaceholder')}
-                    />
-                  </Field>
-                  {tonaseFiltersActive ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="mb-0.5"
-                      onClick={() => {
-                        setTonaseFilterPabrik('');
-                        setTonaseFilterItem('');
-                      }}
-                    >
-                      {t('pabrikTonaseFilterClear')}
-                    </Button>
-                  ) : null}
-                  <p className="mb-1 text-xs text-slate-500">
-                    {t('pabrikTonaseFilterCount', {
-                      shown: filteredPabrikRates.length,
-                      total: pabrikRates.length,
-                    })}
-                  </p>
-                </div>
-                {filteredPabrikRates.length === 0 ? (
-                  <p className="text-sm text-slate-600">{t('pabrikTonaseFilterNoMatch')}</p>
-                ) : (
-              <div className="max-h-80 overflow-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="sticky top-0 bg-white">
-                    <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                      <th className="px-2 py-2">{t('pabrikItemPabrikCode')}</th>
-                      <th className="px-2 py-2">{t('pabrikNama')}</th>
-                      <th className="px-2 py-2">{t('pabrikItemKodeBarang')}</th>
-                      <th className="px-2 py-2 text-right">{t('pabrikItemTonase')}</th>
-                      <th className="px-2 py-2 text-right">{t('pabrikItemPrice')}</th>
-                      <th className="px-2 py-2 text-right">{t('status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPabrikRates.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-100">
-                        <td className="px-2 py-2 font-medium">{row.pabrik_code}</td>
-                        <td className="px-2 py-2 text-slate-600">{row.nama_pabrik}</td>
-                        <td className="px-2 py-2">{row.kode_barang}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">
-                          {row.tonase_per_item}
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            className="w-28 rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm tabular-nums focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50"
-                            value={priceDraft[row.id] ?? ''}
-                            placeholder="0"
-                            disabled={priceSavingId === row.id}
-                            onChange={(e) =>
-                              setPriceDraft((d) => ({ ...d, [row.id]: e.target.value }))
-                            }
-                            onBlur={() => handleSaveInlinePrice(row)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                e.currentTarget.blur();
-                              }
-                              if (e.key === 'Escape') {
-                                const current = Number(row.price_per_item) || 0;
-                                setPriceDraft((d) => ({
-                                  ...d,
-                                  [row.id]: current > 0 ? String(current) : '',
-                                }));
-                                e.currentTarget.blur();
-                              }
-                            }}
-                          />
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleDeletePabrikRate(row.id)}
-                          >
-                            {t('delete')}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
                 )}
               </>
             )}

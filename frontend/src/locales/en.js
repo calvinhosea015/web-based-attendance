@@ -157,14 +157,14 @@ export default {
     'From delivery codes: omset = price × selisih when price is set, else tonase × selisih; bonus = omset × 2%. Can override manually.',
   fieldOpsDashboardTitle: 'Field operations',
   fieldOpsDashboardSubtitle:
-    'Factories & item codes, tonase rates, and field officer omset from delivery codes — one place.',
-  pabrikCatalogTitle: 'Factories & item codes',
+    'Factories, item codes, tonase bonus rates, and field officer omset — one place.',
+  pabrikCatalogTitle: 'Factories, items & tonase bonus',
   pabrikCatalogHint:
-    'Manage factories, locations, and delivery item codes. Set prices in the Tonase bonus section below.',
+    'Manage factories, locations, and item codes. Expand a factory to add items and edit price per item (saved on blur or Enter). Omset = price × selisih when set, else tonase × selisih. Bonus = omset × 2%.',
   pabrikCatalogStatFactories: 'Factories',
   pabrikCatalogStatItems: 'Item codes',
   pabrikCatalogStatPriced: 'With price set',
-  pabrikCatalogStatPricedSub: 'Edit prices in Tonase bonus',
+  pabrikCatalogStatPricedSub: 'Expand a factory to edit',
   pabrikCatalogNewFactory: 'New factory',
   pabrikCatalogSearch: 'Search',
   pabrikCatalogSearchPlaceholder: 'Factory code, name, or item code…',
@@ -176,7 +176,7 @@ export default {
   pabrikCatalogItemsCol: 'Items',
   pabrikCatalogActions: 'Actions',
   pabrikCatalogManageItems: 'Item codes — {{factory}}',
-  pabrikCatalogAddItemHint: 'Set price per item in Tonase bonus below.',
+  pabrikCatalogAddItemHint: 'Edit price per item in the table below (saved on blur or Enter).',
   pabrikCatalogNoItems: 'No item codes yet. Add one above.',
   pabrikCatalogRateSet: 'Configured',
   pabrikCatalogEmpty: 'Factory list not loaded yet. Restart the API so migrations can seed pabriks.',
@@ -214,7 +214,7 @@ export default {
   pabrikItemSaveTonase: 'Save tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
-    'Edit price per item directly in the table (saved on blur or Enter). Add item codes under Factories above. Omset = price × selisih when price is set, else tonase × selisih. Bonus = omset × 2%.',
+    'Expand a factory above to edit price per item. Omset = price × selisih when price is set, else tonase × selisih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Download tonase bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',

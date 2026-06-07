@@ -157,14 +157,14 @@ export default {
     'Dari kode pengiriman: omset = harga × selisih jika harga diisi, jika tidak tonase × selisih; bonus = omset × 2%. Bisa di-override manual.',
   fieldOpsDashboardTitle: 'Operasi lapangan',
   fieldOpsDashboardSubtitle:
-    'Pabrik & kode barang, tonase bonus, dan omset petugas lapangan dari kode pengiriman — dalam satu halaman.',
-  pabrikCatalogTitle: 'Pabrik & kode barang',
+    'Pabrik, kode barang, tonase bonus, dan omset petugas lapangan — dalam satu halaman.',
+  pabrikCatalogTitle: 'Pabrik, barang & tonase bonus',
   pabrikCatalogHint:
-    'Kelola pabrik, lokasi, dan kode barang pengiriman. Atur harga di bagian Tonase bonus di bawah.',
+    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga × selisih jika diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
   pabrikCatalogStatFactories: 'Pabrik',
   pabrikCatalogStatItems: 'Kode barang',
   pabrikCatalogStatPriced: 'Sudah ada harga',
-  pabrikCatalogStatPricedSub: 'Edit harga di Tonase bonus',
+  pabrikCatalogStatPricedSub: 'Buka pabrik untuk mengedit',
   pabrikCatalogNewFactory: 'Pabrik baru',
   pabrikCatalogSearch: 'Cari',
   pabrikCatalogSearchPlaceholder: 'Kode pabrik, nama, atau kode barang…',
@@ -176,7 +176,7 @@ export default {
   pabrikCatalogItemsCol: 'Barang',
   pabrikCatalogActions: 'Aksi',
   pabrikCatalogManageItems: 'Kode barang — {{factory}}',
-  pabrikCatalogAddItemHint: 'Atur harga per item di Tonase bonus di bawah.',
+  pabrikCatalogAddItemHint: 'Edit harga per item di tabel di bawah (tersimpan saat blur atau Enter).',
   pabrikCatalogNoItems: 'Belum ada kode barang. Tambahkan di atas.',
   pabrikCatalogRateSet: 'Sudah diatur',
   pabrikCatalogEmpty: 'Daftar pabrik belum dimuat. Restart API agar migrasi mengisi data pabrik.',
@@ -215,7 +215,7 @@ export default {
   pabrikItemSaveTonase: 'Simpan tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
-    'Edit harga per item langsung di tabel (tersimpan saat blur atau Enter). Tambah kode barang di bagian Pabrik di atas. Omset = harga × selisih jika harga diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
+    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga × selisih jika diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Unduh laporan tonase bonus',
   pabrikTonaseExportHint:
     'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
