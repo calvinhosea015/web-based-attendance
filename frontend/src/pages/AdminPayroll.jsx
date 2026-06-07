@@ -331,7 +331,7 @@ export default function AdminPayroll() {
         <>
           <Button
             variant="secondary"
-            onClick={() => navigate(`/admin/field?period=${period}`)}
+            onClick={() => navigate('/admin/field')}
           >
             {t('fieldOpsDashboardTitle')}
           </Button>

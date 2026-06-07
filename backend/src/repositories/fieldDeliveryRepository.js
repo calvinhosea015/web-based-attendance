@@ -85,6 +85,7 @@ class FieldDeliveryRepository {
         COALESCE(p.nama_pabrik, '') AS nama_pabrik,
         fde.kode_barang,
         MAX(fde.tonase_per_item)::numeric AS tonase_per_item,
+        MAX(fde.price_per_item)::numeric AS price_per_item,
         COUNT(*)::int AS delivery_count,
         COALESCE(SUM(fde.selisih), 0)::numeric AS total_selisih,
         COALESCE(SUM(fde.omset_amount), 0)::numeric AS total_omset,
@@ -105,9 +106,9 @@ class FieldDeliveryRepository {
       `INSERT INTO field_delivery_entries (
         employee_id, valid_on, checkout_code,
         pabrik_code, norek, nomor_tanda_terima, nomor_surat_jalan, nopol, no_bs,
-        kode_barang, kotor, berat_bersih, selisih, tonase_per_item, omset_amount, bonus_amount,
-        attendance_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        kode_barang, kotor, berat_bersih, selisih, tonase_per_item, price_per_item, omset_amount,
+        bonus_amount, attendance_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       RETURNING *`,
       [
         row.employee_id,
@@ -124,6 +125,7 @@ class FieldDeliveryRepository {
         row.berat_bersih,
         row.selisih,
         row.tonase_per_item,
+        row.price_per_item ?? 0,
         row.omset_amount,
         row.bonus_amount,
         row.attendance_id ?? null,

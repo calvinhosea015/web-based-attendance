@@ -28,9 +28,17 @@ class FieldCheckoutCodeService {
       );
     }
     const tonase = Number(rate.tonase_per_item) || 0;
-    const omset_amount = computeLineOmset(tonase, parsed.selisih);
-    const bonus_amount = computeLineBonus(tonase, parsed.selisih);
-    return { tonase_per_item: tonase, omset_amount, bonus_amount, rate };
+    const price_per_item = Number(rate.price_per_item) || 0;
+    if (tonase <= 0 && price_per_item <= 0) {
+      throw new AppError(
+        `No tonase or price for pabrik "${parsed.pabrik_code}" and item "${parsed.kode_barang}". Ask admin to configure rates.`,
+        400,
+        'PABRIK_ITEM_NOT_FOUND'
+      );
+    }
+    const omset_amount = computeLineOmset(tonase, parsed.selisih, price_per_item);
+    const bonus_amount = computeLineBonus(tonase, parsed.selisih, price_per_item);
+    return { tonase_per_item: tonase, price_per_item, omset_amount, bonus_amount, rate };
   }
 
   async submit(auth, payload) {
@@ -51,7 +59,8 @@ class FieldCheckoutCodeService {
 
     for (const rawCode of codes) {
       const parsed = validateFieldCheckoutCode(rawCode);
-      const { tonase_per_item, omset_amount, bonus_amount } = await this.resolveLineBonus(parsed);
+      const { tonase_per_item, price_per_item, omset_amount, bonus_amount } =
+        await this.resolveLineBonus(parsed);
       const saved = await this.fieldDeliveryRepository.createEntry({
         employee_id: auth.employeeId,
         valid_on: validOn,
@@ -67,6 +76,7 @@ class FieldCheckoutCodeService {
         berat_bersih: parsed.berat_bersih,
         selisih: parsed.selisih,
         tonase_per_item,
+        price_per_item,
         omset_amount,
         bonus_amount,
         attendance_id: null,
@@ -134,7 +144,8 @@ class FieldCheckoutCodeService {
 
     if (checkoutCodeRaw) {
       const parsed = validateFieldCheckoutCode(checkoutCodeRaw);
-      const { tonase_per_item, omset_amount, bonus_amount } = await this.resolveLineBonus(parsed);
+      const { tonase_per_item, price_per_item, omset_amount, bonus_amount } =
+        await this.resolveLineBonus(parsed);
       await this.fieldDeliveryRepository.createEntry({
         employee_id: auth.employeeId,
         valid_on: validOn,
@@ -150,6 +161,7 @@ class FieldCheckoutCodeService {
         berat_bersih: parsed.berat_bersih,
         selisih: parsed.selisih,
         tonase_per_item,
+        price_per_item,
         omset_amount,
         bonus_amount,
         attendance_id: null,

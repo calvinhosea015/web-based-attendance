@@ -31,8 +31,7 @@ export default function FinanceFieldOmset() {
       return;
     }
     if (isAdmin) {
-      const q = searchParams.toString();
-      navigate(`/admin/field${q ? `?${q}` : ''}`, { replace: true });
+      navigate('/admin/field', { replace: true });
     }
   }, [navigate, role, isAdmin, searchParams]);
 

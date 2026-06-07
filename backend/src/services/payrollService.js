@@ -412,6 +412,7 @@ class PayrollService {
         berat_bersih: Number(row.berat_bersih),
         selisih: Number(row.selisih),
         tonase_per_item: Number(row.tonase_per_item),
+        price_per_item: Number(row.price_per_item) || 0,
         omset_amount: omset,
         bonus_amount: bonus,
         created_at: row.created_at,

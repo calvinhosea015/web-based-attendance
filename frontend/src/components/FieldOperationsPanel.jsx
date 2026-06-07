@@ -7,23 +7,27 @@ import {
   currentPayrollPeriodKey,
   payrollCycleBounds,
   payrollCycleLabel,
-  periodLabelCalendar,
 } from '../utils/payrollPeriod.js';
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
 }
 
+function itemRateConfigured(item) {
+  return Number(item?.tonase_per_item) > 0 || Number(item?.price_per_item) > 0;
+}
+
 /**
- * @param {{ period: string, onPeriodChange: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean }} props
+ * @param {{ period?: string, onPeriodChange?: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean }} props
  */
 export default function FieldOperationsPanel({
-  period,
+  period: periodProp,
   onPeriodChange,
   showOmset = true,
   showPabrik = true,
   showTonase = true,
 }) {
+  const omsetPeriod = periodProp ?? currentPayrollPeriodKey();
   const { t } = useTranslation();
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('info');
@@ -39,6 +43,7 @@ export default function FieldOperationsPanel({
     pabrik_code: '',
     kode_barang: '',
     tonase_per_item: '',
+    price_per_item: '',
   });
   const [newFactoryForm, setNewFactoryForm] = useState({
     pabrik_code: '',
@@ -106,7 +111,7 @@ export default function FieldOperationsPanel({
     if (!showOmset) return;
     setOmsetLoading(true);
     try {
-      const res = await api.get(paths.financeFieldOmset(period));
+      const res = await api.get(paths.financeFieldOmset(omsetPeriod));
       setReport(res.data);
     } catch (err) {
       setReport(null);
@@ -114,12 +119,7 @@ export default function FieldOperationsPanel({
     } finally {
       setOmsetLoading(false);
     }
-  }, [period, showOmset, t]);
-
-  const refreshAll = useCallback(async () => {
-    notify('');
-    await Promise.all([loadPabriks(), loadReport()]);
-  }, [loadPabriks, loadReport]);
+  }, [omsetPeriod, showOmset, t]);
 
   useEffect(() => {
     loadOffices();
@@ -134,12 +134,12 @@ export default function FieldOperationsPanel({
   }, [loadReport]);
 
   useEffect(() => {
-    const bounds = payrollCycleBounds(period);
+    const bounds = payrollCycleBounds(currentPayrollPeriodKey());
     if (bounds) {
       setTonaseExportFrom(bounds.period_start);
       setTonaseExportTo(bounds.period_end);
     }
-  }, [period]);
+  }, []);
 
   const pabrikItemOptions = useMemo(() => {
     const pabrik = pabriks.find((p) => p.pabrik_code === pabrikForm.pabrik_code);
@@ -244,6 +244,12 @@ export default function FieldOperationsPanel({
 
   const handleSavePabrikRate = async (e) => {
     e.preventDefault();
+    const tonase = Number(pabrikForm.tonase_per_item) || 0;
+    const price = Number(pabrikForm.price_per_item) || 0;
+    if (tonase <= 0 && price <= 0) {
+      notify(t('pabrikItemRateRequired'), 'error');
+      return;
+    }
     setPabrikSaving(true);
     notify('');
     try {
@@ -251,7 +257,8 @@ export default function FieldOperationsPanel({
       const payload = {
         pabrik_code: pabrikForm.pabrik_code.trim(),
         kode_barang: pabrikForm.kode_barang.trim(),
-        tonase_per_item: Number(pabrikForm.tonase_per_item) || 0,
+        tonase_per_item: tonase,
+        price_per_item: price,
       };
       const existing = pabrikRates.find(
         (r) =>
@@ -263,7 +270,12 @@ export default function FieldOperationsPanel({
       } else {
         await api.post(paths.adminPabrikItemRates, payload);
       }
-      setPabrikForm((f) => ({ ...f, kode_barang: '', tonase_per_item: '' }));
+      setPabrikForm((f) => ({
+        ...f,
+        kode_barang: '',
+        tonase_per_item: '',
+        price_per_item: '',
+      }));
       await loadPabriks();
       notify(t('pabrikRateSaved'), 'success');
     } catch (err) {
@@ -303,8 +315,6 @@ export default function FieldOperationsPanel({
     }
   };
 
-  const busy = pabrikLoading || omsetLoading;
-
   return (
     <div className="space-y-8">
       {message && (
@@ -312,25 +322,6 @@ export default function FieldOperationsPanel({
           {message}
         </Alert>
       )}
-
-      <Card title={t('fieldOpsPeriodTitle')} description={t('fieldOpsPeriodHint')}>
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label={t('payrollMonth')}>
-            <input
-              type="month"
-              className={inputClass}
-              value={period}
-              onChange={(e) => onPeriodChange(e.target.value)}
-            />
-          </Field>
-          <Button variant="primary" onClick={refreshAll} disabled={busy}>
-            {busy ? t('loading') : t('fieldOpsRefreshAll')}
-          </Button>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          {periodLabelCalendar(period)} · {payrollCycleLabel(period)}
-        </p>
-      </Card>
 
       {showPabrik && (
         <section id="pabrik-catalog" className="scroll-mt-24">
@@ -517,20 +508,36 @@ export default function FieldOperationsPanel({
                             <span
                               key={`${pabrik.pabrik_code}-${item.kode_barang}`}
                               className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
-                                Number(item.tonase_per_item) > 0
+                                itemRateConfigured(item)
                                   ? 'border-brand-200 bg-brand-50 text-brand-800'
                                   : 'border-slate-200 bg-white text-slate-600'
                               }`}
                               title={
-                                Number(item.tonase_per_item) > 0
-                                  ? `${t('pabrikItemTonase')}: ${item.tonase_per_item}`
+                                itemRateConfigured(item)
+                                  ? [
+                                      Number(item.tonase_per_item) > 0
+                                        ? `${t('pabrikItemTonase')}: ${item.tonase_per_item}`
+                                        : null,
+                                      Number(item.price_per_item) > 0
+                                        ? `${t('pabrikItemPrice')}: Rp ${formatIdr(item.price_per_item)}`
+                                        : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ')
                                   : t('pabrikTonaseNotSet')
                               }
                             >
                               <span>
                                 {item.kode_barang}
-                                {Number(item.tonase_per_item) > 0
-                                  ? ` (${item.tonase_per_item})`
+                                {itemRateConfigured(item)
+                                  ? ` (${[
+                                      Number(item.tonase_per_item) > 0 ? item.tonase_per_item : null,
+                                      Number(item.price_per_item) > 0
+                                        ? `Rp${formatIdr(item.price_per_item)}`
+                                        : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' / ')})`
                                   : ''}
                               </span>
                               <button
@@ -591,7 +598,7 @@ export default function FieldOperationsPanel({
                 </Button>
               </div>
             </div>
-            <form className="mb-4 grid gap-3 sm:grid-cols-4" onSubmit={handleSavePabrikRate}>
+            <form className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={handleSavePabrikRate}>
               <Field label={t('pabrikItemPabrikCode')}>
                 <select
                   className={inputClass}
@@ -639,12 +646,23 @@ export default function FieldOperationsPanel({
                   onChange={(e) =>
                     setPabrikForm((f) => ({ ...f, tonase_per_item: e.target.value }))
                   }
-                  required
+                />
+              </Field>
+              <Field label={t('pabrikItemPrice')}>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  className={inputClass}
+                  value={pabrikForm.price_per_item}
+                  onChange={(e) =>
+                    setPabrikForm((f) => ({ ...f, price_per_item: e.target.value }))
+                  }
                 />
               </Field>
               <div className="flex items-end">
                 <Button type="submit" variant="primary" disabled={pabrikSaving}>
-                  {pabrikSaving ? t('loading') : t('pabrikItemSaveTonase')}
+                  {pabrikSaving ? t('loading') : t('pabrikItemSaveRate')}
                 </Button>
               </div>
             </form>
@@ -659,6 +677,7 @@ export default function FieldOperationsPanel({
                       <th className="px-2 py-2">{t('pabrikNama')}</th>
                       <th className="px-2 py-2">{t('pabrikItemKodeBarang')}</th>
                       <th className="px-2 py-2 text-right">{t('pabrikItemTonase')}</th>
+                      <th className="px-2 py-2 text-right">{t('pabrikItemPrice')}</th>
                       <th className="px-2 py-2 text-right">{t('status')}</th>
                     </tr>
                   </thead>
@@ -670,6 +689,11 @@ export default function FieldOperationsPanel({
                         <td className="px-2 py-2">{row.kode_barang}</td>
                         <td className="px-2 py-2 text-right tabular-nums">
                           {row.tonase_per_item}
+                        </td>
+                        <td className="px-2 py-2 text-right tabular-nums">
+                          {Number(row.price_per_item) > 0
+                            ? `Rp ${formatIdr(row.price_per_item)}`
+                            : '—'}
                         </td>
                         <td className="px-2 py-2 text-right">
                           <Button
@@ -693,7 +717,40 @@ export default function FieldOperationsPanel({
 
       {showOmset && (
         <section id="field-omset" className="scroll-mt-24">
-          <Card title={t('fieldOmsetReportTitle')} description={t('fieldOmsetReportSubtitle')}>
+          <Card
+            title={t('fieldOmsetReportTitle')}
+            description={
+              report?.period_start && report?.period_end
+                ? `${t('fieldOmsetReportSubtitle')} · ${payrollCycleLabel(omsetPeriod)}`
+                : t('fieldOmsetReportSubtitle')
+            }
+            action={
+              onPeriodChange ? (
+                <div className="flex flex-wrap items-end gap-2">
+                  <Field label={t('payrollMonth')}>
+                    <input
+                      type="month"
+                      className={inputClass}
+                      value={omsetPeriod}
+                      onChange={(e) => onPeriodChange(e.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={omsetLoading}
+                    onClick={() => {
+                      notify('');
+                      loadReport();
+                    }}
+                  >
+                    {omsetLoading ? t('loading') : t('fieldOmsetRefresh')}
+                  </Button>
+                </div>
+              ) : null
+            }
+          >
             {omsetLoading && !report ? (
               <p className="text-sm text-slate-600">{t('loading')}</p>
             ) : report ? (
@@ -803,8 +860,11 @@ export default function FieldOperationsPanel({
                                         </span>
                                       </div>
                                       <div className="mt-1 text-slate-500">
-                                        {t('fieldDelivery_selisih')}: {d.selisih} kg ·{' '}
-                                        {t('pabrikItemTonase')}: {d.tonase_per_item}
+                                          {t('fieldDelivery_selisih')}: {d.selisih} kg ·{' '}
+                                          {t('pabrikItemTonase')}: {d.tonase_per_item}
+                                          {Number(d.price_per_item) > 0
+                                            ? ` · ${t('pabrikItemPrice')}: Rp ${formatIdr(d.price_per_item)}`
+                                            : ''}
                                       </div>
                                     </li>
                                   ))}

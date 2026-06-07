@@ -25,7 +25,8 @@ class PabrikRepository {
             json_build_object(
               'id', r.id,
               'kode_barang', r.kode_barang,
-              'tonase_per_item', r.tonase_per_item
+              'tonase_per_item', r.tonase_per_item,
+              'price_per_item', r.price_per_item
             )
             ORDER BY r.kode_barang
           ) FILTER (WHERE r.id IS NOT NULL),

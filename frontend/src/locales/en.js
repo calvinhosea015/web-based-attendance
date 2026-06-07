@@ -152,15 +152,12 @@ export default {
   payrollUangKerajinan: 'Diligence bonus',
   payrollDiligenceEligible: 'Diligence bonus this month (yes)',
   payrollBonusOmset: 'Bonus',
-  payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (tonase × selisih × 2%).',
+  payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (omset × 2%).',
   payrollBonusFieldOfficerHint:
-    'From delivery codes: tonase per item (factory + item code) × selisih (gross − net weight) × 2%. Can override manually.',
+    'From delivery codes: omset = price × selisih when price is set, else tonase × selisih; bonus = omset × 2%. Can override manually.',
   fieldOpsDashboardTitle: 'Field operations',
   fieldOpsDashboardSubtitle:
     'Factories & item codes, tonase rates, and field officer omset from delivery codes — one place.',
-  fieldOpsPeriodTitle: 'Payroll period',
-  fieldOpsPeriodHint: 'Omset report uses this month. Factories and tonase apply to all periods.',
-  fieldOpsRefreshAll: 'Refresh all',
   pabrikCatalogTitle: 'Factories & item codes',
   pabrikCatalogHint:
     'Factories and item codes from your reference table are pre-loaded on deploy. Add or remove factories and item codes below. Petugas lapangan use kode pabrik (e.g. 1) in delivery codes. Set Google Maps per factory.',
@@ -193,7 +190,7 @@ export default {
   pabrikItemSaveTonase: 'Save tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
-    'Set tonase per item (factory code + item code). Bonus = tonase × selisih × 2%. Green chips = tonase configured.',
+    'Set tonase and/or price per item (factory + item code). Omset = price × selisih when price is set, else tonase × selisih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Download tonase bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',
@@ -204,6 +201,9 @@ export default {
   pabrikItemPabrikCode: 'Factory code',
   pabrikItemKodeBarang: 'Item code',
   pabrikItemTonase: 'Tonase per item',
+  pabrikItemPrice: 'Price per item (Rp)',
+  pabrikItemSaveRate: 'Save rate',
+  pabrikItemRateRequired: 'Enter tonase and/or price per item.',
   pabrikItemAdd: 'Add',
   pabrikItemRatesEmpty: 'No tonase rows yet. Select a factory and set tonase per item code.',
   pabrikRateSaved: 'Tonase rate saved.',

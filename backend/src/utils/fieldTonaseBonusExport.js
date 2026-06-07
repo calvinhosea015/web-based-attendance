@@ -43,6 +43,7 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
     'Nama pabrik',
     'Kode barang',
     'Tonase per item',
+    'Harga per item',
     'Jumlah pengiriman',
     'Total selisih (kg)',
     'Total omset',
@@ -63,20 +64,23 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
       row.nama_pabrik,
       row.kode_barang,
       Number(row.tonase_per_item) || 0,
+      Number(row.price_per_item) || 0,
       Number(row.delivery_count) || 0,
       Number(row.total_selisih) || 0,
       Number(row.total_omset) || 0,
       Number(row.total_bonus) || 0,
     ]);
     dataRow.getCell(4).numFmt = AMOUNT_NUMFMT;
-    dataRow.getCell(5).numFmt = COUNT_NUMFMT;
-    dataRow.getCell(6).numFmt = AMOUNT_NUMFMT;
+    dataRow.getCell(5).numFmt = AMOUNT_NUMFMT;
+    dataRow.getCell(6).numFmt = COUNT_NUMFMT;
     dataRow.getCell(7).numFmt = AMOUNT_NUMFMT;
     dataRow.getCell(8).numFmt = AMOUNT_NUMFMT;
+    dataRow.getCell(9).numFmt = AMOUNT_NUMFMT;
   }
 
   const totalRow = sheet.addRow([
     'TOTAL',
+    '',
     '',
     '',
     '',
@@ -88,13 +92,14 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
   totalRow.eachCell((cell) => {
     cell.font = FONT_HEAD;
   });
-  totalRow.getCell(5).numFmt = COUNT_NUMFMT;
-  totalRow.getCell(7).numFmt = AMOUNT_NUMFMT;
+  totalRow.getCell(6).numFmt = COUNT_NUMFMT;
   totalRow.getCell(8).numFmt = AMOUNT_NUMFMT;
+  totalRow.getCell(9).numFmt = AMOUNT_NUMFMT;
 
   sheet.columns = [
     { width: 12 },
     { width: 28 },
+    { width: 14 },
     { width: 14 },
     { width: 14 },
     { width: 18 },
@@ -114,6 +119,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
     'Nama pabrik',
     'Kode barang',
     'Tonase per item',
+    'Harga per item',
     'Kotor (kg)',
     'Berat bersih (kg)',
     'Selisih (kg)',
@@ -137,6 +143,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
       row.nama_pabrik || '',
       row.kode_barang,
       Number(row.tonase_per_item) || 0,
+      Number(row.price_per_item) || 0,
       Number(row.kotor) || 0,
       Number(row.berat_bersih) || 0,
       Number(row.selisih) || 0,
@@ -148,7 +155,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
       row.nopol,
       row.no_bs,
     ]);
-    for (const col of [7, 8, 9, 10, 11, 12]) {
+    for (const col of [7, 8, 9, 10, 11, 12, 13]) {
       dataRow.getCell(col).numFmt = AMOUNT_NUMFMT;
     }
   }
@@ -159,6 +166,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
     { width: 14 },
     { width: 12 },
     { width: 24 },
+    { width: 14 },
     { width: 14 },
     { width: 14 },
     { width: 12 },

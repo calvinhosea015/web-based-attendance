@@ -15,14 +15,16 @@ function computeSelisih(kotor, beratBersih) {
   return { ok: true, selisih: gross - net };
 }
 
-/** Omset per baris = tonase per item × selisih (basis sebelum 2%). */
-function computeLineOmset(tonasePerItem, selisih) {
-  return Math.round(num(tonasePerItem) * num(selisih) * 100) / 100;
+/** Omset per baris = rate × selisih; price per item overrides tonase when set. */
+function computeLineOmset(tonasePerItem, selisih, pricePerItem = 0) {
+  const price = num(pricePerItem);
+  const rate = price > 0 ? price : num(tonasePerItem);
+  return Math.round(rate * num(selisih) * 100) / 100;
 }
 
 /** Bonus per baris = omset × 2%. */
-function computeLineBonus(tonasePerItem, selisih) {
-  const amount = computeLineOmset(tonasePerItem, selisih) * FIELD_OFFICER_BONUS_RATE;
+function computeLineBonus(tonasePerItem, selisih, pricePerItem = 0) {
+  const amount = computeLineOmset(tonasePerItem, selisih, pricePerItem) * FIELD_OFFICER_BONUS_RATE;
   return Math.round(amount * 100) / 100;
 }
 

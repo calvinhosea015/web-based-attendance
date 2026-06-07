@@ -1,6 +1,14 @@
 const { AppError } = require('../utils/errors');
 const { normalizePabrikCode, normalizeKodeBarang } = require('../utils/pabrikNormalize');
 
+function normalizeTonase(value) {
+  return Math.max(0, Number(value) || 0);
+}
+
+function normalizePrice(value) {
+  return Math.max(0, Number(value) || 0);
+}
+
 class PabrikItemRateService {
   constructor(pabrikItemRateRepository, pabrikRepository = null) {
     this.pabrikItemRateRepository = pabrikItemRateRepository;
@@ -27,7 +35,8 @@ class PabrikItemRateService {
     const pabrik_code = normalizePabrikCode(payload.pabrik_code);
     await this.assertPabrikExists(pabrik_code);
     const kode_barang = normalizeKodeBarang(payload.kode_barang);
-    const tonase_per_item = Math.max(0, Number(payload.tonase_per_item) || 0);
+    const tonase_per_item = normalizeTonase(payload.tonase_per_item);
+    const price_per_item = normalizePrice(payload.price_per_item);
     const existing = await this.pabrikItemRateRepository.findByPabrikAndBarang(
       pabrik_code,
       kode_barang
@@ -35,7 +44,12 @@ class PabrikItemRateService {
     if (existing) {
       throw new AppError('This pabrik and item code already exists.', 409, 'PABRIK_ITEM_EXISTS');
     }
-    return this.pabrikItemRateRepository.create({ pabrik_code, kode_barang, tonase_per_item });
+    return this.pabrikItemRateRepository.create({
+      pabrik_code,
+      kode_barang,
+      tonase_per_item,
+      price_per_item,
+    });
   }
 
   async update(id, payload) {
@@ -46,11 +60,13 @@ class PabrikItemRateService {
     const pabrik_code = normalizePabrikCode(payload.pabrik_code);
     await this.assertPabrikExists(pabrik_code);
     const kode_barang = normalizeKodeBarang(payload.kode_barang);
-    const tonase_per_item = Math.max(0, Number(payload.tonase_per_item) || 0);
+    const tonase_per_item = normalizeTonase(payload.tonase_per_item);
+    const price_per_item = normalizePrice(payload.price_per_item);
     const saved = await this.pabrikItemRateRepository.update(rateId, {
       pabrik_code,
       kode_barang,
       tonase_per_item,
+      price_per_item,
     });
     if (!saved) throw new AppError('Rate not found.', 404, 'NOT_FOUND');
     return saved;

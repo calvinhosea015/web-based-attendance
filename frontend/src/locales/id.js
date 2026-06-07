@@ -152,16 +152,12 @@ export default {
   payrollUangKerajinan: 'Uang kerajinan',
   payrollDiligenceEligible: 'Uang kerajinan bulan ini (ya)',
   payrollBonusOmset: 'Bonus',
-  payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (tonase × selisih × 2%).',
+  payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (omset × 2%).',
   payrollBonusFieldOfficerHint:
-    'Di-generate dari kode pengiriman: tonase per item (pabrik + kode barang) × selisih (kotor − berat bersih) × 2%. Bisa di-override manual.',
+    'Dari kode pengiriman: omset = harga × selisih jika harga diisi, jika tidak tonase × selisih; bonus = omset × 2%. Bisa di-override manual.',
   fieldOpsDashboardTitle: 'Operasi lapangan',
   fieldOpsDashboardSubtitle:
     'Pabrik & kode barang, tonase bonus, dan omset petugas lapangan dari kode pengiriman — dalam satu halaman.',
-  fieldOpsPeriodTitle: 'Periode gaji',
-  fieldOpsPeriodHint:
-    'Laporan omset memakai bulan ini. Pabrik dan tonase berlaku untuk semua periode.',
-  fieldOpsRefreshAll: 'Muat ulang semua',
   pabrikCatalogTitle: 'Pabrik & kode barang',
   pabrikCatalogHint:
     'Pabrik dan kode barang dari tabel referensi dimuat saat deploy. Tambah atau hapus pabrik dan kode barang di bawah. Petugas lapangan memakai kode pabrik (mis. 1) di kode pengiriman. Isi Google Maps per pabrik secara manual.',
@@ -194,7 +190,7 @@ export default {
   pabrikItemSaveTonase: 'Simpan tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
-    'Isi tonase per kode barang. Bonus = tonase × selisih × 2%. Chip hijau = tonase sudah diisi.',
+    'Isi tonase dan/atau harga per kode barang. Omset = harga × selisih jika harga diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Unduh laporan tonase bonus',
   pabrikTonaseExportHint:
     'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
@@ -205,6 +201,9 @@ export default {
   pabrikItemPabrikCode: 'Kode pabrik',
   pabrikItemKodeBarang: 'Kode barang',
   pabrikItemTonase: 'Tonase per item',
+  pabrikItemPrice: 'Harga per item (Rp)',
+  pabrikItemSaveRate: 'Simpan tarif',
+  pabrikItemRateRequired: 'Isi tonase dan/atau harga per item.',
   pabrikItemAdd: 'Tambah',
   pabrikItemRatesEmpty: 'Belum ada baris tonase. Pilih pabrik lalu isi tonase per kode barang.',
   pabrikRateSaved: 'Tarif tonase disimpan.',

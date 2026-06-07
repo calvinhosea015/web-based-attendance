@@ -565,6 +565,12 @@ async function migrateFieldCheckoutTables() {
   await query(
     `CREATE INDEX IF NOT EXISTS idx_field_delivery_valid_on ON field_delivery_entries(valid_on DESC)`
   );
+  await query(
+    `ALTER TABLE pabrik_item_rates ADD COLUMN IF NOT EXISTS price_per_item NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (price_per_item >= 0)`
+  );
+  await query(
+    `ALTER TABLE field_delivery_entries ADD COLUMN IF NOT EXISTS price_per_item NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
 }
 
 async function migrateEmployeeOffices() {

@@ -80,7 +80,8 @@ const fieldCodeSubmitValidators = [
 const pabrikItemRateBodyValidators = [
   body('pabrik_code').trim().notEmpty().isString().isLength({ max: 32 }),
   body('kode_barang').trim().notEmpty().isString().isLength({ max: 64 }),
-  body('tonase_per_item').isFloat({ min: 0 }),
+  body('tonase_per_item').optional({ nullable: true }).isFloat({ min: 0 }),
+  body('price_per_item').optional({ nullable: true }).isFloat({ min: 0 }),
 ];
 
 const pabrikItemRateIdValidator = [param('id').isInt({ min: 1 })];
