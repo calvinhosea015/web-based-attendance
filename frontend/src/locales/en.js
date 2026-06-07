@@ -163,8 +163,15 @@ export default {
   fieldOpsRefreshAll: 'Refresh all',
   pabrikCatalogTitle: 'Factories & item codes',
   pabrikCatalogHint:
-    'Kode pabrik 1–12 and item codes from your reference table are pre-loaded. Petugas lapangan use kode pabrik (e.g. 1) in delivery codes. Set Google Maps per factory.',
+    'Factories and item codes from your reference table are pre-loaded on deploy. Add or remove factories and item codes below. Petugas lapangan use kode pabrik (e.g. 1) in delivery codes. Set Google Maps per factory.',
   pabrikCatalogEmpty: 'Factory list not loaded yet. Restart the API so migrations can seed pabriks.',
+  pabrikAddFactory: 'Add factory',
+  pabrikDeleteFactory: 'Delete factory',
+  pabrikFactoryAdded: 'Factory added.',
+  pabrikFactoryDeleted: 'Factory and its item codes deleted.',
+  pabrikConfirmDeleteFactory: 'Delete factory "{{name}}" and all its item codes?',
+  pabrikDeleteItem: 'Remove item code',
+  pabrikItemAdded: 'Item code added.',
   pabrikNama: 'Factory name',
   pabrikGoogleMaps: 'Google Maps link',
   pabrikGoogleMapsPlaceholder: 'https://maps.google.com/...',
@@ -504,7 +511,8 @@ export default {
     FIELD_CODE_ALREADY: 'Delivery data already recorded for today.',
     PABRIK_ITEM_NOT_FOUND:
       'No tonase rate for this factory and item code. Contact admin.',
-    PABRIK_NOT_FOUND: 'Unknown factory code. Use kode pabrik 1–12 from the factory list.',
+    PABRIK_NOT_FOUND: 'Unknown factory code. Add the factory in Field operations first.',
+    PABRIK_EXISTS: 'This factory code already exists.',
     PABRIK_ITEM_EXISTS: 'This factory and item code rate already exists.',
     FIELD_CODE_ACCEPTED: 'Delivery data accepted for today.',
     FIELD_CODE_REQUIRED:

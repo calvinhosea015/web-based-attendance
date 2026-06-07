@@ -164,8 +164,15 @@ export default {
   fieldOpsRefreshAll: 'Muat ulang semua',
   pabrikCatalogTitle: 'Pabrik & kode barang',
   pabrikCatalogHint:
-    'Kode pabrik 1–12 dan kode barang dari tabel referensi sudah dimuat. Petugas lapangan memakai kode pabrik (mis. 1) di kode pengiriman. Isi Google Maps per pabrik secara manual.',
+    'Pabrik dan kode barang dari tabel referensi dimuat saat deploy. Tambah atau hapus pabrik dan kode barang di bawah. Petugas lapangan memakai kode pabrik (mis. 1) di kode pengiriman. Isi Google Maps per pabrik secara manual.',
   pabrikCatalogEmpty: 'Daftar pabrik belum dimuat. Restart API agar migrasi mengisi data pabrik.',
+  pabrikAddFactory: 'Tambah pabrik',
+  pabrikDeleteFactory: 'Hapus pabrik',
+  pabrikFactoryAdded: 'Pabrik ditambahkan.',
+  pabrikFactoryDeleted: 'Pabrik dan semua kode barangnya dihapus.',
+  pabrikConfirmDeleteFactory: 'Hapus pabrik "{{name}}" dan semua kode barangnya?',
+  pabrikDeleteItem: 'Hapus kode barang',
+  pabrikItemAdded: 'Kode barang ditambahkan.',
   pabrikNama: 'Nama pabrik',
   pabrikGoogleMaps: 'Link Google Maps',
   pabrikGoogleMapsPlaceholder: 'https://maps.google.com/...',
@@ -508,7 +515,8 @@ export default {
     FIELD_CODE_ALREADY: 'Data pengiriman hari ini sudah tercatat.',
     PABRIK_ITEM_NOT_FOUND:
       'Tarif tonase untuk pabrik dan kode barang ini belum diatur. Hubungi admin.',
-    PABRIK_NOT_FOUND: 'Kode pabrik tidak dikenal. Gunakan kode pabrik 1–12 dari daftar pabrik.',
+    PABRIK_NOT_FOUND: 'Kode pabrik tidak dikenal. Tambahkan pabrik di Operasi lapangan terlebih dahulu.',
+    PABRIK_EXISTS: 'Kode pabrik ini sudah ada.',
     PABRIK_ITEM_EXISTS: 'Tarif pabrik dan kode barang ini sudah ada.',
     FIELD_CODE_ACCEPTED: 'Data pengiriman diterima untuk hari ini.',
     FIELD_CODE_REQUIRED:

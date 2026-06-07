@@ -30,6 +30,8 @@ const {
   fieldCodeSubmitValidators,
   pabrikItemRateBodyValidators,
   pabrikItemRateIdValidator,
+  pabrikIdValidator,
+  pabrikCreateValidators,
   pabrikUpdateValidators,
   fieldDeliveryQueryValidators,
   leaveSettingsValidators,
@@ -190,12 +192,26 @@ function buildProtectedRoutes(deps) {
 
   r.get('/admin/payroll/settings', requireRole('admin'), payrollController.getSettings);
   r.get('/admin/pabriks', requireRole('admin'), pabrikController.list);
+  r.post(
+    '/admin/pabriks',
+    requireRole('admin'),
+    pabrikCreateValidators,
+    validateRequest,
+    pabrikController.create
+  );
   r.put(
     '/admin/pabriks/:id',
     requireRole('admin'),
     pabrikUpdateValidators,
     validateRequest,
     pabrikController.update
+  );
+  r.delete(
+    '/admin/pabriks/:id',
+    requireRole('admin'),
+    pabrikIdValidator,
+    validateRequest,
+    pabrikController.remove
   );
   r.get(
     '/admin/pabrik-item-rates',

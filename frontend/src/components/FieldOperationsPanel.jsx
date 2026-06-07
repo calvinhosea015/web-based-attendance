@@ -37,7 +37,15 @@ export default function FieldOperationsPanel({
     kode_barang: '',
     tonase_per_item: '',
   });
+  const [newFactoryForm, setNewFactoryForm] = useState({
+    pabrik_code: '',
+    nama_pabrik: '',
+  });
+  const [itemAddDraft, setItemAddDraft] = useState({});
   const [pabrikSaving, setPabrikSaving] = useState(false);
+  const [factorySaving, setFactorySaving] = useState(false);
+  const [itemSavingCode, setItemSavingCode] = useState(null);
+  const [factoryDeletingId, setFactoryDeletingId] = useState(null);
   const [pabrikLoading, setPabrikLoading] = useState(false);
 
   const [report, setReport] = useState(null);
@@ -109,6 +117,68 @@ export default function FieldOperationsPanel({
     const pabrik = pabriks.find((p) => p.pabrik_code === pabrikForm.pabrik_code);
     return (pabrik?.items || []).map((item) => item.kode_barang);
   }, [pabriks, pabrikForm.pabrik_code]);
+
+  const handleCreateFactory = async (e) => {
+    e.preventDefault();
+    setFactorySaving(true);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.post(paths.adminPabriks, {
+        pabrik_code: newFactoryForm.pabrik_code.trim(),
+        nama_pabrik: newFactoryForm.nama_pabrik.trim(),
+      });
+      setNewFactoryForm({ pabrik_code: '', nama_pabrik: '' });
+      await loadPabriks();
+      notify(t('pabrikFactoryAdded'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setFactorySaving(false);
+    }
+  };
+
+  const handleDeleteFactory = async (pabrik) => {
+    if (!window.confirm(t('pabrikConfirmDeleteFactory', { name: pabrik.nama_pabrik }))) {
+      return;
+    }
+    setFactoryDeletingId(pabrik.id);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.delete(paths.adminPabrik(pabrik.id));
+      if (expandedPabrikCode === pabrik.pabrik_code) setExpandedPabrikCode(null);
+      await loadPabriks();
+      notify(t('pabrikFactoryDeleted'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setFactoryDeletingId(null);
+    }
+  };
+
+  const handleAddItemCode = async (e, pabrik) => {
+    e.preventDefault();
+    const kode = (itemAddDraft[pabrik.pabrik_code] || '').trim();
+    if (!kode) return;
+    setItemSavingCode(pabrik.pabrik_code);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.post(paths.adminPabrikItemRates, {
+        pabrik_code: pabrik.pabrik_code,
+        kode_barang: kode,
+        tonase_per_item: 0,
+      });
+      setItemAddDraft((d) => ({ ...d, [pabrik.pabrik_code]: '' }));
+      await loadPabriks();
+      notify(t('pabrikItemAdded'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setItemSavingCode(null);
+    }
+  };
 
   const handleSavePabrikMaps = async (pabrikId) => {
     setPabrikMapsSavingId(pabrikId);
@@ -202,6 +272,37 @@ export default function FieldOperationsPanel({
       {showPabrik && (
         <section id="pabrik-catalog" className="scroll-mt-24">
           <Card title={t('pabrikCatalogTitle')} description={t('pabrikCatalogHint')}>
+            <form
+              className="mb-4 grid gap-3 border-b border-slate-200 pb-4 sm:grid-cols-[1fr_2fr_auto]"
+              onSubmit={handleCreateFactory}
+            >
+              <Field label={t('pabrikItemPabrikCode')}>
+                <input
+                  className={inputClass}
+                  value={newFactoryForm.pabrik_code}
+                  onChange={(e) =>
+                    setNewFactoryForm((f) => ({ ...f, pabrik_code: e.target.value }))
+                  }
+                  placeholder="1"
+                  required
+                />
+              </Field>
+              <Field label={t('pabrikNama')}>
+                <input
+                  className={inputClass}
+                  value={newFactoryForm.nama_pabrik}
+                  onChange={(e) =>
+                    setNewFactoryForm((f) => ({ ...f, nama_pabrik: e.target.value }))
+                  }
+                  required
+                />
+              </Field>
+              <div className="flex items-end">
+                <Button type="submit" variant="primary" disabled={factorySaving}>
+                  {factorySaving ? t('loading') : t('pabrikAddFactory')}
+                </Button>
+              </div>
+            </form>
             {pabrikLoading && pabriks.length === 0 ? (
               <p className="text-sm text-slate-600">{t('loading')}</p>
             ) : pabriks.length === 0 ? (
@@ -222,20 +323,33 @@ export default function FieldOperationsPanel({
                           {t('pabrikItemCount', { count: pabrik.items?.length ?? 0 })}
                         </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setExpandedPabrikCode((c) =>
-                            c === pabrik.pabrik_code ? null : pabrik.pabrik_code
-                          )
-                        }
-                      >
-                        {expandedPabrikCode === pabrik.pabrik_code
-                          ? t('pabrikHideItems')
-                          : t('pabrikShowItems')}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setExpandedPabrikCode((c) =>
+                              c === pabrik.pabrik_code ? null : pabrik.pabrik_code
+                            )
+                          }
+                        >
+                          {expandedPabrikCode === pabrik.pabrik_code
+                            ? t('pabrikHideItems')
+                            : t('pabrikShowItems')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={factoryDeletingId === pabrik.id}
+                          onClick={() => handleDeleteFactory(pabrik)}
+                        >
+                          {factoryDeletingId === pabrik.id
+                            ? t('loading')
+                            : t('pabrikDeleteFactory')}
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
                       <Field label={t('pabrikGoogleMaps')}>
@@ -277,27 +391,68 @@ export default function FieldOperationsPanel({
                       </div>
                     </div>
                     {expandedPabrikCode === pabrik.pabrik_code && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {(pabrik.items || []).map((item) => (
-                          <span
-                            key={`${pabrik.pabrik_code}-${item.kode_barang}`}
-                            className={`rounded-md border px-2 py-0.5 text-xs ${
-                              Number(item.tonase_per_item) > 0
-                                ? 'border-brand-200 bg-brand-50 text-brand-800'
-                                : 'border-slate-200 bg-white text-slate-600'
-                            }`}
-                            title={
-                              Number(item.tonase_per_item) > 0
-                                ? `${t('pabrikItemTonase')}: ${item.tonase_per_item}`
-                                : t('pabrikTonaseNotSet')
-                            }
+                      <div className="mt-3 space-y-3">
+                        <form
+                          className="flex flex-wrap items-end gap-2"
+                          onSubmit={(e) => handleAddItemCode(e, pabrik)}
+                        >
+                          <Field label={t('pabrikItemKodeBarang')} className="min-w-[12rem] flex-1">
+                            <input
+                              className={inputClass}
+                              value={itemAddDraft[pabrik.pabrik_code] ?? ''}
+                              onChange={(e) =>
+                                setItemAddDraft((d) => ({
+                                  ...d,
+                                  [pabrik.pabrik_code]: e.target.value,
+                                }))
+                              }
+                              placeholder="PA1"
+                              required
+                            />
+                          </Field>
+                          <Button
+                            type="submit"
+                            variant="secondary"
+                            size="sm"
+                            disabled={itemSavingCode === pabrik.pabrik_code}
                           >
-                            {item.kode_barang}
-                            {Number(item.tonase_per_item) > 0
-                              ? ` (${item.tonase_per_item})`
-                              : ''}
-                          </span>
-                        ))}
+                            {itemSavingCode === pabrik.pabrik_code
+                              ? t('loading')
+                              : t('pabrikItemAdd')}
+                          </Button>
+                        </form>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(pabrik.items || []).map((item) => (
+                            <span
+                              key={`${pabrik.pabrik_code}-${item.kode_barang}`}
+                              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
+                                Number(item.tonase_per_item) > 0
+                                  ? 'border-brand-200 bg-brand-50 text-brand-800'
+                                  : 'border-slate-200 bg-white text-slate-600'
+                              }`}
+                              title={
+                                Number(item.tonase_per_item) > 0
+                                  ? `${t('pabrikItemTonase')}: ${item.tonase_per_item}`
+                                  : t('pabrikTonaseNotSet')
+                              }
+                            >
+                              <span>
+                                {item.kode_barang}
+                                {Number(item.tonase_per_item) > 0
+                                  ? ` (${item.tonase_per_item})`
+                                  : ''}
+                              </span>
+                              <button
+                                type="button"
+                                className="rounded px-0.5 text-slate-400 hover:bg-slate-100 hover:text-red-600"
+                                aria-label={t('pabrikDeleteItem')}
+                                onClick={() => handleDeletePabrikRate(item.id)}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

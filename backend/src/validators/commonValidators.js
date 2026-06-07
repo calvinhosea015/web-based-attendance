@@ -85,8 +85,17 @@ const pabrikItemRateBodyValidators = [
 
 const pabrikItemRateIdValidator = [param('id').isInt({ min: 1 })];
 
+const pabrikIdValidator = [param('id').isInt({ min: 1 })];
+
+const pabrikCreateValidators = [
+  body('pabrik_code').trim().notEmpty().isString().isLength({ max: 32 }),
+  body('nama_pabrik').trim().notEmpty().isString().isLength({ max: 255 }),
+  body('google_maps_url').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+];
+
 const pabrikUpdateValidators = [
   param('id').isInt({ min: 1 }),
+  body('nama_pabrik').optional().trim().notEmpty().isString().isLength({ max: 255 }),
   body('google_maps_url').optional({ nullable: true }).trim().isLength({ max: 2000 }),
 ];
 
@@ -274,6 +283,8 @@ module.exports = {
   fieldCodeSubmitValidators,
   pabrikItemRateBodyValidators,
   pabrikItemRateIdValidator,
+  pabrikIdValidator,
+  pabrikCreateValidators,
   pabrikUpdateValidators,
   createUserValidators,
   changePasswordValidators,

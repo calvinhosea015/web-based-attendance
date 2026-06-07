@@ -1,4 +1,4 @@
-const { query } = require('../db/pool');
+const { pool, query } = require('../db/pool');
 
 class PabrikRepository {
   async listWithItems() {
@@ -51,15 +51,73 @@ class PabrikRepository {
     return r.rows[0] || null;
   }
 
-  async updateGoogleMaps(id, google_maps_url) {
+  async nextSortOrder() {
+    const r = await query(`SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM pabriks`);
+    return Number(r.rows[0]?.n) || 1;
+  }
+
+  async create({ pabrik_code, nama_pabrik, google_maps_url, sort_order }) {
+    const r = await query(
+      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, sort_order)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, pabrik_code, nama_pabrik, google_maps_url, sort_order, created_at, updated_at`,
+      [pabrik_code, nama_pabrik, google_maps_url, sort_order]
+    );
+    return r.rows[0];
+  }
+
+  async updateById(id, { nama_pabrik, google_maps_url }) {
+    const sets = [];
+    const params = [id];
+    let idx = 2;
+    if (nama_pabrik !== undefined) {
+      sets.push(`nama_pabrik = $${idx}`);
+      params.push(nama_pabrik);
+      idx += 1;
+    }
+    if (google_maps_url !== undefined) {
+      sets.push(`google_maps_url = $${idx}`);
+      params.push(google_maps_url);
+      idx += 1;
+    }
+    if (!sets.length) return this.findById(id);
     const r = await query(
       `UPDATE pabriks
-       SET google_maps_url = $2, updated_at = NOW()
+       SET ${sets.join(', ')}, updated_at = NOW()
        WHERE id = $1
        RETURNING id, pabrik_code, nama_pabrik, google_maps_url, sort_order, updated_at`,
-      [id, google_maps_url]
+      params
     );
     return r.rows[0] || null;
+  }
+
+  async updateGoogleMaps(id, google_maps_url) {
+    return this.updateById(id, { google_maps_url });
+  }
+
+  async deleteById(id) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const found = await client.query(
+        `SELECT id, pabrik_code FROM pabriks WHERE id = $1`,
+        [id]
+      );
+      if (!found.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      const { pabrik_code } = found.rows[0];
+      await client.query(`DELETE FROM pabrik_item_rates WHERE pabrik_code = $1`, [pabrik_code]);
+      const del = await client.query(`DELETE FROM pabriks WHERE id = $1 RETURNING id`, [id]);
+      await client.query('COMMIT');
+      return del.rows[0] || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 }
 

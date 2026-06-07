@@ -1,29 +1,5 @@
 const { AppError } = require('../utils/errors');
-
-function normalizePabrikCode(value) {
-  const code = String(value ?? '').trim();
-  if (!code || !/^[A-Za-z0-9_-]+$/.test(code)) {
-    throw new AppError(
-      'Pabrik code may only contain letters, numbers, hyphen, and underscore.',
-      400,
-      'VALIDATION'
-    );
-  }
-  if (code.length > 32) {
-    throw new AppError('Pabrik code is too long.', 400, 'VALIDATION');
-  }
-  return code;
-}
-
-function normalizeKodeBarang(value) {
-  const code = String(value ?? '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toUpperCase();
-  if (!code) throw new AppError('Item code is required.', 400, 'VALIDATION');
-  if (code.length > 64) throw new AppError('Item code is too long.', 400, 'VALIDATION');
-  return code;
-}
+const { normalizePabrikCode, normalizeKodeBarang } = require('../utils/pabrikNormalize');
 
 class PabrikItemRateService {
   constructor(pabrikItemRateRepository, pabrikRepository = null) {
@@ -36,7 +12,7 @@ class PabrikItemRateService {
     const pabrik = await this.pabrikRepository.findByCode(pabrik_code);
     if (!pabrik) {
       throw new AppError(
-        `Unknown pabrik code "${pabrik_code}". Use kode pabrik 1–12 from the factory list.`,
+        `Unknown factory code "${pabrik_code}". Add the factory in Field operations first.`,
         400,
         'PABRIK_NOT_FOUND'
       );
