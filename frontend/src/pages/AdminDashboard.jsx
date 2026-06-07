@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [perUserAttendance, setPerUserAttendance] = useState(null);
   const [perUserLoading, setPerUserLoading] = useState(false);
   const [offices, setOffices] = useState([]);
+  const [pabriks, setPabriks] = useState([]);
   const [overview, setOverview] = useState(null);
   const [newUser, setNewUser] = useState({
     username: '',
@@ -88,16 +89,20 @@ export default function AdminDashboard() {
   const refresh = async () => {
     try {
       await ensureCsrf();
-      const [u, a, o, dash] = await Promise.all([
+      const [u, a, o, dash, pabrikRes] = await Promise.all([
         api.get(paths.users),
         api.get(paths.attendanceAll),
         api.get(paths.offices),
         api.get(paths.adminDashboard),
+        api.get(paths.adminPabriks).catch(() => ({ data: { pabriks: [] } })),
       ]);
       setUsers(u.data);
       setAttendance(a.data);
       setOffices(o.data);
       setOverview(dash.data);
+      setPabriks(
+        Array.isArray(pabrikRes.data?.pabriks) ? pabrikRes.data.pabriks : []
+      );
       if (perUserSelectedId) {
         try {
           const ur = await api.get(paths.userAttendance(perUserSelectedId), { params: { limit: 200 } });
@@ -128,6 +133,18 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteOffice = async (id) => {
+    const linked = pabriks.filter((p) => Number(p.office_id) === Number(id));
+    if (
+      linked.length &&
+      !window.confirm(
+        t('confirmDeleteOfficeWithFactories', {
+          count: linked.length,
+          names: linked.map((p) => p.nama_pabrik).join(', '),
+        })
+      )
+    ) {
+      return;
+    }
     try {
       await api.delete(paths.office(id));
       if (editingOffice != null && Number(editingOffice.id) === Number(id)) {
@@ -979,8 +996,12 @@ export default function AdminDashboard() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div
+          id="location-management"
+          className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <h2 className="text-lg font-semibold text-slate-900">{t('locationManagement')}</h2>
+          <p className="mt-1 text-sm text-slate-600">{t('locationManagementHint')}</p>
           <form className="mt-4 space-y-3" onSubmit={handleAddOffice}>
             <input
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -1004,7 +1025,11 @@ export default function AdminDashboard() {
             </button>
           </form>
           <ul className="mt-4 space-y-2 text-sm">
-            {offices.map((office) => (
+            {offices.map((office) => {
+              const linkedFactories = pabriks.filter(
+                (p) => Number(p.office_id) === Number(office.id)
+              );
+              return (
               <li
                 key={office.id}
                 className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2"
@@ -1027,6 +1052,16 @@ export default function AdminDashboard() {
                         {Number(office.lat).toFixed(5)}, {Number(office.lng).toFixed(5)}
                       </p>
                     )}
+                    <p className="mt-1 text-xs text-slate-600">
+                      {t('locationFactories')}:{' '}
+                      {linkedFactories.length ? (
+                        linkedFactories
+                          .map((p) => `${p.pabrik_code} — ${p.nama_pabrik}`)
+                          .join(', ')
+                      ) : (
+                        <span className="text-slate-400">{t('locationFactoriesNone')}</span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <button
@@ -1081,7 +1116,8 @@ export default function AdminDashboard() {
                   </form>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       </section>
