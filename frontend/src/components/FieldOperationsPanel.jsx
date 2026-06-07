@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Card, Field, StatTile, inputClass } from './ui.jsx';
+import { Alert, Badge, Button, Card, Field, StatTile, inputClass } from './ui.jsx';
 import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import {
@@ -55,6 +55,9 @@ export default function FieldOperationsPanel({
   const [tonaseExporting, setTonaseExporting] = useState(false);
   const [tonaseFilterPabrik, setTonaseFilterPabrik] = useState('');
   const [tonaseFilterItem, setTonaseFilterItem] = useState('');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogFilterOffice, setCatalogFilterOffice] = useState('');
+  const [showAddFactoryForm, setShowAddFactoryForm] = useState(false);
 
   const [report, setReport] = useState(null);
   const [omsetLoading, setOmsetLoading] = useState(false);
@@ -151,6 +154,43 @@ export default function FieldOperationsPanel({
     }
   }, []);
 
+  const catalogStats = useMemo(() => {
+    const itemCount = pabriks.reduce((n, p) => n + (p.items?.length ?? 0), 0);
+    const pricedCount = pabriks.reduce(
+      (n, p) =>
+        n + (p.items || []).filter((item) => Number(item.price_per_item) > 0).length,
+      0
+    );
+    return { factories: pabriks.length, items: itemCount, priced: pricedCount };
+  }, [pabriks]);
+
+  const filteredPabriks = useMemo(() => {
+    const q = catalogSearch.trim().toUpperCase();
+    return pabriks.filter((pabrik) => {
+      if (catalogFilterOffice && Number(pabrik.office_id) !== Number(catalogFilterOffice)) {
+        return false;
+      }
+      if (!q) return true;
+      const codeMatch = String(pabrik.pabrik_code).toUpperCase().includes(q);
+      const nameMatch = String(pabrik.nama_pabrik).toUpperCase().includes(q);
+      const itemMatch = (pabrik.items || []).some((item) =>
+        String(item.kode_barang).toUpperCase().includes(q)
+      );
+      return codeMatch || nameMatch || itemMatch;
+    });
+  }, [pabriks, catalogSearch, catalogFilterOffice]);
+
+  const catalogFiltersActive = Boolean(catalogSearch.trim() || catalogFilterOffice);
+
+  const filterCatalogItems = useCallback(
+    (items) => {
+      const q = catalogSearch.trim().toUpperCase();
+      if (!q) return items;
+      return items.filter((item) => String(item.kode_barang).toUpperCase().includes(q));
+    },
+    [catalogSearch]
+  );
+
   const filteredPabrikRates = useMemo(() => {
     const itemQuery = tonaseFilterItem.trim().toUpperCase();
     return pabrikRates.filter((row) => {
@@ -181,6 +221,7 @@ export default function FieldOperationsPanel({
         nama_pabrik: '',
         office_id: defaultOffice ? String(defaultOffice.id) : '',
       });
+      setShowAddFactoryForm(false);
       await loadPabriks();
       notify(t('pabrikFactoryAdded'), 'success');
     } catch (err) {
@@ -325,237 +366,382 @@ export default function FieldOperationsPanel({
 
       {showPabrik && (
         <section id="pabrik-catalog" className="scroll-mt-24">
-          <Card title={t('pabrikCatalogTitle')} description={t('pabrikCatalogHint')}>
-            <p className="mb-4 text-sm text-slate-600">
-              {t('pabrikLocationHint')}{' '}
-              <Link
-                to="/admin#location-management"
-                className="font-medium text-brand-600 hover:text-brand-700"
+          <Card
+            title={t('pabrikCatalogTitle')}
+            description={t('pabrikCatalogHint')}
+            action={
+              <Button
+                type="button"
+                variant={showAddFactoryForm ? 'ghost' : 'primary'}
+                size="sm"
+                onClick={() => setShowAddFactoryForm((v) => !v)}
               >
-                {t('pabrikLocationManageLink')}
-              </Link>
-            </p>
-            <form
-              className="mb-4 grid gap-3 border-b border-slate-200 pb-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_auto]"
-              onSubmit={handleCreateFactory}
-            >
-              <Field label={t('pabrikItemPabrikCode')}>
-                <input
-                  className={inputClass}
-                  value={newFactoryForm.pabrik_code}
-                  onChange={(e) =>
-                    setNewFactoryForm((f) => ({ ...f, pabrik_code: e.target.value }))
-                  }
-                  placeholder="1"
-                  required
-                />
-              </Field>
-              <Field label={t('pabrikNama')}>
-                <input
-                  className={inputClass}
-                  value={newFactoryForm.nama_pabrik}
-                  onChange={(e) =>
-                    setNewFactoryForm((f) => ({ ...f, nama_pabrik: e.target.value }))
-                  }
-                  required
-                />
-              </Field>
-              <Field label={t('pabrikLocation')}>
-                <select
-                  className={inputClass}
-                  value={newFactoryForm.office_id}
-                  onChange={(e) =>
-                    setNewFactoryForm((f) => ({ ...f, office_id: e.target.value }))
-                  }
-                  required
-                >
-                  <option value="">{t('pabrikLocationSelect')}</option>
-                  {offices.map((office) => (
-                    <option key={office.id} value={office.id} disabled={!office.link}>
-                      {office.name}
-                      {!office.link ? ` (${t('pabrikOfficeNoMap')})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div className="flex items-end">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={factorySaving || !newFactoryForm.office_id}
-                >
-                  {factorySaving ? t('loading') : t('pabrikAddFactory')}
-                </Button>
-              </div>
-            </form>
+                {showAddFactoryForm ? t('cancel') : t('pabrikAddFactory')}
+              </Button>
+            }
+          >
+            <div className="mb-5 grid gap-3 sm:grid-cols-3">
+              <StatTile label={t('pabrikCatalogStatFactories')} value={catalogStats.factories} />
+              <StatTile label={t('pabrikCatalogStatItems')} value={catalogStats.items} />
+              <StatTile
+                label={t('pabrikCatalogStatPriced')}
+                value={catalogStats.priced}
+                sub={t('pabrikCatalogStatPricedSub')}
+              />
+            </div>
+
+            {showAddFactoryForm && (
+              <form
+                className="mb-5 rounded-xl border border-brand-200 bg-brand-50/30 p-4"
+                onSubmit={handleCreateFactory}
+              >
+                <p className="mb-3 text-sm font-medium text-slate-800">{t('pabrikCatalogNewFactory')}</p>
+                <p className="mb-3 text-xs text-slate-500">
+                  {t('pabrikLocationHint')}{' '}
+                  <Link
+                    to="/admin#location-management"
+                    className="font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    {t('pabrikLocationManageLink')}
+                  </Link>
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_auto]">
+                  <Field label={t('pabrikItemPabrikCode')}>
+                    <input
+                      className={inputClass}
+                      value={newFactoryForm.pabrik_code}
+                      onChange={(e) =>
+                        setNewFactoryForm((f) => ({ ...f, pabrik_code: e.target.value }))
+                      }
+                      placeholder="1"
+                      required
+                    />
+                  </Field>
+                  <Field label={t('pabrikNama')}>
+                    <input
+                      className={inputClass}
+                      value={newFactoryForm.nama_pabrik}
+                      onChange={(e) =>
+                        setNewFactoryForm((f) => ({ ...f, nama_pabrik: e.target.value }))
+                      }
+                      required
+                    />
+                  </Field>
+                  <Field label={t('pabrikLocation')}>
+                    <select
+                      className={inputClass}
+                      value={newFactoryForm.office_id}
+                      onChange={(e) =>
+                        setNewFactoryForm((f) => ({ ...f, office_id: e.target.value }))
+                      }
+                      required
+                    >
+                      <option value="">{t('pabrikLocationSelect')}</option>
+                      {offices.map((office) => (
+                        <option key={office.id} value={office.id} disabled={!office.link}>
+                          {office.name}
+                          {!office.link ? ` (${t('pabrikOfficeNoMap')})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <div className="flex items-end gap-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={factorySaving || !newFactoryForm.office_id}
+                    >
+                      {factorySaving ? t('loading') : t('pabrikAddFactory')}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
+
             {pabrikLoading && pabriks.length === 0 ? (
               <p className="text-sm text-slate-600">{t('loading')}</p>
             ) : pabriks.length === 0 ? (
               <p className="text-sm text-slate-600">{t('pabrikCatalogEmpty')}</p>
             ) : (
-              <div className="space-y-3">
-                {pabriks.map((pabrik) => (
-                  <div
-                    key={pabrik.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {pabrik.pabrik_code} — {pabrik.nama_pabrik}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          {t('pabrikItemCount', { count: pabrik.items?.length ?? 0 })}
-                          {' · '}
-                          {pabrik.office_name ? (
-                            <span className="text-slate-700">
-                              {t('pabrikLocationLabel', { name: pabrik.office_name })}
-                            </span>
-                          ) : (
-                            <span className="text-amber-700">{t('pabrikNoLocation')}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExpandedPabrikCode((c) =>
-                              c === pabrik.pabrik_code ? null : pabrik.pabrik_code
-                            )
-                          }
-                        >
-                          {expandedPabrikCode === pabrik.pabrik_code
-                            ? t('pabrikHideItems')
-                            : t('pabrikShowItems')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={factoryDeletingId === pabrik.id}
-                          onClick={() => handleDeleteFactory(pabrik)}
-                        >
-                          {factoryDeletingId === pabrik.id
-                            ? t('loading')
-                            : t('pabrikDeleteFactory')}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-end gap-3">
-                      <Field label={t('pabrikLocation')} className="min-w-[12rem] flex-1">
-                        <select
-                          className={inputClass}
-                          value={pabrik.office_id ?? ''}
-                          disabled={pabrikOfficeLinkSavingId === pabrik.id}
-                          onChange={(e) => handleLinkPabrikOffice(pabrik.id, e.target.value)}
-                        >
-                          <option value="">{t('pabrikLocationNone')}</option>
-                          {offices.map((office) => (
-                            <option key={office.id} value={office.id} disabled={!office.link}>
-                              {office.name}
-                              {!office.link ? ` (${t('pabrikOfficeNoMap')})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      {pabrik.google_maps_url ? (
-                        <a
-                          href={pabrik.google_maps_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pb-2 text-sm font-medium text-brand-600 hover:text-brand-700"
-                        >
-                          {t('pabrikOpenMaps')}
-                        </a>
-                      ) : null}
-                    </div>
-                    {expandedPabrikCode === pabrik.pabrik_code && (
-                      <div className="mt-3 space-y-3">
-                        <form
-                          className="flex flex-wrap items-end gap-2"
-                          onSubmit={(e) => handleAddItemCode(e, pabrik)}
-                        >
-                          <Field label={t('pabrikItemKodeBarang')} className="min-w-[12rem] flex-1">
-                            <input
-                              className={inputClass}
-                              value={itemAddDraft[pabrik.pabrik_code] ?? ''}
-                              onChange={(e) =>
-                                setItemAddDraft((d) => ({
-                                  ...d,
-                                  [pabrik.pabrik_code]: e.target.value,
-                                }))
-                              }
-                              placeholder="PA1"
-                              required
-                            />
-                          </Field>
-                          <Button
-                            type="submit"
-                            variant="secondary"
-                            size="sm"
-                            disabled={itemSavingCode === pabrik.pabrik_code}
-                          >
-                            {itemSavingCode === pabrik.pabrik_code
-                              ? t('loading')
-                              : t('pabrikItemAdd')}
-                          </Button>
-                        </form>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(pabrik.items || []).map((item) => (
-                            <span
-                              key={`${pabrik.pabrik_code}-${item.kode_barang}`}
-                              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
-                                itemRateConfigured(item)
-                                  ? 'border-brand-200 bg-brand-50 text-brand-800'
-                                  : 'border-slate-200 bg-white text-slate-600'
-                              }`}
-                              title={
-                                itemRateConfigured(item)
-                                  ? [
-                                      Number(item.tonase_per_item) > 0
-                                        ? `${t('pabrikItemTonase')}: ${item.tonase_per_item}`
-                                        : null,
-                                      Number(item.price_per_item) > 0
-                                        ? `${t('pabrikItemPrice')}: Rp ${formatIdr(item.price_per_item)}`
-                                        : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(' · ')
-                                  : t('pabrikTonaseNotSet')
-                              }
-                            >
-                              <span>
-                                {item.kode_barang}
-                                {itemRateConfigured(item)
-                                  ? ` (${[
-                                      Number(item.tonase_per_item) > 0 ? item.tonase_per_item : null,
-                                      Number(item.price_per_item) > 0
-                                        ? `Rp${formatIdr(item.price_per_item)}`
-                                        : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(' / ')})`
-                                  : ''}
-                              </span>
-                              <button
-                                type="button"
-                                className="rounded px-0.5 text-slate-400 hover:bg-slate-100 hover:text-red-600"
-                                aria-label={t('pabrikDeleteItem')}
-                                onClick={() => handleDeletePabrikRate(item.id)}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+              <>
+                <div className="mb-4 flex flex-wrap items-end gap-3">
+                  <Field label={t('pabrikCatalogSearch')} className="min-w-[12rem] flex-1">
+                    <input
+                      className={inputClass}
+                      value={catalogSearch}
+                      onChange={(e) => setCatalogSearch(e.target.value)}
+                      placeholder={t('pabrikCatalogSearchPlaceholder')}
+                    />
+                  </Field>
+                  <Field label={t('pabrikCatalogFilterLocation')} className="min-w-[10rem]">
+                    <select
+                      className={inputClass}
+                      value={catalogFilterOffice}
+                      onChange={(e) => setCatalogFilterOffice(e.target.value)}
+                    >
+                      <option value="">{t('pabrikCatalogFilterAllLocations')}</option>
+                      {offices.map((office) => (
+                        <option key={office.id} value={office.id}>
+                          {office.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {catalogFiltersActive ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mb-0.5"
+                      onClick={() => {
+                        setCatalogSearch('');
+                        setCatalogFilterOffice('');
+                      }}
+                    >
+                      {t('pabrikCatalogFilterClear')}
+                    </Button>
+                  ) : null}
+                  <p className="mb-1 text-xs text-slate-500">
+                    {t('pabrikCatalogFilterCount', {
+                      shown: filteredPabriks.length,
+                      total: pabriks.length,
+                    })}
+                  </p>
+                </div>
+
+                {filteredPabriks.length === 0 ? (
+                  <p className="text-sm text-slate-600">{t('pabrikCatalogFilterNoMatch')}</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="w-10 px-3 py-2.5" />
+                          <th className="px-3 py-2.5">{t('pabrikItemPabrikCode')}</th>
+                          <th className="px-3 py-2.5">{t('pabrikNama')}</th>
+                          <th className="px-3 py-2.5">{t('pabrikLocation')}</th>
+                          <th className="px-3 py-2.5 text-center">{t('pabrikCatalogItemsCol')}</th>
+                          <th className="px-3 py-2.5 text-right">{t('pabrikCatalogActions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredPabriks.map((pabrik) => {
+                          const isExpanded = expandedPabrikCode === pabrik.pabrik_code;
+                          const visibleItems = filterCatalogItems(pabrik.items || []);
+                          return (
+                            <React.Fragment key={pabrik.id}>
+                              <tr className="bg-white hover:bg-slate-50/60">
+                                <td className="px-3 py-3">
+                                  <button
+                                    type="button"
+                                    className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                    aria-expanded={isExpanded}
+                                    aria-label={
+                                      isExpanded ? t('pabrikHideItems') : t('pabrikShowItems')
+                                    }
+                                    onClick={() =>
+                                      setExpandedPabrikCode((c) =>
+                                        c === pabrik.pabrik_code ? null : pabrik.pabrik_code
+                                      )
+                                    }
+                                  >
+                                    <span
+                                      className={`inline-block text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                    >
+                                      ▶
+                                    </span>
+                                  </button>
+                                </td>
+                                <td className="px-3 py-3 font-semibold tabular-nums text-slate-900">
+                                  {pabrik.pabrik_code}
+                                </td>
+                                <td className="px-3 py-3 text-slate-700">{pabrik.nama_pabrik}</td>
+                                <td className="px-3 py-3">
+                                  <select
+                                    className="min-w-[10rem] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60"
+                                    value={pabrik.office_id ?? ''}
+                                    disabled={pabrikOfficeLinkSavingId === pabrik.id}
+                                    onChange={(e) =>
+                                      handleLinkPabrikOffice(pabrik.id, e.target.value)
+                                    }
+                                  >
+                                    <option value="">{t('pabrikLocationNone')}</option>
+                                    {offices.map((office) => (
+                                      <option
+                                        key={office.id}
+                                        value={office.id}
+                                        disabled={!office.link}
+                                      >
+                                        {office.name}
+                                        {!office.link ? ` (${t('pabrikOfficeNoMap')})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                  <Badge variant="neutral">
+                                    {pabrik.items?.length ?? 0}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {pabrik.google_maps_url ? (
+                                      <a
+                                        href={pabrik.google_maps_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                                      >
+                                        {t('pabrikOpenMaps')}
+                                      </a>
+                                    ) : (
+                                      <span className="text-xs text-amber-700">
+                                        {t('pabrikNoLocation')}
+                                      </span>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      variant="danger"
+                                      size="sm"
+                                      disabled={factoryDeletingId === pabrik.id}
+                                      onClick={() => handleDeleteFactory(pabrik)}
+                                    >
+                                      {factoryDeletingId === pabrik.id
+                                        ? t('loading')
+                                        : t('delete')}
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="bg-slate-50/70">
+                                  <td colSpan={6} className="px-3 py-4">
+                                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-sm font-medium text-slate-800">
+                                          {t('pabrikCatalogManageItems', {
+                                            factory: pabrik.nama_pabrik,
+                                          })}
+                                        </p>
+                                        <p className="text-xs text-slate-500">
+                                          {t('pabrikCatalogAddItemHint')}
+                                        </p>
+                                      </div>
+                                      <form
+                                        className="mb-4 flex flex-wrap items-end gap-2 border-b border-slate-100 pb-4"
+                                        onSubmit={(e) => handleAddItemCode(e, pabrik)}
+                                      >
+                                        <Field
+                                          label={t('pabrikItemKodeBarang')}
+                                          className="min-w-[12rem] flex-1"
+                                        >
+                                          <input
+                                            className={inputClass}
+                                            value={itemAddDraft[pabrik.pabrik_code] ?? ''}
+                                            onChange={(e) =>
+                                              setItemAddDraft((d) => ({
+                                                ...d,
+                                                [pabrik.pabrik_code]: e.target.value,
+                                              }))
+                                            }
+                                            placeholder="PA1"
+                                            required
+                                          />
+                                        </Field>
+                                        <Button
+                                          type="submit"
+                                          variant="primary"
+                                          size="sm"
+                                          disabled={itemSavingCode === pabrik.pabrik_code}
+                                        >
+                                          {itemSavingCode === pabrik.pabrik_code
+                                            ? t('loading')
+                                            : t('pabrikItemAdd')}
+                                        </Button>
+                                      </form>
+                                      {visibleItems.length === 0 ? (
+                                        <p className="text-sm text-slate-500">
+                                          {t('pabrikCatalogNoItems')}
+                                        </p>
+                                      ) : (
+                                        <div className="overflow-x-auto">
+                                          <table className="min-w-full text-left text-sm">
+                                            <thead>
+                                              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                                                <th className="px-2 py-2">
+                                                  {t('pabrikItemKodeBarang')}
+                                                </th>
+                                                <th className="px-2 py-2 text-right">
+                                                  {t('pabrikItemTonase')}
+                                                </th>
+                                                <th className="px-2 py-2 text-right">
+                                                  {t('pabrikItemPrice')}
+                                                </th>
+                                                <th className="px-2 py-2 text-right">
+                                                  {t('status')}
+                                                </th>
+                                                <th className="px-2 py-2 text-right" />
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {visibleItems.map((item) => (
+                                                <tr
+                                                  key={`${pabrik.pabrik_code}-${item.kode_barang}`}
+                                                  className="border-b border-slate-100 last:border-0"
+                                                >
+                                                  <td className="px-2 py-2 font-medium text-slate-900">
+                                                    {item.kode_barang}
+                                                  </td>
+                                                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                                    {Number(item.tonase_per_item) > 0
+                                                      ? item.tonase_per_item
+                                                      : '—'}
+                                                  </td>
+                                                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                                    {Number(item.price_per_item) > 0
+                                                      ? `Rp ${formatIdr(item.price_per_item)}`
+                                                      : '—'}
+                                                  </td>
+                                                  <td className="px-2 py-2 text-right">
+                                                    {itemRateConfigured(item) ? (
+                                                      <Badge variant="success">
+                                                        {t('pabrikCatalogRateSet')}
+                                                      </Badge>
+                                                    ) : (
+                                                      <Badge variant="muted">
+                                                        {t('pabrikTonaseNotSet')}
+                                                      </Badge>
+                                                    )}
+                                                  </td>
+                                                  <td className="px-2 py-2 text-right">
+                                                    <Button
+                                                      type="button"
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                                      onClick={() => handleDeletePabrikRate(item.id)}
+                                                    >
+                                                      {t('pabrikDeleteItem')}
+                                                    </Button>
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </Card>
         </section>
