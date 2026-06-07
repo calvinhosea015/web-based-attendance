@@ -38,12 +38,6 @@ export default function FieldOperationsPanel({
   const [pabrikOfficeLinkSavingId, setPabrikOfficeLinkSavingId] = useState(null);
   const [offices, setOffices] = useState([]);
   const [expandedPabrikCode, setExpandedPabrikCode] = useState(null);
-  const [pabrikForm, setPabrikForm] = useState({
-    pabrik_code: '',
-    kode_barang: '',
-    tonase_per_item: '',
-    price_per_item: '',
-  });
   const [newFactoryForm, setNewFactoryForm] = useState({
     pabrik_code: '',
     nama_pabrik: '',
@@ -52,7 +46,6 @@ export default function FieldOperationsPanel({
   const [itemAddDraft, setItemAddDraft] = useState({});
   const [priceDraft, setPriceDraft] = useState({});
   const [priceSavingId, setPriceSavingId] = useState(null);
-  const [pabrikSaving, setPabrikSaving] = useState(false);
   const [factorySaving, setFactorySaving] = useState(false);
   const [itemSavingCode, setItemSavingCode] = useState(null);
   const [factoryDeletingId, setFactoryDeletingId] = useState(null);
@@ -60,6 +53,8 @@ export default function FieldOperationsPanel({
   const [tonaseExportFrom, setTonaseExportFrom] = useState('');
   const [tonaseExportTo, setTonaseExportTo] = useState('');
   const [tonaseExporting, setTonaseExporting] = useState(false);
+  const [tonaseFilterPabrik, setTonaseFilterPabrik] = useState('');
+  const [tonaseFilterItem, setTonaseFilterItem] = useState('');
 
   const [report, setReport] = useState(null);
   const [omsetLoading, setOmsetLoading] = useState(false);
@@ -156,10 +151,18 @@ export default function FieldOperationsPanel({
     }
   }, []);
 
-  const pabrikItemOptions = useMemo(() => {
-    const pabrik = pabriks.find((p) => p.pabrik_code === pabrikForm.pabrik_code);
-    return (pabrik?.items || []).map((item) => item.kode_barang);
-  }, [pabriks, pabrikForm.pabrik_code]);
+  const filteredPabrikRates = useMemo(() => {
+    const itemQuery = tonaseFilterItem.trim().toUpperCase();
+    return pabrikRates.filter((row) => {
+      if (tonaseFilterPabrik && row.pabrik_code !== tonaseFilterPabrik) return false;
+      if (itemQuery && !String(row.kode_barang).toUpperCase().includes(itemQuery)) {
+        return false;
+      }
+      return true;
+    });
+  }, [pabrikRates, tonaseFilterPabrik, tonaseFilterItem]);
+
+  const tonaseFiltersActive = Boolean(tonaseFilterPabrik || tonaseFilterItem.trim());
 
   const handleCreateFactory = async (e) => {
     e.preventDefault();
@@ -279,49 +282,6 @@ export default function FieldOperationsPanel({
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
       setPriceSavingId(null);
-    }
-  };
-
-  const handleSavePabrikRate = async (e) => {
-    e.preventDefault();
-    const tonase = Number(pabrikForm.tonase_per_item) || 0;
-    const price = Number(pabrikForm.price_per_item) || 0;
-    if (tonase <= 0 && price <= 0) {
-      notify(t('pabrikItemRateRequired'), 'error');
-      return;
-    }
-    setPabrikSaving(true);
-    notify('');
-    try {
-      await ensureCsrf();
-      const payload = {
-        pabrik_code: pabrikForm.pabrik_code.trim(),
-        kode_barang: pabrikForm.kode_barang.trim(),
-        tonase_per_item: tonase,
-        price_per_item: price,
-      };
-      const existing = pabrikRates.find(
-        (r) =>
-          r.pabrik_code === payload.pabrik_code &&
-          r.kode_barang.toUpperCase() === payload.kode_barang.toUpperCase()
-      );
-      if (existing?.id) {
-        await api.put(`${paths.adminPabrikItemRates}/${existing.id}`, payload);
-      } else {
-        await api.post(paths.adminPabrikItemRates, payload);
-      }
-      setPabrikForm((f) => ({
-        ...f,
-        kode_barang: '',
-        tonase_per_item: '',
-        price_per_item: '',
-      }));
-      await loadPabriks();
-      notify(t('pabrikRateSaved'), 'success');
-    } catch (err) {
-      notify(translateApiMessage(err) || String(err), 'error');
-    } finally {
-      setPabrikSaving(false);
     }
   };
 
@@ -638,77 +598,57 @@ export default function FieldOperationsPanel({
                 </Button>
               </div>
             </div>
-            <form className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={handleSavePabrikRate}>
-              <Field label={t('pabrikItemPabrikCode')}>
-                <select
-                  className={inputClass}
-                  value={pabrikForm.pabrik_code}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({
-                      ...f,
-                      pabrik_code: e.target.value,
-                      kode_barang: '',
-                    }))
-                  }
-                  required
-                >
-                  <option value="">{t('pabrikSelectCode')}</option>
-                  {pabriks.map((p) => (
-                    <option key={p.id} value={p.pabrik_code}>
-                      {p.pabrik_code} — {p.nama_pabrik}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t('pabrikItemKodeBarang')}>
-                <input
-                  className={inputClass}
-                  list="field-ops-kode-barang-options"
-                  value={pabrikForm.kode_barang}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({ ...f, kode_barang: e.target.value }))
-                  }
-                  required
-                />
-                <datalist id="field-ops-kode-barang-options">
-                  {pabrikItemOptions.map((code) => (
-                    <option key={code} value={code} />
-                  ))}
-                </datalist>
-              </Field>
-              <Field label={t('pabrikItemTonase')}>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  className={inputClass}
-                  value={pabrikForm.tonase_per_item}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({ ...f, tonase_per_item: e.target.value }))
-                  }
-                />
-              </Field>
-              <Field label={t('pabrikItemPrice')}>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  className={inputClass}
-                  value={pabrikForm.price_per_item}
-                  onChange={(e) =>
-                    setPabrikForm((f) => ({ ...f, price_per_item: e.target.value }))
-                  }
-                />
-              </Field>
-              <div className="flex items-end">
-                <Button type="submit" variant="primary" disabled={pabrikSaving}>
-                  {pabrikSaving ? t('loading') : t('pabrikItemSaveRate')}
-                </Button>
-              </div>
-            </form>
             {pabrikRates.length === 0 ? (
               <p className="text-sm text-slate-600">{t('pabrikItemRatesEmpty')}</p>
             ) : (
+              <>
+                <div className="mb-3 flex flex-wrap items-end gap-3">
+                  <Field label={t('pabrikTonaseFilterFactory')} className="min-w-[10rem]">
+                    <select
+                      className={inputClass}
+                      value={tonaseFilterPabrik}
+                      onChange={(e) => setTonaseFilterPabrik(e.target.value)}
+                    >
+                      <option value="">{t('pabrikTonaseFilterAll')}</option>
+                      {pabriks.map((p) => (
+                        <option key={p.id} value={p.pabrik_code}>
+                          {p.pabrik_code} — {p.nama_pabrik}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('pabrikTonaseFilterItem')} className="min-w-[10rem] flex-1">
+                    <input
+                      className={inputClass}
+                      value={tonaseFilterItem}
+                      onChange={(e) => setTonaseFilterItem(e.target.value)}
+                      placeholder={t('pabrikTonaseFilterItemPlaceholder')}
+                    />
+                  </Field>
+                  {tonaseFiltersActive ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mb-0.5"
+                      onClick={() => {
+                        setTonaseFilterPabrik('');
+                        setTonaseFilterItem('');
+                      }}
+                    >
+                      {t('pabrikTonaseFilterClear')}
+                    </Button>
+                  ) : null}
+                  <p className="mb-1 text-xs text-slate-500">
+                    {t('pabrikTonaseFilterCount', {
+                      shown: filteredPabrikRates.length,
+                      total: pabrikRates.length,
+                    })}
+                  </p>
+                </div>
+                {filteredPabrikRates.length === 0 ? (
+                  <p className="text-sm text-slate-600">{t('pabrikTonaseFilterNoMatch')}</p>
+                ) : (
               <div className="max-h-80 overflow-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead className="sticky top-0 bg-white">
@@ -722,7 +662,7 @@ export default function FieldOperationsPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {pabrikRates.map((row) => (
+                    {filteredPabrikRates.map((row) => (
                       <tr key={row.id} className="border-b border-slate-100">
                         <td className="px-2 py-2 font-medium">{row.pabrik_code}</td>
                         <td className="px-2 py-2 text-slate-600">{row.nama_pabrik}</td>
@@ -774,6 +714,8 @@ export default function FieldOperationsPanel({
                   </tbody>
                 </table>
               </div>
+                )}
+              </>
             )}
           </Card>
         </section>
