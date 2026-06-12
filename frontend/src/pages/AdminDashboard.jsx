@@ -189,11 +189,11 @@ export default function AdminDashboard() {
         ? Number(newUser.office_id)
         : NaN;
     const officeOk = Number.isFinite(parsedOffice) && parsedOffice >= 1;
-    const fieldOfficeIds = (newUser.office_ids || [])
+    const fieldPabrikIds = (newUser.pabrik_ids || [])
       .map((id) => Number(id))
       .filter((n) => Number.isFinite(n) && n >= 1);
-    if (usesMultipleOfficesRole(newUser.role) && fieldOfficeIds.length < 1) {
-      setMessage(t('fieldOfficerOfficesRequired'));
+    if (usesMultipleOfficesRole(newUser.role) && fieldPabrikIds.length < 1) {
+      setMessage(t('fieldOfficerPabriksRequired'));
       return;
     }
     if (isAttendanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role) && !officeOk) {
@@ -222,11 +222,7 @@ export default function AdminDashboard() {
         full_name: newUser.full_name?.trim() || undefined,
       };
       if (usesMultipleOfficesRole(newUser.role)) {
-        payload.office_ids = fieldOfficeIds;
-        payload.office_id = fieldOfficeIds[0];
-        payload.pabrik_ids = (newUser.pabrik_ids || [])
-          .map((id) => Number(id))
-          .filter((n) => Number.isFinite(n) && n >= 1);
+        payload.pabrik_ids = fieldPabrikIds;
       } else if (officeOk) {
         payload.office_id = parsedOffice;
       }
@@ -327,18 +323,14 @@ export default function AdminDashboard() {
           return;
         }
         if (usesMultipleOfficesRole(editingUser.role)) {
-          const ids = (editingUser.office_ids || [])
+          const pabrikIds = (editingUser.pabrik_ids || [])
             .map((id) => Number(id))
             .filter((n) => Number.isFinite(n) && n >= 1);
-          if (ids.length < 1) {
-            setMessage(t('fieldOfficerOfficesRequired'));
+          if (pabrikIds.length < 1) {
+            setMessage(t('fieldOfficerPabriksRequired'));
             return;
           }
-          body.office_ids = ids;
-          body.office_id = ids[0];
-          body.pabrik_ids = (editingUser.pabrik_ids || [])
-            .map((id) => Number(id))
-            .filter((n) => Number.isFinite(n) && n >= 1);
+          body.pabrik_ids = pabrikIds;
         } else if (!editingUser.office_id) {
           setMessage(t('officeRequiredEmployee'));
           return;
@@ -641,50 +633,10 @@ export default function AdminDashboard() {
                 </label>
               </div>
             )}
-            {!isHeadOfFinanceRole(newUser.role) &&
-              (usesMultipleOfficesRole(newUser.role) ? (
-                <div className="rounded-lg border border-slate-200 bg-apple-fill p-3">
-                  <p className="mb-2 text-xs font-medium text-slate-600">{t('fieldOfficerOfficesLabel')}</p>
-                  {offices.length ? (
-                    <div className="max-h-40 space-y-1.5 overflow-y-auto">
-                      {offices.map((office) => {
-                        const idStr = String(office.id);
-                        const checked = (newUser.office_ids || []).includes(idStr);
-                        return (
-                          <label
-                            key={office.id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => {
-                                setNewUser((prev) => {
-                                  const set = new Set(prev.office_ids || []);
-                                  if (set.has(idStr)) set.delete(idStr);
-                                  else set.add(idStr);
-                                  const office_ids = [...set];
-                                  return {
-                                    ...prev,
-                                    office_ids,
-                                    office_id: office_ids[0] || '',
-                                  };
-                                });
-                              }}
-                            />
-                            {office.name}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500">{t('noOfficesAvailable')}</p>
-                  )}
-                </div>
-              ) : null)}
             {usesMultipleOfficesRole(newUser.role) && (
               <div className="rounded-lg border border-slate-200 bg-apple-fill p-3">
                 <p className="mb-2 text-xs font-medium text-slate-600">{t('fieldOfficerPabriksLabel')}</p>
+                <p className="mb-2 text-xs text-slate-500">{t('fieldOfficerPabriksHint')}</p>
                 {pabriks.length ? (
                   <div className="max-h-40 space-y-1.5 overflow-y-auto">
                     {pabriks.map((pabrik) => {
@@ -693,10 +645,11 @@ export default function AdminDashboard() {
                       return (
                         <label
                           key={pabrik.id}
-                          className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
+                          className="flex cursor-pointer items-start gap-2 text-sm text-slate-800"
                         >
                           <input
                             type="checkbox"
+                            className="mt-0.5"
                             checked={checked}
                             onChange={() => {
                               setNewUser((prev) => {
@@ -707,7 +660,18 @@ export default function AdminDashboard() {
                               });
                             }}
                           />
-                          {pabrik.pabrik_code} — {pabrik.nama_pabrik}
+                          <span>
+                            {pabrik.pabrik_code} — {pabrik.nama_pabrik}
+                            {pabrik.office_name ? (
+                              <span className="block text-xs text-slate-500">
+                                {t('fieldOfficerPabrikLocation', { name: pabrik.office_name })}
+                              </span>
+                            ) : (
+                              <span className="block text-xs text-amber-700">
+                                {t('fieldOfficerPabrikNoLocation')}
+                              </span>
+                            )}
+                          </span>
                         </label>
                       );
                     })}
@@ -820,44 +784,7 @@ export default function AdminDashboard() {
                       <option value="admin">{t('roleAdmin')}</option>
                     </select>
                     {!isHeadOfFinanceRole(editingUser.role) &&
-                      (usesMultipleOfficesRole(editingUser.role) ? (
-                        <div className="rounded-md border border-slate-200 bg-apple-fill p-2">
-                          <p className="mb-1 text-[10px] font-medium uppercase text-slate-500">
-                            {t('fieldOfficerOfficesLabel')}
-                          </p>
-                          <div className="max-h-32 space-y-1 overflow-y-auto">
-                            {offices.map((office) => {
-                              const idStr = String(office.id);
-                              const checked = (editingUser.office_ids || []).includes(idStr);
-                              return (
-                                <label
-                                  key={office.id}
-                                  className="flex cursor-pointer items-center gap-2 text-xs text-slate-800"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                      setEditingUser((prev) => {
-                                        const set = new Set(prev.office_ids || []);
-                                        if (set.has(idStr)) set.delete(idStr);
-                                        else set.add(idStr);
-                                        const office_ids = [...set];
-                                        return {
-                                          ...prev,
-                                          office_ids,
-                                          office_id: office_ids[0] || '',
-                                        };
-                                      });
-                                    }}
-                                  />
-                                  {office.name}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : (
+                      (usesMultipleOfficesRole(editingUser.role) ? null : (
                         <select
                           className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
                           value={editingUser.office_id}
@@ -880,6 +807,7 @@ export default function AdminDashboard() {
                         <p className="mb-1 text-[10px] font-medium uppercase text-slate-500">
                           {t('fieldOfficerPabriksLabel')}
                         </p>
+                        <p className="mb-2 text-xs text-slate-500">{t('fieldOfficerPabriksHint')}</p>
                         {pabriks.length ? (
                           <div className="max-h-32 space-y-1 overflow-y-auto">
                             {pabriks.map((pabrik) => {
@@ -888,10 +816,11 @@ export default function AdminDashboard() {
                               return (
                                 <label
                                   key={pabrik.id}
-                                  className="flex cursor-pointer items-center gap-2 text-xs text-slate-800"
+                                  className="flex cursor-pointer items-start gap-2 text-xs text-slate-800"
                                 >
                                   <input
                                     type="checkbox"
+                                    className="mt-0.5"
                                     checked={checked}
                                     onChange={() => {
                                       setEditingUser((prev) => {
@@ -902,7 +831,18 @@ export default function AdminDashboard() {
                                       });
                                     }}
                                   />
-                                  {pabrik.pabrik_code} — {pabrik.nama_pabrik}
+                                  <span>
+                                    {pabrik.pabrik_code} — {pabrik.nama_pabrik}
+                                    {pabrik.office_name ? (
+                                      <span className="block text-[10px] text-slate-500">
+                                        {t('fieldOfficerPabrikLocation', { name: pabrik.office_name })}
+                                      </span>
+                                    ) : (
+                                      <span className="block text-[10px] text-amber-700">
+                                        {t('fieldOfficerPabrikNoLocation')}
+                                      </span>
+                                    )}
+                                  </span>
                                 </label>
                               );
                             })}

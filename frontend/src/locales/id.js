@@ -433,12 +433,17 @@ export default {
     'Absen jarak jauh tidak diaktifkan untuk akun Anda. Kantor tetap memakai cek radius lokasi.',
   assignedOffice: 'Kantor yang ditetapkan',
   assignedOffices: 'Lokasi kerja Anda',
-  fieldOfficerOfficesLabel: 'Lokasi kerja (pilih semua lokasi yang dipakai petugas lapangan)',
-  fieldOfficerOfficesRequired: 'Pilih minimal satu lokasi kerja untuk petugas lapangan.',
-  fieldOfficerPabriksLabel: 'Pabrik yang ditugaskan (pilih semua pabrik yang boleh dipakai petugas lapangan)',
+  fieldOfficerPabriksLabel: 'Pabrik yang ditugaskan',
+  fieldOfficerPabriksHint:
+    'Lokasi absen mengikuti lokasi yang terhubung ke setiap pabrik. Pilih semua pabrik yang boleh dipakai petugas lapangan ini.',
+  fieldOfficerPabriksRequired: 'Pilih minimal satu pabrik untuk petugas lapangan.',
   fieldOfficerPabriksNone: 'Belum ada pabrik. Tambahkan pabrik di Operasi lapangan terlebih dahulu.',
+  fieldOfficerPabrikLocation: 'Lokasi: {{name}}',
+  fieldOfficerPabrikNoLocation:
+    'Belum ada lokasi — hubungkan pabrik ini di Manajemen lokasi terlebih dahulu.',
+  fieldOfficerAssignedLocations: 'Lokasi pabrik Anda',
   fieldOfficerMultiLocationHint:
-    'Anda bisa absen masuk jika berada dalam radius salah satu lokasi yang ditetapkan.',
+    'Anda bisa absen masuk jika berada dalam radius lokasi yang terhubung ke pabrik yang ditugaskan.',
   locationNearest: 'terdekat',
   locationDistanceMulti: '{{distance}} m ke {{office}} (terdekat)',
   noOfficeAssigned:
@@ -575,6 +580,10 @@ export default {
     PABRIK_NOT_FOUND: 'Kode pabrik tidak dikenal. Tambahkan pabrik di Operasi lapangan terlebih dahulu.',
     PABRIK_NOT_ASSIGNED:
       'Pabrik ini tidak ditugaskan ke akun Anda. Hubungi admin untuk memperbarui penugasan pabrik.',
+    PABRIK_REQUIRED:
+      'Minimal satu pabrik harus ditugaskan. Hubungi admin untuk memperbarui penugasan pabrik.',
+    PABRIK_NO_LOCATION:
+      'Salah satu pabrik belum terhubung ke lokasi. Hubungkan pabrik di Manajemen lokasi terlebih dahulu.',
     PABRIK_EXISTS: 'Kode pabrik ini sudah ada.',
     PABRIK_ITEM_EXISTS: 'Tarif pabrik dan kode barang ini sudah ada.',
     FIELD_CODE_ACCEPTED: 'Data pengiriman diterima untuk hari ini.',

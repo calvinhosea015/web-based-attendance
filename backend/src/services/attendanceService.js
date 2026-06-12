@@ -200,7 +200,8 @@ class AttendanceService {
     employeeRepository,
     userRepository,
     fieldCheckoutCodeService = null,
-    employeeOfficeRepository = null
+    employeeOfficeRepository = null,
+    employeePabrikRepository = null
   ) {
     this.attendanceRepository = attendanceRepository;
     this.officeRepository = officeRepository;
@@ -208,6 +209,7 @@ class AttendanceService {
     this.userRepository = userRepository;
     this.fieldCheckoutCodeService = fieldCheckoutCodeService;
     this.employeeOfficeRepository = employeeOfficeRepository;
+    this.employeePabrikRepository = employeePabrikRepository;
   }
 
   async checkIn(auth, body, reqMeta) {
@@ -219,12 +221,13 @@ class AttendanceService {
     const assignedOffices = await resolveAssignedOfficesForEmployee(
       this.employeeOfficeRepository,
       auth.employeeId,
-      userRow
+      userRow,
+      this.employeePabrikRepository
     );
     if (!assignedOffices.length) {
       throw new AppError(
         fieldOfficer
-          ? 'No work locations are assigned to your account. Ask an admin to assign at least one office.'
+          ? 'No factory locations are assigned to your account. Ask an admin to assign factories linked to a location.'
           : 'No office is assigned to your account. Ask an admin to assign an office before clocking in.',
         400,
         'NO_OFFICE'

@@ -25,7 +25,8 @@ class EmployeePortalService {
     fieldCodeEntryRepository = null,
     fieldDeliveryRepository = null,
     payrollService = null,
-    employeeOfficeRepository = null
+    employeeOfficeRepository = null,
+    employeePabrikRepository = null
   ) {
     this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
@@ -35,6 +36,7 @@ class EmployeePortalService {
     this.fieldDeliveryRepository = fieldDeliveryRepository;
     this.payrollService = payrollService;
     this.employeeOfficeRepository = employeeOfficeRepository;
+    this.employeePabrikRepository = employeePabrikRepository;
   }
 
   async meSummary(auth) {
@@ -115,7 +117,8 @@ class EmployeePortalService {
     const assignedOffices = await resolveAssignedOfficesForEmployee(
       this.employeeOfficeRepository,
       auth.employeeId,
-      userRow
+      userRow,
+      this.employeePabrikRepository
     );
     const assignedOffice = primaryOfficeFromList(assignedOffices);
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;

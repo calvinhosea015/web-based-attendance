@@ -21,8 +21,18 @@ function mapOfficeRow(row) {
   };
 }
 
-async function resolveAssignedOfficesForEmployee(employeeOfficeRepository, employeeId, userRow) {
+async function resolveAssignedOfficesForEmployee(
+  employeeOfficeRepository,
+  employeeId,
+  userRow,
+  employeePabrikRepository = null
+) {
   if (!employeeId) return [];
+  if (isFieldOfficer(userRow?.role) && employeePabrikRepository) {
+    const offices = await employeePabrikRepository.listOfficesByEmployee(employeeId);
+    if (offices.length) return offices;
+    return [];
+  }
   if (employeeOfficeRepository) {
     const offices = await employeeOfficeRepository.listOfficesByEmployee(employeeId);
     if (offices.length) return offices;

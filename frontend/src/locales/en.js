@@ -430,12 +430,16 @@ export default {
     'Remote check-in is not enabled for your account. Your office still uses the location radius.',
   assignedOffice: 'Your assigned office',
   assignedOffices: 'Your work locations',
-  fieldOfficerOfficesLabel: 'Work locations (select all sites this field officer may use)',
-  fieldOfficerOfficesRequired: 'Select at least one work location for the field officer.',
-  fieldOfficerPabriksLabel: 'Assigned factories (select all factories this field officer may deliver for)',
+  fieldOfficerPabriksLabel: 'Assigned factories',
+  fieldOfficerPabriksHint:
+    'Check-in locations come from each factory’s linked location. Select every factory this field officer may work at.',
+  fieldOfficerPabriksRequired: 'Select at least one factory for the field officer.',
   fieldOfficerPabriksNone: 'No factories configured yet. Add factories in Field operations first.',
+  fieldOfficerPabrikLocation: 'Location: {{name}}',
+  fieldOfficerPabrikNoLocation: 'No location linked — link this factory in Location management first.',
+  fieldOfficerAssignedLocations: 'Your factory locations',
   fieldOfficerMultiLocationHint:
-    'You may check in when you are within range of any assigned location.',
+    'You may check in when you are within range of any location linked to your assigned factories.',
   locationNearest: 'nearest',
   locationDistanceMulti: '{{distance}} m to {{office}} (nearest)',
   noOfficeAssigned:
@@ -571,6 +575,10 @@ export default {
     PABRIK_NOT_FOUND: 'Unknown factory code. Add the factory in Field operations first.',
     PABRIK_NOT_ASSIGNED:
       'This factory is not assigned to your account. Contact admin to update your factory assignments.',
+    PABRIK_REQUIRED:
+      'At least one factory must be assigned. Contact admin to update your factory assignments.',
+    PABRIK_NO_LOCATION:
+      'A selected factory has no linked location. Link the factory in Location management first.',
     PABRIK_EXISTS: 'This factory code already exists.',
     PABRIK_ITEM_EXISTS: 'This factory and item code rate already exists.',
     FIELD_CODE_ACCEPTED: 'Delivery data accepted for today.',

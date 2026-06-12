@@ -679,9 +679,11 @@ export default function EmployeeDashboard() {
         <div className="mt-4 space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-              {isFieldOfficer && assignedOffices.length > 1
-                ? t('assignedOffices')
-                : t('assignedOffice')}
+              {isFieldOfficer
+                ? t('fieldOfficerAssignedLocations')
+                : assignedOffices.length > 1
+                  ? t('assignedOffices')
+                  : t('assignedOffice')}
             </label>
             {assignedOffices.length ? (
               <ul className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">

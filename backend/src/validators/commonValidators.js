@@ -133,20 +133,17 @@ const createUserValidators = [
   body('role').isIn(VALID_ROLES),
   body('office_ids').optional().isArray({ min: 1, max: 32 }),
   body('office_ids.*').optional().isInt({ min: 1 }),
-  body('pabrik_ids').optional().isArray({ min: 0, max: 64 }),
+  body('pabrik_ids').optional().isArray({ min: 1, max: 64 }),
   body('pabrik_ids.*').optional().isInt({ min: 1 }),
   body('office_id')
     .optional({ nullable: true })
     .custom((value, { req }) => {
       if (usesMultipleOffices(req.body.role)) {
-        const ids = Array.isArray(req.body.office_ids)
-          ? req.body.office_ids.map((v) => Number(v)).filter((n) => n >= 1)
+        const pabrikIds = Array.isArray(req.body.pabrik_ids)
+          ? req.body.pabrik_ids.map((v) => Number(v)).filter((n) => n >= 1)
           : [];
-        if (ids.length < 1) {
-          const n = Number(value);
-          if (!Number.isFinite(n) || n < 1) {
-            throw new Error('office_ids (at least one location) is required for field officers');
-          }
+        if (pabrikIds.length < 1) {
+          throw new Error('pabrik_ids (at least one factory) is required for field officers');
         }
       } else if (isAttendanceRole(req.body.role)) {
         if (value === undefined || value === null || value === '') {

@@ -1,4 +1,5 @@
 const { query } = require('../db/pool');
+const { mapOfficeRow } = require('../utils/employeeOffices');
 
 class EmployeePabrikRepository {
   async listPabrikIdsByEmployee(employeeId) {
@@ -7,6 +8,45 @@ class EmployeePabrikRepository {
       [employeeId]
     );
     return r.rows.map((row) => Number(row.pabrik_id));
+  }
+
+  async listOfficesByEmployee(employeeId) {
+    const r = await query(
+      `SELECT DISTINCT o.id, o.name, o.lat, o.lng, o.link
+       FROM employee_pabriks ep
+       JOIN pabriks p ON p.id = ep.pabrik_id
+       JOIN offices o ON o.id = p.office_id
+       WHERE ep.employee_id = $1 AND p.office_id IS NOT NULL
+       ORDER BY o.name ASC`,
+      [employeeId]
+    );
+    return r.rows.map(mapOfficeRow);
+  }
+
+  async resolveOfficeIdsFromPabrikIds(pabrikIds) {
+    const ids = [...new Set(pabrikIds.map((id) => Number(id)).filter((id) => id >= 1))];
+    if (!ids.length) return [];
+    const r = await query(
+      `SELECT DISTINCT p.office_id
+       FROM pabriks p
+       WHERE p.id = ANY($1::int[]) AND p.office_id IS NOT NULL
+       ORDER BY p.office_id ASC`,
+      [ids]
+    );
+    return r.rows.map((row) => Number(row.office_id));
+  }
+
+  async findPabriksWithoutOffice(pabrikIds) {
+    const ids = [...new Set(pabrikIds.map((id) => Number(id)).filter((id) => id >= 1))];
+    if (!ids.length) return [];
+    const r = await query(
+      `SELECT id, pabrik_code, nama_pabrik
+       FROM pabriks
+       WHERE id = ANY($1::int[]) AND office_id IS NULL
+       ORDER BY pabrik_code ASC`,
+      [ids]
+    );
+    return r.rows;
   }
 
   async listPabrikCodesByEmployee(employeeId) {

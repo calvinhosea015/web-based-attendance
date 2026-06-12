@@ -40,32 +40,54 @@ class UserService {
     this.metaRepository = new MetaRepository();
   }
 
-  async syncFieldOfficerOffices(employeeId, role, officeId, officeIds) {
-    if (!usesMultipleOffices(role) || !employeeId || !this.employeeOfficeRepository) return;
-    const ids = normalizeOfficeIdList(officeIds, officeId);
+  async resolveFieldOfficerFromPabriks(pabrikIds) {
+    if (!this.employeePabrikRepository) {
+      throw new AppError('Factory assignment is not available.', 500, 'INTERNAL');
+    }
+    const ids = normalizePabrikIdList(pabrikIds);
     if (ids.length < 1) {
       throw new AppError(
-        'Field officers need at least one assigned work location (office_ids).',
+        'Field officers require at least one assigned factory.',
         400,
-        'OFFICE_REQUIRED'
+        'PABRIK_REQUIRED'
       );
     }
-    await this.employeeOfficeRepository.setOffices(employeeId, ids);
+    const unlinked = await this.employeePabrikRepository.findPabriksWithoutOffice(ids);
+    if (unlinked.length) {
+      const label = unlinked[0].pabrik_code || unlinked[0].nama_pabrik;
+      throw new AppError(
+        `Factory "${label}" has no linked location. Link it in Location management first.`,
+        400,
+        'PABRIK_NO_LOCATION'
+      );
+    }
+    const officeIds = await this.employeePabrikRepository.resolveOfficeIdsFromPabrikIds(ids);
+    if (!officeIds.length) {
+      throw new AppError(
+        'Assigned factories must be linked to a location.',
+        400,
+        'PABRIK_NO_LOCATION'
+      );
+    }
+    return { pabrikIds: ids, officeIds, primaryOfficeId: officeIds[0] };
   }
 
-  async syncFieldOfficerPabriks(employeeId, role, pabrikIds) {
-    if (!usesMultipleOffices(role) || !employeeId || !this.employeePabrikRepository) return;
-    const ids = normalizePabrikIdList(pabrikIds);
-    await this.employeePabrikRepository.setPabriks(employeeId, ids);
+  async applyFieldOfficerAssignment(employeeId, userId, pabrikIds) {
+    const resolved = await this.resolveFieldOfficerFromPabriks(pabrikIds);
+    await this.employeePabrikRepository.setPabriks(employeeId, resolved.pabrikIds);
+    if (this.employeeOfficeRepository) {
+      await this.employeeOfficeRepository.setOffices(employeeId, []);
+    }
+    if (userId) {
+      await this.userRepository.updatePatch(userId, { officeId: resolved.primaryOfficeId });
+    }
+    return resolved;
   }
 
   resolveOfficeIdForUser(role, officeId, officeIds) {
+    if (usesMultipleOffices(role)) return null;
     const ids = normalizeOfficeIdList(officeIds, officeId);
-    if (usesMultipleOffices(role)) {
-      if (ids.length < 1) return null;
-      return ids[0];
-    }
-    return officeId;
+    return officeId ?? (ids.length ? ids[0] : null);
   }
 
   async list() {
@@ -74,9 +96,6 @@ class UserService {
       .filter((r) => usesMultipleOffices(r.role) && r.employee_id != null)
       .map((r) => Number(r.employee_id));
 
-    const officeMap = this.employeeOfficeRepository
-      ? await this.employeeOfficeRepository.mapOfficeIdsByEmployees(fieldEmpIds)
-      : new Map();
     const pabrikMap = this.employeePabrikRepository
       ? await this.employeePabrikRepository.mapPabrikIdsByEmployees(fieldEmpIds)
       : new Map();
@@ -84,13 +103,8 @@ class UserService {
     return rows.map((row) => {
       if (!usesMultipleOffices(row.role) || row.employee_id == null) return row;
       const empId = Number(row.employee_id);
-      const office_ids = officeMap.get(empId) || [];
       const pabrik_ids = pabrikMap.get(empId) || [];
-      return {
-        ...row,
-        office_ids: office_ids.length ? office_ids : row.office_id != null ? [Number(row.office_id)] : [],
-        pabrik_ids,
-      };
+      return { ...row, pabrik_ids };
     });
   }
 
@@ -111,16 +125,16 @@ class UserService {
     if (!isValidRole(role)) {
       throw new AppError('Invalid role.', 400, 'ROLE');
     }
-    const officeIds = normalizeOfficeIdList(payload.office_ids, officeId);
-    const resolvedOfficeId = this.resolveOfficeIdForUser(role, officeId, officeIds);
-    if (isAttendanceRole(role) && !resolvedOfficeId) {
-      throw new AppError(
-        usesMultipleOffices(role)
-          ? 'Field officers require at least one assigned work location (office_ids).'
-          : 'Employees require an assigned office (office_id).',
-        400,
-        'OFFICE_REQUIRED'
-      );
+    let resolvedOfficeId;
+    if (usesMultipleOffices(role)) {
+      const resolved = await this.resolveFieldOfficerFromPabriks(payload.pabrik_ids);
+      resolvedOfficeId = resolved.primaryOfficeId;
+    } else {
+      const officeIds = normalizeOfficeIdList(payload.office_ids, officeId);
+      resolvedOfficeId = this.resolveOfficeIdForUser(role, officeId, officeIds);
+      if (isAttendanceRole(role) && !resolvedOfficeId) {
+        throw new AppError('Employees require an assigned office (office_id).', 400, 'OFFICE_REQUIRED');
+      }
     }
 
     const has = (k) => Object.prototype.hasOwnProperty.call(payload, k);
@@ -217,17 +231,10 @@ class UserService {
         officeId: isAttendanceRole(role) ? resolvedOfficeId : officeId || null,
         employeeId,
       });
-      if (employeeId) {
-        await this.syncFieldOfficerOffices(employeeId, role, resolvedOfficeId, officeIds);
-        if (usesMultipleOffices(role) && Object.prototype.hasOwnProperty.call(payload, 'pabrik_ids')) {
-          await this.syncFieldOfficerPabriks(employeeId, role, payload.pabrik_ids);
-        }
+      if (employeeId && usesMultipleOffices(role)) {
+        await this.applyFieldOfficerAssignment(employeeId, userRow.id, payload.pabrik_ids);
       }
       if (createdEmployee) {
-        const office_ids =
-          usesMultipleOffices(role) && this.employeeOfficeRepository
-            ? await this.employeeOfficeRepository.listOfficeIdsByEmployee(employeeId)
-            : undefined;
         const pabrik_ids =
           usesMultipleOffices(role) && this.employeePabrikRepository
             ? await this.employeePabrikRepository.listPabrikIdsByEmployee(employeeId)
@@ -235,7 +242,6 @@ class UserService {
         return {
           ...userRow,
           employee_code: createdEmployee.employee_id,
-          ...(office_ids ? { office_ids } : {}),
           ...(pabrik_ids ? { pabrik_ids } : {}),
         };
       }
@@ -383,18 +389,15 @@ class UserService {
     }
 
     let newOfficeIdsValue;
-    if (has('office_ids')) {
+    if (has('office_ids') && !usesMultipleOffices(effectiveRole)) {
       newOfficeIdsValue = normalizeOfficeIdList(payload.office_ids, newOfficeIdValue);
-      if (usesMultipleOffices(effectiveRole) && newOfficeIdsValue.length < 1) {
-        throw new AppError(
-          'Field officers need at least one assigned work location.',
-          400,
-          'OFFICE_REQUIRED'
-        );
-      }
-      if (usesMultipleOffices(effectiveRole) && newOfficeIdsValue.length) {
-        newOfficeIdValue = newOfficeIdsValue[0];
-      }
+    }
+
+    let newPabrikIdsValue;
+    if (has('pabrik_ids') && usesMultipleOffices(effectiveRole)) {
+      const resolved = await this.resolveFieldOfficerFromPabriks(payload.pabrik_ids);
+      newPabrikIdsValue = resolved.pabrikIds;
+      newOfficeIdValue = resolved.primaryOfficeId;
     }
 
     let newFullNameRaw;
@@ -469,10 +472,21 @@ class UserService {
         }
         let office = null;
         if (isAttendanceRole(effectiveRole)) {
-          office =
-            newOfficeIdValue !== undefined
-              ? newOfficeIdValue
-              : (await this.metaRepository.firstOfficeId());
+          if (usesMultipleOffices(effectiveRole)) {
+            if (!has('pabrik_ids')) {
+              throw new AppError(
+                'Field officers require at least one assigned factory.',
+                400,
+                'PABRIK_REQUIRED'
+              );
+            }
+            office = newOfficeIdValue;
+          } else {
+            office =
+              newOfficeIdValue !== undefined
+                ? newOfficeIdValue
+                : (await this.metaRepository.firstOfficeId());
+          }
           if (!office) throw new AppError('No office configured; create an office first.', 400);
         }
 
@@ -493,14 +507,8 @@ class UserService {
       if (isAttendanceRole(effectiveRole)) {
         await this.employeeRepository.assignDefaultShiftIfMissing(emp.id);
       }
-      await this.syncFieldOfficerOffices(
-        emp.id,
-        effectiveRole,
-        office,
-        has('office_ids') ? newOfficeIdsValue : normalizeOfficeIdList(payload.office_ids, office)
-      );
-      if (has('pabrik_ids')) {
-        await this.syncFieldOfficerPabriks(emp.id, effectiveRole, payload.pabrik_ids);
+      if (usesMultipleOffices(effectiveRole) && has('pabrik_ids')) {
+        await this.applyFieldOfficerAssignment(emp.id, userId, payload.pabrik_ids);
       }
       await syncEmployeePolicies();
       await syncEmployeeHrFields();
@@ -549,29 +557,15 @@ class UserService {
         if (this.employeePabrikRepository) {
           await this.employeePabrikRepository.setPabriks(empFk, []);
         }
-      } else if (usesMultipleOffices(effectiveRole) && (has('office_ids') || has('office_id'))) {
-        await this.syncFieldOfficerOffices(
-          empFk,
-          effectiveRole,
-          newOfficeIdValue !== undefined ? newOfficeIdValue : user.office_id,
-          has('office_ids') ? newOfficeIdsValue : undefined
-        );
-      }
-      if (usesMultipleOffices(effectiveRole) && has('pabrik_ids')) {
-        await this.syncFieldOfficerPabriks(empFk, effectiveRole, payload.pabrik_ids);
+      } else if (usesMultipleOffices(effectiveRole) && has('pabrik_ids')) {
+        await this.applyFieldOfficerAssignment(empFk, userId, newPabrikIdsValue ?? payload.pabrik_ids);
       }
     }
 
     const updated = stripUserSecrets(await this.userRepository.findById(userId));
-    if (empFk && usesMultipleOffices(effectiveRole)) {
-      const extra = {};
-      if (this.employeeOfficeRepository) {
-        extra.office_ids = await this.employeeOfficeRepository.listOfficeIdsByEmployee(empFk);
-      }
-      if (this.employeePabrikRepository) {
-        extra.pabrik_ids = await this.employeePabrikRepository.listPabrikIdsByEmployee(empFk);
-      }
-      return { ...updated, ...extra };
+    if (empFk && usesMultipleOffices(effectiveRole) && this.employeePabrikRepository) {
+      const pabrik_ids = await this.employeePabrikRepository.listPabrikIdsByEmployee(empFk);
+      return { ...updated, pabrik_ids };
     }
     return updated;
   }

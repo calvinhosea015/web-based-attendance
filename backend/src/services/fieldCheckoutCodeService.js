@@ -24,7 +24,13 @@ class FieldCheckoutCodeService {
   async assertPabrikAssigned(employeeId, pabrikCode) {
     if (!employeeId || !this.employeePabrikRepository) return;
     const assigned = await this.employeePabrikRepository.listPabrikCodesByEmployee(employeeId);
-    if (!assigned.length) return;
+    if (!assigned.length) {
+      throw new AppError(
+        'No factories are assigned to your account. Contact admin to assign factories.',
+        403,
+        'PABRIK_REQUIRED'
+      );
+    }
     const code = String(pabrikCode).trim();
     const allowed = assigned.some((c) => c.localeCompare(code, undefined, { sensitivity: 'accent' }) === 0);
     if (!allowed) {

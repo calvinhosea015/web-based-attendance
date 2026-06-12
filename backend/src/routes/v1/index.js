@@ -89,7 +89,8 @@ function buildV1Router() {
     employeeRepository,
     userRepository,
     fieldCheckoutCodeService,
-    employeeOfficeRepository
+    employeeOfficeRepository,
+    employeePabrikRepository
   );
   const userService = new UserService(
     userRepository,
@@ -121,7 +122,8 @@ function buildV1Router() {
     fieldCodeEntryRepository,
     fieldDeliveryRepository,
     payrollService,
-    employeeOfficeRepository
+    employeeOfficeRepository,
+    employeePabrikRepository
   );
   const enterpriseAdminService = new EnterpriseAdminService(
     notificationRepository,
