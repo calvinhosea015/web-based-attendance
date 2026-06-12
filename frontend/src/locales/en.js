@@ -406,6 +406,10 @@ export default {
   generalAffairsAbsenceHint:
     'Absence deduction = monthly salary ÷ required work days × absent days.',
   generalAffairsOnceInOut: 'One check-in and one check-out per day.',
+  umumGeneralAffairsBasicSalary: 'Monthly salary (Rp)',
+  umumGeneralAffairsAbsenceHint:
+    'Absence deduction = monthly salary ÷ required work days × absent days.',
+  umumGeneralAffairsOnceInOut: 'One check-in and one check-out per day.',
   accountingWorkStart: 'Work start (custom)',
   accountingWorkEnd: 'Work end (custom)',
   accountingBasicSalary: 'Monthly salary (Rp)',

@@ -60,9 +60,14 @@ function isGeneralAffairs(role) {
   return role === ROLES.GENERAL_AFFAIRS;
 }
 
-/** One check-in and one check-out per day (petugas lapangan, general affairs). */
+/** Umum and General Affairs share attendance and monthly absence payroll rules. */
+function isUmumOrGeneralAffairs(role) {
+  return isUmum(role) || isGeneralAffairs(role);
+}
+
+/** One check-in and one check-out per day (petugas lapangan, umum, general affairs). */
 function usesOncePerDayInOut(role) {
-  return isFieldOfficer(role) || isGeneralAffairs(role);
+  return isFieldOfficer(role) || isUmumOrGeneralAffairs(role);
 }
 
 function isHeadOfFinance(role) {
@@ -101,6 +106,7 @@ module.exports = {
   isUmum,
   isAccounting,
   isGeneralAffairs,
+  isUmumOrGeneralAffairs,
   isHeadOfFinance,
   requiresLinkedEmployee,
   isPayrollOnlyRole,

@@ -1,12 +1,12 @@
-const { isAccounting, isStaffKantor, isGeneralAffairs } = require('../constants/roles');
+const { isAccounting, isStaffKantor, isUmumOrGeneralAffairs } = require('../constants/roles');
 
 function hasMonthlyBasicPayroll(role) {
-  return isStaffKantor(role) || isGeneralAffairs(role) || isAccounting(role);
+  return isStaffKantor(role) || isUmumOrGeneralAffairs(role) || isAccounting(role);
 }
 
 /** Monthly gaji with potongan absen = gaji / hari kerja × hari absen. */
 function receivesMonthlyAbsenceDeduction(role) {
-  return isStaffKantor(role) || isGeneralAffairs(role) || isAccounting(role);
+  return isStaffKantor(role) || isUmumOrGeneralAffairs(role) || isAccounting(role);
 }
 
 /** Staff Kantor & Accounting — auto lembur, auto potongan terlambat (custom jam masuk). */

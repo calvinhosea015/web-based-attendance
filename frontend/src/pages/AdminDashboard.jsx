@@ -17,7 +17,7 @@ import { translateApiMessage, translateAttendanceStatus, translateRole } from '.
 import {
   isAttendanceRole,
   isAccountingRole,
-  isGeneralAffairsRole,
+  isUmumOrGeneralAffairsRole,
   isHeadOfFinanceRole,
   usesMultipleOfficesRole,
   requiresFullName,
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
         payload.custom_work_end = newUser.custom_work_end;
         payload.basic_salary = Number(newUser.basic_salary) || 0;
       }
-      if (isGeneralAffairsRole(newUser.role) || isHeadOfFinanceRole(newUser.role)) {
+      if (isUmumOrGeneralAffairsRole(newUser.role) || isHeadOfFinanceRole(newUser.role)) {
         payload.basic_salary = Number(newUser.basic_salary) || 0;
       }
       const res = await api.post(paths.users, payload);
@@ -346,7 +346,7 @@ export default function AdminDashboard() {
           body.custom_work_end = editingUser.custom_work_end;
           body.basic_salary = Number(editingUser.basic_salary) || 0;
         }
-        if (isGeneralAffairsRole(editingUser.role)) {
+        if (isUmumOrGeneralAffairsRole(editingUser.role)) {
           body.basic_salary = Number(editingUser.basic_salary) || 0;
         }
       } else if (editingUser.office_id) {
@@ -543,15 +543,15 @@ export default function AdminDashboard() {
             {newUser.role === 'employee' && (
               <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
             )}
-            {isGeneralAffairsRole(newUser.role) && (
+            {isUmumOrGeneralAffairsRole(newUser.role) && (
               <>
-                <p className="text-xs text-slate-500">{t('generalAffairsOnceInOut')}</p>
-                <p className="text-xs text-slate-500">{t('generalAffairsAbsenceHint')}</p>
+                <p className="text-xs text-slate-500">{t('umumGeneralAffairsOnceInOut')}</p>
+                <p className="text-xs text-slate-500">{t('umumGeneralAffairsAbsenceHint')}</p>
                 <input
                   type="number"
                   min="0"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder={t('generalAffairsBasicSalary')}
+                  placeholder={t('umumGeneralAffairsBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
                 />
@@ -867,15 +867,15 @@ export default function AdminDashboard() {
                     {editingUser.role === 'employee' && (
                       <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
                     )}
-                    {isGeneralAffairsRole(editingUser.role) && (
+                    {isUmumOrGeneralAffairsRole(editingUser.role) && (
                       <>
-                        <p className="text-xs text-slate-500">{t('generalAffairsOnceInOut')}</p>
-                        <p className="text-xs text-slate-500">{t('generalAffairsAbsenceHint')}</p>
+                        <p className="text-xs text-slate-500">{t('umumGeneralAffairsOnceInOut')}</p>
+                        <p className="text-xs text-slate-500">{t('umumGeneralAffairsAbsenceHint')}</p>
                         <input
                           type="number"
                           min="0"
                           className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
-                          placeholder={t('generalAffairsBasicSalary')}
+                          placeholder={t('umumGeneralAffairsBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
                             setEditingUser({ ...editingUser, basic_salary: e.target.value })

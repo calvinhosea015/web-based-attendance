@@ -409,6 +409,10 @@ export default {
   generalAffairsAbsenceHint:
     'Potongan absen = gaji bulanan ÷ hari kerja wajib × jumlah hari tidak hadir.',
   generalAffairsOnceInOut: 'Satu absen masuk dan satu absen keluar per hari.',
+  umumGeneralAffairsBasicSalary: 'Gaji bulanan (Rp)',
+  umumGeneralAffairsAbsenceHint:
+    'Potongan absen = gaji bulanan ÷ hari kerja wajib × jumlah hari tidak hadir.',
+  umumGeneralAffairsOnceInOut: 'Satu absen masuk dan satu absen keluar per hari.',
   accountingWorkStart: 'Jam mulai kerja (kustom)',
   accountingWorkEnd: 'Jam selesai kerja (kustom)',
   accountingBasicSalary: 'Gaji bulanan (Rp)',

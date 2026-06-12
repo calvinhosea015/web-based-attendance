@@ -12,9 +12,8 @@ const STATUS_BUFFER_MS = ATTENDANCE_STATUS_BUFFER_MINUTES * 60 * 1000;
 const {
   isAttendanceRole,
   isFieldOfficer,
-  isUmum,
   isAccounting,
-  isGeneralAffairs,
+  isUmumOrGeneralAffairs,
   usesOncePerDayInOut,
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
@@ -254,7 +253,6 @@ class AttendanceService {
       throw new AppError('You still have an open session. Clock out before starting another.', 400, 'ALREADY_IN');
     }
 
-    const umum = isUmum(auth.role);
     const onceDailyInOut = usesOncePerDayInOut(auth.role);
     if (onceDailyInOut) {
       const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
@@ -265,7 +263,7 @@ class AttendanceService {
           'FIELD_ONE_CHECKIN'
         );
       }
-    } else if (!umum) {
+    } else {
       const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
       if (segCount >= CLOCK_SEGMENTS_PER_DAY) {
         throw new AppError('Attendance for today is already complete.', 400, 'DAY_COMPLETE');
@@ -335,7 +333,7 @@ class AttendanceService {
     const checkInTime = new Date();
     let lateMinutes = 0;
     let attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
-    if (onceDailyInOut || umum) {
+    if (onceDailyInOut) {
       if (remoteWork) attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
     } else if (isAccounting(auth.role)) {
       const emp = await this.employeeRepository.findById(auth.employeeId);
@@ -374,36 +372,12 @@ class AttendanceService {
       },
     });
 
-    if (umum) {
-      const closed = await this.attendanceRepository.checkoutRow(row.id, {
-        latOut: lat,
-        lngOut: lng,
-        gpsAccuracyOutM: accuracyMeters,
-        clientTsOut: clientTimestampMs,
-        ipOut: reqMeta.ip,
-        userAgentOut: reqMeta.userAgent,
-        workHours: 0,
-        overtimeHours: 0,
-        attendanceStatus: row.attendance_status,
-        checkoutCode: null,
-        validationFlagsOut: {
-          umum_auto_checkout: true,
-          checkout_geo_flags: geo.flags,
-          checkout_fake_gps_hints: geo.fakeGpsHints,
-        },
-      });
-      return { message: 'Checked in successfully.', attendance: closed || row };
-    }
-
     return { message: 'Checked in successfully.', attendance: row };
   }
 
   async checkOut(auth, body, reqMeta) {
     if (!isAttendanceRole(auth.role) || !auth.employeeId) {
       throw new AppError('Only linked employees can clock out.', 403, 'NOT_EMPLOYEE');
-    }
-    if (isUmum(auth.role)) {
-      throw new AppError('Check-out is not required for your role.', 400, 'CHECKOUT_NOT_REQUIRED');
     }
     const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
     if (!open) {
@@ -451,7 +425,7 @@ class AttendanceService {
       workHours = Number(Math.max(0, rawHours).toFixed(2));
       overtimeHours = 0;
       status = open.attendance_status || ATTENDANCE_STATUSES.PRESENT;
-    } else if (isGeneralAffairs(auth.role)) {
+    } else if (isUmumOrGeneralAffairs(auth.role)) {
       const rawHours = (new Date(nowIso).getTime() - new Date(checkInIso).getTime()) / 3600000;
       workHours = Number(Math.max(0, rawHours).toFixed(2));
       overtimeHours = 0;

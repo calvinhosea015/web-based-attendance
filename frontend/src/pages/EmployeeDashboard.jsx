@@ -12,7 +12,7 @@ import {
   ROLE_EMPLOYEE,
   ROLE_FIELD_OFFICER,
   isAccountingRole,
-  isGeneralAffairsRole,
+  isUmumOrGeneralAffairsRole,
 } from '../roles.js';
 import {
   isFieldCheckoutFormatValid,
@@ -445,20 +445,17 @@ export default function EmployeeDashboard() {
   const canRemote = summary?.remote_work_allowed !== false;
   const canClockIn = assignedOffices.some((o) => o?.id);
   const isFieldOfficer = summary?.field_officer_mode === true;
-  const isUmum = summary?.umum_mode === true;
-  const isGeneralAffairs =
-    summary?.general_affairs_mode === true || isGeneralAffairsRole(summary?.role);
+  const isFlexibleMonthly =
+    summary?.flexible_monthly_mode === true || isUmumOrGeneralAffairsRole(summary?.role);
   const isOnceDailyInOut = summary?.once_daily_in_out_mode === true;
   const isAccounting =
     summary?.accounting_mode === true || isAccountingRole(summary?.role);
   const isStaffKantor = summary?.role === ROLE_EMPLOYEE;
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
-  const shiftLabel = isFieldOfficer || isGeneralAffairs
+  const shiftLabel = isFieldOfficer || isFlexibleMonthly
     ? t('fieldFlexibleSchedule')
-    : isUmum
-      ? t('umumFlexibleSchedule')
-      : isAccounting && shift?.start_time && shift?.end_time
+    : isAccounting && shift?.start_time && shift?.end_time
         ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
         : shift?.start_time && shift?.end_time
           ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
@@ -474,13 +471,11 @@ export default function EmployeeDashboard() {
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
   const scheduleHint = isFieldOfficer
     ? t('fieldOnceInOnceOut')
-    : isGeneralAffairs
-      ? t('generalAffairsOnceInOut')
-      : isUmum
-        ? t('umumOncePerDay')
-        : isAccounting
-          ? t('accountingScheduleHint')
-          : t('onceInOnceOut');
+    : isFlexibleMonthly
+      ? t('umumGeneralAffairsOnceInOut')
+      : isAccounting
+        ? t('accountingScheduleHint')
+        : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
   const baseRadius = summary?.check_in_radius_meters ?? 500;
@@ -612,10 +607,10 @@ export default function EmployeeDashboard() {
             {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            {isOnceDailyInOut || isUmum || isAccounting
+            {isOnceDailyInOut || isAccounting
               ? shiftLabel
               : `${t('expectedShift')}: ${shiftLabel}`}
-            {!isOnceDailyInOut && !isUmum && !isAccounting && shift?.shift_name
+            {!isOnceDailyInOut && !isAccounting && shift?.shift_name
               ? ` · ${shift.shift_name}`
               : ''}
           </p>
@@ -654,16 +649,12 @@ export default function EmployeeDashboard() {
                 <div>
                   {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
                 </div>
-                {!isUmum && (
-                  <>
-                    <div>
-                      {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
-                    </div>
-                    <div>
-                      {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
-                    </div>
-                  </>
-                )}
+                <div>
+                  {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
+                </div>
+                <div>
+                  {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
+                </div>
               </>
             )}
           </div>
@@ -1234,11 +1225,9 @@ export default function EmployeeDashboard() {
                 <div className="text-slate-600">
                   {t('checkIn')}: {item.check_in ? formatDisplayDateTime(item.check_in) : ''}
                 </div>
-                {!isUmum && (
-                  <div className="text-slate-600">
-                    {t('checkOut')}: {item.check_out ? formatDisplayDateTime(item.check_out) : t('notCheckedOut')}
-                  </div>
-                )}
+                <div className="text-slate-600">
+                  {t('checkOut')}: {item.check_out ? formatDisplayDateTime(item.check_out) : t('notCheckedOut')}
+                </div>
               </li>
             ))}
           </ul>

@@ -32,8 +32,16 @@ export function isGeneralAffairsRole(role) {
   return role === ROLE_GENERAL_AFFAIRS;
 }
 
+export function isUmumOrGeneralAffairsRole(role) {
+  return role === ROLE_UMUM || role === ROLE_GENERAL_AFFAIRS;
+}
+
 export function usesMonthlyAbsencePayroll(role) {
-  return role === ROLE_EMPLOYEE || role === ROLE_GENERAL_AFFAIRS;
+  return role === ROLE_EMPLOYEE || isUmumOrGeneralAffairsRole(role);
+}
+
+export function usesOncePerDayInOutRole(role) {
+  return role === ROLE_FIELD_OFFICER || isUmumOrGeneralAffairsRole(role);
 }
 
 export function isHeadOfFinanceRole(role) {

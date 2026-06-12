@@ -21,7 +21,7 @@ const {
 const {
   ROLES,
   isAccounting,
-  isGeneralAffairs,
+  isUmumOrGeneralAffairs,
   isHeadOfFinance,
   isFieldOfficer,
 } = require('../constants/roles');
@@ -195,7 +195,7 @@ function attachPayrollMode(row) {
       basic_salary: row.basic_salary != null ? num(row.basic_salary) : calc.basic_salary,
     };
   }
-  if (isGeneralAffairs(role)) {
+  if (isUmumOrGeneralAffairs(role)) {
     const expected =
       row.expected_work_days != null
         ? row.expected_work_days
