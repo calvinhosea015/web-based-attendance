@@ -108,7 +108,7 @@ export default function AdminLoans() {
               className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                 filter === f
                   ? 'bg-brand-600 text-white shadow-sm'
-                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  : 'border border-apple-border bg-white text-apple-label hover:bg-apple-highlight hover:text-apple-text'
               }`}
             >
               {t(`loanFilter_${f}`)}
@@ -126,7 +126,7 @@ export default function AdminLoans() {
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-apple-border bg-apple-fill text-xs font-semibold text-apple-text">
                   <th className="px-4 py-3">{t('employee')}</th>
                   <th className="px-4 py-3 text-right">{t('loanAmount')}</th>
                   <th className="px-4 py-3 text-right">{t('loanMonthlyDeduction')}</th>
@@ -145,7 +145,7 @@ export default function AdminLoans() {
                   </tr>
                 )}
                 {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50/80">
+                  <tr key={row.id} className="hover:bg-apple-highlight">
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{row.full_name}</div>
                       <div className="text-xs text-slate-500">{row.employee_code}</div>

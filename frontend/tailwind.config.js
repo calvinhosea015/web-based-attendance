@@ -25,8 +25,10 @@ export default {
           label: '#6e6e73',
           muted: '#86868b',
           border: '#d2d2d7',
-          fill: 'rgba(0, 0, 0, 0.04)',
-          'fill-hover': 'rgba(0, 0, 0, 0.06)',
+          fill: '#e8e8ed',
+          'fill-hover': '#dcdce1',
+          highlight: '#e8f2ff',
+          'highlight-strong': '#d6e8ff',
         },
         brand: {
           50: '#f0f7ff',

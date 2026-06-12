@@ -32,6 +32,14 @@
     @apply font-medium text-brand-600 transition-colors hover:text-brand-500;
   }
 
+  .apple-chip {
+    @apply rounded-full border border-apple-border bg-white px-4 py-2 text-sm font-medium text-apple-label transition hover:bg-apple-highlight hover:text-apple-text;
+  }
+
+  .apple-chip-active {
+    @apply rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-apple;
+  }
+
   .apple-table-wrap {
     @apply overflow-x-auto rounded-apple-lg border border-black/[0.06] bg-white shadow-apple;
   }
@@ -41,7 +49,7 @@
   }
 
   .apple-table-head {
-    @apply border-b border-black/[0.06] bg-apple-fill/60 text-[12px] font-medium text-apple-label;
+    @apply border-b border-apple-border bg-apple-fill text-[12px] font-semibold text-apple-text;
   }
 
   .apple-table-head th {
@@ -49,7 +57,7 @@
   }
 
   .apple-table-row {
-    @apply border-b border-black/[0.04] bg-white transition-colors last:border-0 hover:bg-apple-fill/40;
+    @apply border-b border-black/[0.04] bg-white transition-colors last:border-0 hover:bg-apple-highlight;
   }
 
   .apple-table-row td {
@@ -57,7 +65,7 @@
   }
 
   .apple-panel {
-    @apply rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 p-5;
+    @apply rounded-apple-lg border border-apple-border bg-apple-fill p-5;
   }
 
   .apple-expand-panel {

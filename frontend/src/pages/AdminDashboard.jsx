@@ -634,7 +634,7 @@ export default function AdminDashboard() {
             )}
             {!isHeadOfFinanceRole(newUser.role) &&
               (usesMultipleOfficesRole(newUser.role) ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                <div className="rounded-lg border border-slate-200 bg-apple-fill p-3">
                   <p className="mb-2 text-xs font-medium text-slate-600">{t('fieldOfficerOfficesLabel')}</p>
                   {offices.length ? (
                     <div className="max-h-40 space-y-1.5 overflow-y-auto">
@@ -700,7 +700,7 @@ export default function AdminDashboard() {
             {users.map((user) => (
               <li
                 key={user.id}
-                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-apple-fill px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <div className="font-medium text-slate-900">{user.username}</div>
@@ -776,7 +776,7 @@ export default function AdminDashboard() {
                     </select>
                     {!isHeadOfFinanceRole(editingUser.role) &&
                       (usesMultipleOfficesRole(editingUser.role) ? (
-                        <div className="rounded-md border border-slate-200 bg-slate-50/80 p-2">
+                        <div className="rounded-md border border-slate-200 bg-apple-fill p-2">
                           <p className="mb-1 text-[10px] font-medium uppercase text-slate-500">
                             {t('fieldOfficerOfficesLabel')}
                           </p>
@@ -1032,7 +1032,7 @@ export default function AdminDashboard() {
               return (
               <li
                 key={office.id}
-                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2"
+                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-apple-fill px-3 py-2"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -1168,7 +1168,7 @@ export default function AdminDashboard() {
         ) : null}
         <div className="mt-3 max-h-96 overflow-auto text-sm">
           <table className="min-w-full border-collapse text-left">
-            <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="sticky top-0 bg-apple-fill text-xs font-semibold text-apple-text">
               <tr>
                 <th className="border-b border-slate-200 px-2 py-2">{t('employee')}</th>
                 <th className="border-b border-slate-200 px-2 py-2">{t('office')}</th>

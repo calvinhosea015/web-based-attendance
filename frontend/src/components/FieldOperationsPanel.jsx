@@ -542,7 +542,7 @@ export default function FieldOperationsPanel({
                                 <td>
                                   <button
                                     type="button"
-                                    className="flex h-8 w-8 items-center justify-center rounded-full text-apple-muted transition hover:bg-apple-fill hover:text-apple-text"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-apple-label transition hover:bg-apple-highlight hover:text-brand-700"
                                     aria-expanded={isExpanded}
                                     aria-label={
                                       isExpanded ? t('pabrikHideItems') : t('pabrikShowItems')
@@ -566,7 +566,7 @@ export default function FieldOperationsPanel({
                                 <td className="text-apple-text">{pabrik.nama_pabrik}</td>
                                 <td>
                                   <select
-                                    className="min-w-[10rem] rounded-apple border-0 bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/25 disabled:opacity-60"
+                                    className="min-w-[10rem] rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
                                     value={pabrik.office_id ?? ''}
                                     disabled={pabrikOfficeLinkSavingId === pabrik.id}
                                     onChange={(e) =>
@@ -622,7 +622,7 @@ export default function FieldOperationsPanel({
                                 </td>
                               </tr>
                               {isExpanded && (
-                                <tr className="bg-apple-fill/30">
+                                <tr className="bg-apple-highlight/60">
                                   <td colSpan={6} className="!px-4 !py-5">
                                     <div className="apple-expand-panel">
                                       <p className="mb-2 text-[15px] font-medium text-apple-text">
@@ -705,7 +705,7 @@ export default function FieldOperationsPanel({
                                                       type="number"
                                                       min="0"
                                                       step="1"
-                                                      className="w-28 rounded-apple border-0 bg-apple-fill px-3 py-1.5 text-right text-[14px] tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/25 disabled:opacity-60"
+                                                      className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
                                                       value={priceDraft[item.id] ?? ''}
                                                       placeholder="0"
                                                       disabled={priceSavingId === item.id}
@@ -900,7 +900,7 @@ export default function FieldOperationsPanel({
                                   {emp.deliveries.map((d) => (
                                     <li
                                       key={d.id}
-                                      className="rounded-apple border border-black/[0.06] bg-apple-fill/50 px-4 py-3"
+                                      className="rounded-apple border border-apple-border bg-apple-highlight px-4 py-3"
                                     >
                                       <div className="flex flex-wrap justify-between gap-2">
                                         <span className="font-medium text-apple-text">

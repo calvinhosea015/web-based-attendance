@@ -138,8 +138,8 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
         to={to}
         className={`rounded-full px-3.5 py-2 text-[13px] font-medium transition duration-200 ${
           active
-            ? 'bg-apple-fill text-apple-text'
-            : 'text-apple-label hover:bg-apple-fill/70 hover:text-apple-text'
+            ? 'bg-apple-highlight-strong text-brand-700 shadow-apple'
+            : 'text-apple-label hover:bg-apple-highlight hover:text-apple-text'
         }`}
       >
         {t(labelKey)}
@@ -172,7 +172,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
               <button
                 type="button"
                 onClick={() => setNotifOpen((o) => !o)}
-                className="relative rounded-full p-2.5 text-apple-label transition hover:bg-apple-fill hover:text-apple-text"
+                className="relative rounded-full p-2.5 text-apple-label transition hover:bg-apple-highlight hover:text-brand-700"
                 aria-label={t('adminNotifications')}
                 aria-expanded={notifOpen}
               >
@@ -219,8 +219,8 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                         <button
                           type="button"
                           onClick={() => goToNotification(n)}
-                          className={`w-full border-b border-black/[0.04] px-5 py-3.5 text-left text-[14px] transition hover:bg-apple-fill/60 ${
-                            !n.read_at ? 'bg-brand-50/30' : ''
+                          className={`w-full border-b border-black/[0.04] px-5 py-3.5 text-left text-[14px] transition hover:bg-apple-highlight ${
+                            !n.read_at ? 'bg-apple-highlight-strong' : ''
                           }`}
                         >
                           <span className="font-medium text-apple-text">{n.title}</span>

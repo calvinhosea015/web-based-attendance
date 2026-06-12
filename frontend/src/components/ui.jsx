@@ -41,9 +41,9 @@ export function Button({
   const variants = {
     primary: 'bg-brand-600 text-white hover:bg-brand-500 active:scale-[0.98]',
     secondary:
-      'border border-black/[0.1] bg-white text-apple-text shadow-apple hover:bg-apple-fill active:scale-[0.98]',
+      'border border-apple-border bg-white text-apple-text shadow-apple hover:bg-apple-fill active:scale-[0.98]',
     success: 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98]',
-    ghost: 'text-apple-label hover:bg-apple-fill hover:text-apple-text',
+    ghost: 'text-apple-label hover:bg-apple-highlight hover:text-brand-700',
     danger:
       'border border-rose-200/80 bg-rose-50 text-rose-700 hover:bg-rose-100/80 active:scale-[0.98]',
   };
@@ -60,7 +60,7 @@ export function Button({
 
 export function Alert({ tone = 'info', children, onDismiss }) {
   const tones = {
-    info: 'border-black/[0.08] bg-apple-fill text-apple-text',
+    info: 'border-apple-border bg-apple-highlight text-apple-text',
     success: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-900',
     error: 'border-rose-200/80 bg-rose-50/80 text-rose-900',
   };
@@ -86,9 +86,9 @@ export function Alert({ tone = 'info', children, onDismiss }) {
 
 export function Badge({ variant = 'neutral', children }) {
   const variants = {
-    neutral: 'bg-apple-fill text-apple-label',
-    success: 'bg-emerald-100/90 text-emerald-800',
-    muted: 'bg-apple-fill text-apple-muted',
+    neutral: 'bg-apple-fill text-apple-text',
+    success: 'bg-emerald-100 text-emerald-800',
+    muted: 'bg-apple-fill text-apple-label',
   };
   return (
     <span
@@ -112,7 +112,7 @@ export function Field({ label, hint, children, className = '' }) {
 }
 
 export const inputClass =
-  'w-full rounded-apple border-0 bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text shadow-none transition placeholder:text-apple-muted focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/25';
+  'w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text shadow-none transition placeholder:text-apple-muted hover:border-apple-muted/60 focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35';
 
 export function PasswordInput({ className = '', inputClassName = inputClass, ...props }) {
   const { t } = useTranslation();
@@ -180,7 +180,7 @@ export function Modal({ title, subtitle, onClose, children, footer, size = 'md',
 }
 
 export const inputClassCompact =
-  'w-full rounded-lg border-0 bg-apple-fill px-2.5 py-2 text-[14px] text-apple-text transition placeholder:text-apple-muted focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/25';
+  'w-full rounded-lg border border-apple-border bg-apple-fill px-2.5 py-2 text-[14px] text-apple-text transition placeholder:text-apple-muted focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35';
 
 export function CompactField({ label, hint, children, className = '' }) {
   return (
