@@ -330,7 +330,7 @@ export default function FieldOperationsPanel({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {message && (
         <Alert tone={messageTone} onDismiss={() => notify('')}>
           {message}
@@ -363,11 +363,11 @@ export default function FieldOperationsPanel({
               />
             </div>
 
-            <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-              <p className="mb-1 text-sm font-medium text-slate-800">
+            <div className="apple-panel mb-6">
+              <p className="mb-1 text-[15px] font-medium text-apple-text">
                 {t('pabrikTonaseExportTitle')}
               </p>
-              <p className="mb-3 text-xs text-slate-500">{t('pabrikTonaseExportHint')}</p>
+              <p className="mb-4 text-[13px] leading-relaxed text-apple-label">{t('pabrikTonaseExportHint')}</p>
               <div className="flex flex-wrap items-end gap-3">
                 <Field label={t('pabrikTonaseDateFrom')}>
                   <input
@@ -400,15 +400,15 @@ export default function FieldOperationsPanel({
 
             {showAddFactoryForm && (
               <form
-                className="mb-5 rounded-xl border border-brand-200 bg-brand-50/30 p-4"
+                className="mb-6 rounded-apple-lg border border-brand-100 bg-brand-50/40 p-5"
                 onSubmit={handleCreateFactory}
               >
-                <p className="mb-3 text-sm font-medium text-slate-800">{t('pabrikCatalogNewFactory')}</p>
-                <p className="mb-3 text-xs text-slate-500">
+                <p className="mb-3 text-[15px] font-medium text-apple-text">{t('pabrikCatalogNewFactory')}</p>
+                <p className="mb-4 text-[13px] text-apple-label">
                   {t('pabrikLocationHint')}{' '}
                   <Link
                     to="/admin#location-management"
-                    className="font-medium text-brand-600 hover:text-brand-700"
+                    className="apple-link"
                   >
                     {t('pabrikLocationManageLink')}
                   </Link>
@@ -467,9 +467,9 @@ export default function FieldOperationsPanel({
             )}
 
             {pabrikLoading && pabriks.length === 0 ? (
-              <p className="text-sm text-slate-600">{t('loading')}</p>
+              <p className="text-[15px] text-apple-label">{t('loading')}</p>
             ) : pabriks.length === 0 ? (
-              <p className="text-sm text-slate-600">{t('pabrikCatalogEmpty')}</p>
+              <p className="text-[15px] text-apple-label">{t('pabrikCatalogEmpty')}</p>
             ) : (
               <>
                 <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -509,7 +509,7 @@ export default function FieldOperationsPanel({
                       {t('pabrikCatalogFilterClear')}
                     </Button>
                   ) : null}
-                  <p className="mb-1 text-xs text-slate-500">
+                  <p className="mb-1 text-[12px] text-apple-muted">
                     {t('pabrikCatalogFilterCount', {
                       shown: filteredPabriks.length,
                       total: pabriks.length,
@@ -518,31 +518,31 @@ export default function FieldOperationsPanel({
                 </div>
 
                 {filteredPabriks.length === 0 ? (
-                  <p className="text-sm text-slate-600">{t('pabrikCatalogFilterNoMatch')}</p>
+                  <p className="text-[15px] text-apple-label">{t('pabrikCatalogFilterNoMatch')}</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-xl border border-slate-200">
-                    <table className="min-w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <div className="apple-table-wrap">
+                    <table className="apple-table">
+                      <thead className="apple-table-head">
                         <tr>
-                          <th className="w-10 px-3 py-2.5" />
-                          <th className="px-3 py-2.5">{t('pabrikItemPabrikCode')}</th>
-                          <th className="px-3 py-2.5">{t('pabrikNama')}</th>
-                          <th className="px-3 py-2.5">{t('pabrikLocation')}</th>
-                          <th className="px-3 py-2.5 text-center">{t('pabrikCatalogItemsCol')}</th>
-                          <th className="px-3 py-2.5 text-right">{t('pabrikCatalogActions')}</th>
+                          <th className="w-10" />
+                          <th>{t('pabrikItemPabrikCode')}</th>
+                          <th>{t('pabrikNama')}</th>
+                          <th>{t('pabrikLocation')}</th>
+                          <th className="text-center">{t('pabrikCatalogItemsCol')}</th>
+                          <th className="text-right">{t('pabrikCatalogActions')}</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody>
                         {filteredPabriks.map((pabrik) => {
                           const isExpanded = expandedPabrikCode === pabrik.pabrik_code;
                           const visibleItems = filterCatalogItems(pabrik.items || []);
                           return (
                             <React.Fragment key={pabrik.id}>
-                              <tr className="bg-white hover:bg-slate-50/60">
-                                <td className="px-3 py-3">
+                              <tr className="apple-table-row">
+                                <td>
                                   <button
                                     type="button"
-                                    className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-apple-muted transition hover:bg-apple-fill hover:text-apple-text"
                                     aria-expanded={isExpanded}
                                     aria-label={
                                       isExpanded ? t('pabrikHideItems') : t('pabrikShowItems')
@@ -560,13 +560,13 @@ export default function FieldOperationsPanel({
                                     </span>
                                   </button>
                                 </td>
-                                <td className="px-3 py-3 font-semibold tabular-nums text-slate-900">
+                                <td className="font-semibold tabular-nums text-apple-text">
                                   {pabrik.pabrik_code}
                                 </td>
-                                <td className="px-3 py-3 text-slate-700">{pabrik.nama_pabrik}</td>
-                                <td className="px-3 py-3">
+                                <td className="text-apple-text">{pabrik.nama_pabrik}</td>
+                                <td>
                                   <select
-                                    className="min-w-[10rem] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60"
+                                    className="min-w-[10rem] rounded-apple border-0 bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/25 disabled:opacity-60"
                                     value={pabrik.office_id ?? ''}
                                     disabled={pabrikOfficeLinkSavingId === pabrik.id}
                                     onChange={(e) =>
@@ -586,24 +586,24 @@ export default function FieldOperationsPanel({
                                     ))}
                                   </select>
                                 </td>
-                                <td className="px-3 py-3 text-center">
+                                <td className="text-center">
                                   <Badge variant="neutral">
                                     {pabrik.items?.length ?? 0}
                                   </Badge>
                                 </td>
-                                <td className="px-3 py-3">
+                                <td>
                                   <div className="flex items-center justify-end gap-2">
                                     {pabrik.google_maps_url ? (
                                       <a
                                         href={pabrik.google_maps_url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                                        className="apple-link text-[13px]"
                                       >
                                         {t('pabrikOpenMaps')}
                                       </a>
                                     ) : (
-                                      <span className="text-xs text-amber-700">
+                                      <span className="text-[13px] text-amber-700">
                                         {t('pabrikNoLocation')}
                                       </span>
                                     )}
@@ -622,19 +622,19 @@ export default function FieldOperationsPanel({
                                 </td>
                               </tr>
                               {isExpanded && (
-                                <tr className="bg-slate-50/70">
-                                  <td colSpan={6} className="px-3 py-4">
-                                    <div className="rounded-lg border border-slate-200 bg-white p-4">
-                                      <p className="mb-3 text-sm font-medium text-slate-800">
+                                <tr className="bg-apple-fill/30">
+                                  <td colSpan={6} className="!px-4 !py-5">
+                                    <div className="apple-expand-panel">
+                                      <p className="mb-2 text-[15px] font-medium text-apple-text">
                                         {t('pabrikCatalogManageItems', {
                                           factory: pabrik.nama_pabrik,
                                         })}
                                       </p>
-                                      <p className="mb-3 text-xs text-slate-500">
+                                      <p className="mb-4 text-[13px] text-apple-label">
                                         {t('pabrikCatalogAddItemHint')}
                                       </p>
                                       <form
-                                        className="mb-4 flex flex-wrap items-end gap-2 border-b border-slate-100 pb-4"
+                                        className="mb-5 flex flex-wrap items-end gap-3 border-b border-black/[0.06] pb-5"
                                         onSubmit={(e) => handleAddItemCode(e, pabrik)}
                                       >
                                         <Field
@@ -666,24 +666,18 @@ export default function FieldOperationsPanel({
                                         </Button>
                                       </form>
                                       {visibleItems.length === 0 ? (
-                                        <p className="text-sm text-slate-500">
+                                        <p className="text-[15px] text-apple-label">
                                           {t('pabrikCatalogNoItems')}
                                         </p>
                                       ) : (
-                                        <div className="overflow-x-auto">
-                                          <table className="min-w-full text-left text-sm">
-                                            <thead>
-                                              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                                                <th className="px-2 py-2">
-                                                  {t('pabrikItemKodeBarang')}
-                                                </th>
-                                                <th className="px-2 py-2 text-right">
-                                                  {t('pabrikItemTonase')}
-                                                </th>
-                                                <th className="px-2 py-2 text-right">
-                                                  {t('pabrikItemPrice')}
-                                                </th>
-                                                <th className="px-2 py-2 text-right" />
+                                        <div className="apple-table-wrap border-0 shadow-none">
+                                          <table className="apple-table">
+                                            <thead className="apple-table-head">
+                                              <tr>
+                                                <th>{t('pabrikItemKodeBarang')}</th>
+                                                <th className="text-right">{t('pabrikItemTonase')}</th>
+                                                <th className="text-right">{t('pabrikItemPrice')}</th>
+                                                <th className="text-right" />
                                               </tr>
                                             </thead>
                                             <tbody>
@@ -696,22 +690,22 @@ export default function FieldOperationsPanel({
                                                 return (
                                                 <tr
                                                   key={`${pabrik.pabrik_code}-${item.kode_barang}`}
-                                                  className="border-b border-slate-100 last:border-0"
+                                                  className="apple-table-row"
                                                 >
-                                                  <td className="px-2 py-2 font-medium text-slate-900">
+                                                  <td className="font-medium text-apple-text">
                                                     {item.kode_barang}
                                                   </td>
-                                                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                                  <td className="text-right tabular-nums text-apple-label">
                                                     {Number(item.tonase_per_item) > 0
                                                       ? item.tonase_per_item
                                                       : '—'}
                                                   </td>
-                                                  <td className="px-2 py-2 text-right">
+                                                  <td className="text-right">
                                                     <input
                                                       type="number"
                                                       min="0"
                                                       step="1"
-                                                      className="w-28 rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm tabular-nums focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50"
+                                                      className="w-28 rounded-apple border-0 bg-apple-fill px-3 py-1.5 text-right text-[14px] tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/25 disabled:opacity-60"
                                                       value={priceDraft[item.id] ?? ''}
                                                       placeholder="0"
                                                       disabled={priceSavingId === item.id}
@@ -812,9 +806,9 @@ export default function FieldOperationsPanel({
             }
           >
             {omsetLoading && !report ? (
-              <p className="text-sm text-slate-600">{t('loading')}</p>
+              <p className="text-[15px] text-apple-label">{t('loading')}</p>
             ) : report ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <StatTile
                     label={t('fieldOmsetTotal')}
@@ -833,60 +827,60 @@ export default function FieldOperationsPanel({
                   />
                 </div>
                 {!report.employees?.length ? (
-                  <p className="text-sm text-slate-600">{t('fieldOmsetNoOfficers')}</p>
+                  <p className="text-[15px] text-apple-label">{t('fieldOmsetNoOfficers')}</p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
+                      <h3 className="text-[17px] font-semibold tracking-tight text-apple-text">
                         {t('fieldOmsetByEmployee')}
                       </h3>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1.5 text-[13px] text-apple-label">
                         {t('fieldOmsetByEmployeeHint', { count: report.employees.length })}
                       </p>
                     </div>
                     {report.delivery_count === 0 ? (
-                      <p className="text-sm text-slate-600">{t('fieldOmsetEmpty')}</p>
+                      <p className="text-[15px] text-apple-label">{t('fieldOmsetEmpty')}</p>
                     ) : null}
                     <div className="space-y-3">
                       {report.employees.map((emp) => (
                         <div
                           key={emp.employee_id}
-                          className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
+                          className="rounded-apple-lg border border-black/[0.06] bg-white p-5 shadow-apple"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <div className="font-semibold text-slate-900">{emp.full_name}</div>
-                              <div className="text-xs text-slate-500">{emp.employee_code}</div>
+                              <div className="font-semibold text-apple-text">{emp.full_name}</div>
+                              <div className="text-[13px] text-apple-label">{emp.employee_code}</div>
                             </div>
                             <div className="grid gap-3 text-right sm:grid-cols-3 sm:gap-6">
                               <div>
-                                <div className="text-xs uppercase tracking-wide text-slate-500">
+                                <div className="text-[12px] font-medium text-apple-label">
                                   {t('fieldOmsetDeliveries')}
                                 </div>
-                                <div className="mt-0.5 tabular-nums font-medium text-slate-900">
+                                <div className="mt-1 tabular-nums text-[15px] font-medium text-apple-text">
                                   {emp.delivery_count}
                                 </div>
                               </div>
                               <div>
-                                <div className="text-xs uppercase tracking-wide text-slate-500">
+                                <div className="text-[12px] font-medium text-apple-label">
                                   {t('fieldOmsetTotal')}
                                 </div>
-                                <div className="mt-0.5 tabular-nums font-medium text-slate-900">
+                                <div className="mt-1 tabular-nums text-[15px] font-medium text-apple-text">
                                   Rp {formatIdr(emp.omset_total)}
                                 </div>
                               </div>
                               <div>
-                                <div className="text-xs uppercase tracking-wide text-slate-500">
+                                <div className="text-[12px] font-medium text-apple-label">
                                   {t('fieldOmsetBonusTotal')}
                                 </div>
-                                <div className="mt-0.5 tabular-nums font-medium text-brand-700">
+                                <div className="mt-1 tabular-nums text-[15px] font-medium text-brand-600">
                                   Rp {formatIdr(emp.bonus_total)}
                                 </div>
                               </div>
                             </div>
                           </div>
                           {emp.deliveries.length > 0 ? (
-                            <div className="mt-3 border-t border-slate-200 pt-3">
+                            <div className="mt-4 border-t border-black/[0.06] pt-4">
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -902,14 +896,14 @@ export default function FieldOperationsPanel({
                                   : t('fieldOmsetShowLines')}
                               </Button>
                               {expandedId === emp.employee_id ? (
-                                <ul className="mt-2 space-y-2 text-xs text-slate-700">
+                                <ul className="mt-3 space-y-2 text-[13px] text-apple-label">
                                   {emp.deliveries.map((d) => (
                                     <li
                                       key={d.id}
-                                      className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                                      className="rounded-apple border border-black/[0.06] bg-apple-fill/50 px-4 py-3"
                                     >
                                       <div className="flex flex-wrap justify-between gap-2">
-                                        <span className="font-medium text-slate-900">
+                                        <span className="font-medium text-apple-text">
                                           {d.valid_on} · {d.pabrik_code} · {d.kode_barang}
                                         </span>
                                         <span>
@@ -919,7 +913,7 @@ export default function FieldOperationsPanel({
                                           })}
                                         </span>
                                       </div>
-                                      <div className="mt-1 text-slate-500">
+                                      <div className="mt-1 text-apple-muted">
                                           {t('fieldDelivery_selisih')}: {d.selisih} kg ·{' '}
                                           {t('pabrikItemTonase')}: {d.tonase_per_item}
                                           {Number(d.price_per_item) > 0
@@ -932,7 +926,7 @@ export default function FieldOperationsPanel({
                               ) : null}
                             </div>
                           ) : (
-                            <p className="mt-3 border-t border-slate-200 pt-3 text-xs text-slate-500">
+                            <p className="mt-4 border-t border-black/[0.06] pt-4 text-[13px] text-apple-label">
                               {t('fieldOmsetOfficerNoDeliveries')}
                             </p>
                           )}
@@ -943,7 +937,7 @@ export default function FieldOperationsPanel({
                 )}
               </div>
             ) : (
-              <p className="text-sm text-slate-600">{t('fieldOmsetEmpty')}</p>
+              <p className="text-[15px] text-apple-label">{t('fieldOmsetEmpty')}</p>
             )}
           </Card>
         </section>

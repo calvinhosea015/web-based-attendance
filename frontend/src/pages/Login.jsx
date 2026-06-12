@@ -34,47 +34,46 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-57px)] flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col justify-center bg-white px-8 py-12 text-slate-900 lg:px-16">
-        <div className="mx-auto max-w-md lg:mx-0">
+    <div className="flex min-h-[calc(100vh-57px)] flex-col items-center justify-center px-4 py-16 sm:px-6">
+      <div className="w-full max-w-[400px]">
+        <div className="text-center">
           <img
             src="/company-logo.png"
             alt={t('appName')}
-            className="h-28 w-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+            className="mx-auto h-24 w-auto"
           />
-          <p className="mt-6 text-sm leading-relaxed text-slate-600">{t('loginSubtitle')}</p>
+          <h1 className="mt-8 text-[28px] font-semibold tracking-tightest text-apple-text">
+            {t('login')}
+          </h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-apple-label">{t('loginSubtitle')}</p>
         </div>
-      </div>
-      <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-md">
-          <h2 className="text-xl font-semibold text-slate-900">{t('login')}</h2>
-          <form
-            className="mt-8 space-y-5 rounded-xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/40"
-            onSubmit={handleLogin}
-          >
-            <Field label={t('username')}>
-              <input
-                className={inputClass}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                required
-              />
-            </Field>
-            <Field label={t('password')}>
-              <PasswordInput
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </Field>
-            {message && <Alert tone="error">{message}</Alert>}
-            <Button type="submit" variant="primary" className="w-full bg-black hover:bg-slate-800" size="lg">
-              {t('login')}
-            </Button>
-          </form>
-        </div>
+
+        <form
+          className="mt-10 space-y-5 rounded-apple-xl border border-black/[0.06] bg-white p-8 shadow-apple-md"
+          onSubmit={handleLogin}
+        >
+          <Field label={t('username')}>
+            <input
+              className={inputClass}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              required
+            />
+          </Field>
+          <Field label={t('password')}>
+            <PasswordInput
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+          {message && <Alert tone="error">{message}</Alert>}
+          <Button type="submit" variant="primary" className="w-full" size="lg">
+            {t('login')}
+          </Button>
+        </form>
       </div>
     </div>
   );

@@ -38,7 +38,7 @@ const POLL_MS = 45000;
 function NavBadge({ count }) {
   if (!count || count < 1) return null;
   return (
-    <span className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+    <span className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
       {count > 99 ? '99+' : count}
     </span>
   );
@@ -136,10 +136,10 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
       <Link
         key={to}
         to={to}
-        className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+        className={`rounded-full px-3.5 py-2 text-[13px] font-medium transition duration-200 ${
           active
-            ? 'bg-brand-50 text-brand-600'
-            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            ? 'bg-apple-fill text-apple-text'
+            : 'text-apple-label hover:bg-apple-fill/70 hover:text-apple-text'
         }`}
       >
         {t(labelKey)}
@@ -149,21 +149,21 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)]">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+    <div className="min-h-screen bg-apple-bg">
+      <header className="sticky top-0 z-40 border-b border-black/[0.08] bg-white/72 backdrop-blur-2xl backdrop-saturate-150">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-6">
-            <Link to="/admin" className="flex items-center gap-2.5">
+          <div className="flex items-center gap-8">
+            <Link to="/admin" className="flex items-center gap-3">
               <img
                 src="/company-logo.png"
                 alt={t('appName')}
-                className="h-9 w-auto rounded-md border border-slate-200 bg-white p-0.5 shadow-sm"
+                className="h-9 w-auto rounded-lg"
               />
-              <span className="hidden text-sm font-semibold text-slate-900 sm:inline">
+              <span className="hidden text-[15px] font-semibold tracking-tight text-apple-text sm:inline">
                 {t('appName')}
               </span>
             </Link>
-            <nav className="hidden items-center gap-1 sm:flex" aria-label="Admin">
+            <nav className="hidden items-center gap-0.5 sm:flex" aria-label="Admin">
               {NAV.map(renderNavLink)}
             </nav>
           </div>
@@ -172,7 +172,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
               <button
                 type="button"
                 onClick={() => setNotifOpen((o) => !o)}
-                className="relative rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                className="relative rounded-full p-2.5 text-apple-label transition hover:bg-apple-fill hover:text-apple-text"
                 aria-label={t('adminNotifications')}
                 aria-expanded={notifOpen}
               >
@@ -181,7 +181,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
-                  strokeWidth={1.75}
+                  strokeWidth={1.5}
                   aria-hidden
                 >
                   <path
@@ -191,17 +191,17 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                   />
                 </svg>
                 {bellCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
                     {bellCount > 99 ? '99+' : bellCount}
                   </span>
                 )}
               </button>
               {notifOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-                  <div className="border-b border-slate-100 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-900">{t('adminNotifications')}</p>
+                <div className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-apple-xl border border-black/[0.08] bg-white/95 shadow-apple-lg backdrop-blur-xl">
+                  <div className="border-b border-black/[0.06] px-5 py-4">
+                    <p className="text-[15px] font-semibold text-apple-text">{t('adminNotifications')}</p>
                     {(pendingLoans > 0 || pendingLeave > 0) && (
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-1 text-[12px] text-apple-label">
                         {pendingLoans > 0 && t('adminNotifPendingLoans', { count: pendingLoans })}
                         {pendingLoans > 0 && pendingLeave > 0 && ' · '}
                         {pendingLeave > 0 && t('adminNotifPendingLeave', { count: pendingLeave })}
@@ -210,7 +210,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                   </div>
                   <ul className="max-h-72 overflow-y-auto">
                     {notifications.length === 0 && (
-                      <li className="px-4 py-6 text-center text-sm text-slate-500">
+                      <li className="px-5 py-8 text-center text-[15px] text-apple-label">
                         {t('adminNotifEmpty')}
                       </li>
                     )}
@@ -219,15 +219,15 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                         <button
                           type="button"
                           onClick={() => goToNotification(n)}
-                          className={`w-full border-b border-slate-50 px-4 py-3 text-left text-sm transition hover:bg-slate-50 ${
-                            !n.read_at ? 'bg-brand-50/40' : ''
+                          className={`w-full border-b border-black/[0.04] px-5 py-3.5 text-left text-[14px] transition hover:bg-apple-fill/60 ${
+                            !n.read_at ? 'bg-brand-50/30' : ''
                           }`}
                         >
-                          <span className="font-medium text-slate-900">{n.title}</span>
+                          <span className="font-medium text-apple-text">{n.title}</span>
                           {n.body && (
-                            <span className="mt-0.5 block text-xs text-slate-600">{n.body}</span>
+                            <span className="mt-0.5 block text-[13px] text-apple-label">{n.body}</span>
                           )}
-                          <span className="mt-1 block text-[10px] text-slate-400">
+                          <span className="mt-1 block text-[11px] text-apple-muted">
                             {formatDisplayDateTime(n.created_at)}
                           </span>
                         </button>
@@ -238,7 +238,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
               )}
             </div>
             <div
-              className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+              className="flex rounded-full bg-apple-fill p-0.5"
               role="group"
               aria-label={t('language')}
             >
@@ -246,10 +246,10 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                 <button
                   key={lng}
                   type="button"
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium uppercase transition ${
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition ${
                     i18n.language?.startsWith(lng)
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-white text-apple-text shadow-apple'
+                      : 'text-apple-muted hover:text-apple-text'
                   }`}
                   onClick={() => i18n.changeLanguage(lng)}
                 >
@@ -262,21 +262,21 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
             </Button>
           </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-2 sm:hidden">
+        <nav className="flex gap-1 overflow-x-auto border-t border-black/[0.05] px-4 py-2 sm:hidden">
           {NAV.map(renderNavLink)}
         </nav>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
-              {t('adminOnly')}
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-3xl">
+            <p className="text-[13px] font-medium text-apple-label">{t('adminOnly')}</p>
+            <h1 className="mt-2 text-[32px] font-semibold tracking-tightest text-apple-text sm:text-[40px] sm:leading-tight">
               {title}
             </h1>
-            {subtitle && <p className="mt-1 max-w-2xl text-sm text-slate-600">{subtitle}</p>}
+            {subtitle && (
+              <p className="mt-3 text-[17px] leading-relaxed text-apple-label">{subtitle}</p>
+            )}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </div>

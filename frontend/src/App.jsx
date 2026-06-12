@@ -11,39 +11,26 @@ import AdminLeave from './pages/AdminLeave.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
 import FinanceFieldOmset from './pages/FinanceFieldOmset.jsx';
 
-function PublicHeader({ showName = true, showLogo = true, monochrome = false }) {
+function PublicHeader({ showName = true, showLogo = true }) {
   const { t, i18n } = useTranslation();
-  const headerClass = monochrome
-    ? 'border-b border-slate-300/90 bg-white'
-    : 'border-b border-brand-100/80 bg-white/90 backdrop-blur-md';
-  const logoClass = monochrome
-    ? 'h-8 w-auto rounded-md border border-slate-300 bg-white p-0.5 grayscale'
-    : 'h-8 w-auto rounded-md border border-brand-100 bg-white p-0.5';
-  const groupClass = monochrome
-    ? 'flex rounded-lg border border-slate-300 bg-slate-100 p-0.5'
-    : 'flex rounded-lg border border-brand-100 bg-brand-50/60 p-0.5';
   return (
-    <header className={headerClass}>
+    <header className="border-b border-black/[0.08] bg-white/72 backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
+        <span className="flex items-center gap-3 text-[15px] font-semibold tracking-tight text-apple-text">
           {showLogo ? (
-            <img
-              src="/company-logo.png"
-              alt={t('appName')}
-              className={logoClass}
-            />
+            <img src="/company-logo.png" alt={t('appName')} className="h-8 w-auto rounded-lg" />
           ) : null}
           {showName ? t('appName') : null}
         </span>
-        <div className={groupClass} role="group" aria-label={t('language')}>
+        <div className="flex rounded-full bg-apple-fill p-0.5" role="group" aria-label={t('language')}>
           {['en', 'id'].map((lng) => (
             <button
               key={lng}
               type="button"
-              className={`rounded-md px-2.5 py-1 text-xs font-medium uppercase transition ${
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition ${
                 i18n.language?.startsWith(lng)
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white text-apple-text shadow-apple'
+                  : 'text-apple-muted hover:text-apple-text'
               }`}
               onClick={() => i18n.changeLanguage(lng)}
             >
@@ -74,13 +61,9 @@ export default function App() {
   }, [i18n.language, t]);
 
   return (
-    <div className="min-h-screen font-sans">
+    <div className="min-h-screen bg-apple-bg font-sans">
       {!isAdminRoute && (
-        <PublicHeader
-          showName={!isLoginRoute}
-          showLogo={!isLoginRoute}
-          monochrome={isLoginRoute}
-        />
+        <PublicHeader showName={!isLoginRoute} showLogo={!isLoginRoute} />
       )}
       <main>
         <Routes>
