@@ -43,7 +43,7 @@ export default {
   locating: 'Mencari lokasi…',
   locationRefresh: 'Perbarui lokasi',
   locationReady: 'GPS siap (±{{accuracy}} m)',
-  locationDistance: 'Sekitar {{distance}} m dari kantor (diizinkan hingga ~{{allowed}} m dengan buffer GPS)',
+  locationDistance: 'Sekitar {{distance}} m dari kantor',
   locationDistanceUnknown: 'Pin peta kantor belum ada — minta admin memperbaiki lokasi kantor.',
   locationHint: 'Izinkan lokasi untuk situs ini. Jika absen gagal, coba di luar ruangan atau aktifkan kerja jarak jauh.',
   noOfficesAvailable: 'Tidak ada kantor',
@@ -435,11 +435,12 @@ export default {
   assignedOffices: 'Lokasi kerja Anda',
   fieldOfficerOfficesLabel: 'Lokasi kerja (pilih semua lokasi yang dipakai petugas lapangan)',
   fieldOfficerOfficesRequired: 'Pilih minimal satu lokasi kerja untuk petugas lapangan.',
+  fieldOfficerPabriksLabel: 'Pabrik yang ditugaskan (pilih semua pabrik yang boleh dipakai petugas lapangan)',
+  fieldOfficerPabriksNone: 'Belum ada pabrik. Tambahkan pabrik di Operasi lapangan terlebih dahulu.',
   fieldOfficerMultiLocationHint:
     'Anda bisa absen masuk jika berada dalam radius salah satu lokasi yang ditetapkan.',
   locationNearest: 'terdekat',
-  locationDistanceMulti:
-    '{{distance}} m ke {{office}} (terdekat) — diizinkan {{allowed}} m di lokasi manapun',
+  locationDistanceMulti: '{{distance}} m ke {{office}} (terdekat)',
   noOfficeAssigned:
     'Belum ada kantor yang ditetapkan untuk akun Anda. Minta admin menetapkan kantor sebelum absen.',
   allowRemoteWork:
@@ -572,6 +573,8 @@ export default {
     PABRIK_ITEM_NOT_FOUND:
       'Tarif tonase untuk pabrik dan kode barang ini belum diatur. Hubungi admin.',
     PABRIK_NOT_FOUND: 'Kode pabrik tidak dikenal. Tambahkan pabrik di Operasi lapangan terlebih dahulu.',
+    PABRIK_NOT_ASSIGNED:
+      'Pabrik ini tidak ditugaskan ke akun Anda. Hubungi admin untuk memperbarui penugasan pabrik.',
     PABRIK_EXISTS: 'Kode pabrik ini sudah ada.',
     PABRIK_ITEM_EXISTS: 'Tarif pabrik dan kode barang ini sudah ada.',
     FIELD_CODE_ACCEPTED: 'Data pengiriman diterima untuk hari ini.',
@@ -583,7 +586,7 @@ export default {
     OFFICE_COORDS:
       'Kantor ini tidak punya koordinat peta. Minta admin membuat ulang kantor dari tautan Google Maps yang valid.',
     RADIUS:
-      'Anda sekitar {{distance}} m dari {{office}} (diizinkan ~{{allowed}} m). Tunggu sinyal GPS lebih baik, mendekat ke kantor, aktifkan kerja jarak jauh jika diizinkan, atau minta admin menyesuaikan pin atau radius kantor.',
+      'Anda sekitar {{distance}} m dari {{office}}. Tunggu sinyal GPS lebih baik, mendekat ke kantor, aktifkan kerja jarak jauh jika diizinkan, atau minta admin menyesuaikan pin atau radius kantor.',
     RADIUS_GENERIC:
       'Anda di luar radius kantor yang ditetapkan. Tunggu sinyal GPS lebih baik atau minta admin menyesuaikan pin peta atau radius kantor.',
     NO_OPEN: 'Tidak ada absen masuk hari ini.',

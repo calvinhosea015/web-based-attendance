@@ -133,6 +133,8 @@ const createUserValidators = [
   body('role').isIn(VALID_ROLES),
   body('office_ids').optional().isArray({ min: 1, max: 32 }),
   body('office_ids.*').optional().isInt({ min: 1 }),
+  body('pabrik_ids').optional().isArray({ min: 0, max: 64 }),
+  body('pabrik_ids.*').optional().isInt({ min: 1 }),
   body('office_id')
     .optional({ nullable: true })
     .custom((value, { req }) => {
@@ -183,6 +185,8 @@ const updateUserValidators = [
   body('office_id').optional({ values: 'null' }),
   body('office_ids').optional().isArray({ min: 1, max: 32 }),
   body('office_ids.*').optional().isInt({ min: 1 }),
+  body('pabrik_ids').optional().isArray({ min: 0, max: 64 }),
+  body('pabrik_ids.*').optional().isInt({ min: 1 }),
   body('full_name').optional({ values: 'null' }).isString(),
   body('remote_work_allowed').optional().isBoolean({ strict: true }),
   optionalDateBody('join_date'),

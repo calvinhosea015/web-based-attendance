@@ -638,6 +638,19 @@ async function migratePabrikCatalog() {
   }
 }
 
+async function migrateEmployeePabriks() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS employee_pabriks (
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      pabrik_id INTEGER NOT NULL REFERENCES pabriks(id) ON DELETE CASCADE,
+      PRIMARY KEY (employee_id, pabrik_id)
+    )
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_employee_pabriks_pabrik ON employee_pabriks(pabrik_id)`
+  );
+}
+
 async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
@@ -648,6 +661,7 @@ async function migrate() {
   await migrateFieldCheckoutTables();
   await migrateEmployeeOffices();
   await migratePabrikCatalog();
+  await migrateEmployeePabriks();
   await migrateLeaveFeatures();
   await normalizeEmployeeClockMode();
   await migratePayrollColumns();

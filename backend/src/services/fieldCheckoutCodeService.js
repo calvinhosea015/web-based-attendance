@@ -9,10 +9,31 @@ const {
 const { computeLineBonus, computeLineOmset } = require('../utils/fieldOfficerBonus');
 
 class FieldCheckoutCodeService {
-  constructor(fieldDeliveryRepository, pabrikItemRateRepository, fieldCodeEntryRepository = null) {
+  constructor(
+    fieldDeliveryRepository,
+    pabrikItemRateRepository,
+    fieldCodeEntryRepository = null,
+    employeePabrikRepository = null
+  ) {
     this.fieldDeliveryRepository = fieldDeliveryRepository;
     this.pabrikItemRateRepository = pabrikItemRateRepository;
     this.fieldCodeEntryRepository = fieldCodeEntryRepository;
+    this.employeePabrikRepository = employeePabrikRepository;
+  }
+
+  async assertPabrikAssigned(employeeId, pabrikCode) {
+    if (!employeeId || !this.employeePabrikRepository) return;
+    const assigned = await this.employeePabrikRepository.listPabrikCodesByEmployee(employeeId);
+    if (!assigned.length) return;
+    const code = String(pabrikCode).trim();
+    const allowed = assigned.some((c) => c.localeCompare(code, undefined, { sensitivity: 'accent' }) === 0);
+    if (!allowed) {
+      throw new AppError(
+        `Factory "${pabrikCode}" is not assigned to your account. Contact admin to update your factory assignments.`,
+        403,
+        'PABRIK_NOT_ASSIGNED'
+      );
+    }
   }
 
   async resolveLineBonus(parsed) {
@@ -59,6 +80,7 @@ class FieldCheckoutCodeService {
 
     for (const rawCode of codes) {
       const parsed = validateFieldCheckoutCode(rawCode);
+      await this.assertPabrikAssigned(auth.employeeId, parsed.pabrik_code);
       const { tonase_per_item, price_per_item, omset_amount, bonus_amount } =
         await this.resolveLineBonus(parsed);
       const saved = await this.fieldDeliveryRepository.createEntry({
@@ -144,6 +166,7 @@ class FieldCheckoutCodeService {
 
     if (checkoutCodeRaw) {
       const parsed = validateFieldCheckoutCode(checkoutCodeRaw);
+      await this.assertPabrikAssigned(auth.employeeId, parsed.pabrik_code);
       const { tonase_per_item, price_per_item, omset_amount, bonus_amount } =
         await this.resolveLineBonus(parsed);
       await this.fieldDeliveryRepository.createEntry({

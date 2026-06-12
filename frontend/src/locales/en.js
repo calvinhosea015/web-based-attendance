@@ -43,7 +43,7 @@ export default {
   locating: 'Locating…',
   locationRefresh: 'Refresh location',
   locationReady: 'GPS ready (±{{accuracy}} m)',
-  locationDistance: 'About {{distance}} m from office (allowed up to ~{{allowed}} m with GPS buffer)',
+  locationDistance: 'About {{distance}} m from office',
   locationDistanceUnknown: 'Office map pin is missing — ask admin to fix the office location.',
   locationHint: 'Allow location for this site. If check-in fails, move outdoors or enable remote work.',
   noOfficesAvailable: 'No offices available',
@@ -432,11 +432,12 @@ export default {
   assignedOffices: 'Your work locations',
   fieldOfficerOfficesLabel: 'Work locations (select all sites this field officer may use)',
   fieldOfficerOfficesRequired: 'Select at least one work location for the field officer.',
+  fieldOfficerPabriksLabel: 'Assigned factories (select all factories this field officer may deliver for)',
+  fieldOfficerPabriksNone: 'No factories configured yet. Add factories in Field operations first.',
   fieldOfficerMultiLocationHint:
     'You may check in when you are within range of any assigned location.',
   locationNearest: 'nearest',
-  locationDistanceMulti:
-    '{{distance}} m to {{office}} (nearest) — allowed {{allowed}} m at any assigned site',
+  locationDistanceMulti: '{{distance}} m to {{office}} (nearest)',
   noOfficeAssigned:
     'No office has been assigned to your account. Ask an admin to assign an office before you can check in.',
   allowRemoteWork: 'Allow remote work for this employee (skip radius when they check “remote work”)',
@@ -568,6 +569,8 @@ export default {
     PABRIK_ITEM_NOT_FOUND:
       'No tonase rate for this factory and item code. Contact admin.',
     PABRIK_NOT_FOUND: 'Unknown factory code. Add the factory in Field operations first.',
+    PABRIK_NOT_ASSIGNED:
+      'This factory is not assigned to your account. Contact admin to update your factory assignments.',
     PABRIK_EXISTS: 'This factory code already exists.',
     PABRIK_ITEM_EXISTS: 'This factory and item code rate already exists.',
     FIELD_CODE_ACCEPTED: 'Delivery data accepted for today.',
@@ -578,7 +581,7 @@ export default {
     OFFICE_COORDS:
       'This office has no map coordinates. Ask an admin to recreate the office from a valid Google Maps link.',
     RADIUS:
-      'You are about {{distance}} m from {{office}} (allowed ~{{allowed}} m). Wait for a better GPS fix, move closer, enable remote work if allowed, or ask an admin to adjust the office pin or radius.',
+      'You are about {{distance}} m from {{office}}. Wait for a better GPS fix, move closer, enable remote work if allowed, or ask an admin to adjust the office pin or radius.',
     RADIUS_GENERIC:
       'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or radius.',
     NO_OPEN: 'No check-in found for today.',

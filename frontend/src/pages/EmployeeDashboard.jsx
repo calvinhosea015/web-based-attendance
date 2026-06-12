@@ -736,7 +736,6 @@ export default function EmployeeDashboard() {
                       {isFieldOfficer && assignedOffices.length > 1
                         ? t('locationDistanceMulti', {
                             distance: distancePreview,
-                            allowed: Math.round(maxAllowedPreview),
                             office:
                               nearestOfficePreview?.office?.name ||
                               t('officeIdFallback', {
@@ -745,7 +744,6 @@ export default function EmployeeDashboard() {
                           })
                         : t('locationDistance', {
                             distance: distancePreview,
-                            allowed: Math.round(maxAllowedPreview),
                           })}
                     </p>
                   ) : (

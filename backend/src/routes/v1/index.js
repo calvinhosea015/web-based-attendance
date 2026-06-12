@@ -30,6 +30,7 @@ const { FieldDeliveryRepository } = require('../../repositories/fieldDeliveryRep
 const { PabrikItemRateRepository } = require('../../repositories/pabrikItemRateRepository');
 const { PabrikRepository } = require('../../repositories/pabrikRepository');
 const { EmployeeOfficeRepository } = require('../../repositories/employeeOfficeRepository');
+const { EmployeePabrikRepository } = require('../../repositories/employeePabrikRepository');
 const { FieldCheckoutCodeService } = require('../../services/fieldCheckoutCodeService');
 const { PabrikItemRateService } = require('../../services/pabrikItemRateService');
 const { PabrikService } = require('../../services/pabrikService');
@@ -59,6 +60,7 @@ function buildV1Router() {
   const pabrikItemRateRepository = new PabrikItemRateRepository();
   const pabrikRepository = new PabrikRepository();
   const employeeOfficeRepository = new EmployeeOfficeRepository();
+  const employeePabrikRepository = new EmployeePabrikRepository();
   const payrollRepository = new PayrollRepository();
   const refreshTokenRepository = new RefreshTokenRepository();
   const auditLogRepository = new AuditLogRepository();
@@ -73,7 +75,8 @@ function buildV1Router() {
   const fieldCheckoutCodeService = new FieldCheckoutCodeService(
     fieldDeliveryRepository,
     pabrikItemRateRepository,
-    fieldCodeEntryRepository
+    fieldCodeEntryRepository,
+    employeePabrikRepository
   );
   const pabrikItemRateService = new PabrikItemRateService(
     pabrikItemRateRepository,
@@ -88,7 +91,12 @@ function buildV1Router() {
     fieldCheckoutCodeService,
     employeeOfficeRepository
   );
-  const userService = new UserService(userRepository, employeeRepository, employeeOfficeRepository);
+  const userService = new UserService(
+    userRepository,
+    employeeRepository,
+    employeeOfficeRepository,
+    employeePabrikRepository
+  );
   const dashboardService = new DashboardService(
     attendanceRepository,
     employeeRepository,

@@ -65,6 +65,7 @@ export default function AdminDashboard() {
     role: 'employee',
     office_id: '',
     office_ids: [],
+    pabrik_ids: [],
     full_name: '',
     remote_work_allowed: true,
     join_date: '',
@@ -223,6 +224,9 @@ export default function AdminDashboard() {
       if (usesMultipleOfficesRole(newUser.role)) {
         payload.office_ids = fieldOfficeIds;
         payload.office_id = fieldOfficeIds[0];
+        payload.pabrik_ids = (newUser.pabrik_ids || [])
+          .map((id) => Number(id))
+          .filter((n) => Number.isFinite(n) && n >= 1);
       } else if (officeOk) {
         payload.office_id = parsedOffice;
       }
@@ -250,6 +254,7 @@ export default function AdminDashboard() {
         role: 'employee',
         office_id: offices.length ? String(offices[0].id) : '',
         office_ids: [],
+        pabrik_ids: [],
         full_name: '',
         remote_work_allowed: true,
         join_date: '',
@@ -286,6 +291,7 @@ export default function AdminDashboard() {
         : user.office_id != null
           ? [String(user.office_id)]
           : [],
+      pabrik_ids: Array.isArray(user.pabrik_ids) ? user.pabrik_ids.map(String) : [],
       full_name: user.full_name || '',
       remote_work_allowed: user.remote_work_allowed !== false,
       join_date: toDateInputValue(user.join_date),
@@ -330,6 +336,9 @@ export default function AdminDashboard() {
           }
           body.office_ids = ids;
           body.office_id = ids[0];
+          body.pabrik_ids = (editingUser.pabrik_ids || [])
+            .map((id) => Number(id))
+            .filter((n) => Number.isFinite(n) && n >= 1);
         } else if (!editingUser.office_id) {
           setMessage(t('officeRequiredEmployee'));
           return;
@@ -672,7 +681,43 @@ export default function AdminDashboard() {
                     <p className="text-xs text-slate-500">{t('noOfficesAvailable')}</p>
                   )}
                 </div>
-              ) : (
+              ) : null)}
+            {usesMultipleOfficesRole(newUser.role) && (
+              <div className="rounded-lg border border-slate-200 bg-apple-fill p-3">
+                <p className="mb-2 text-xs font-medium text-slate-600">{t('fieldOfficerPabriksLabel')}</p>
+                {pabriks.length ? (
+                  <div className="max-h-40 space-y-1.5 overflow-y-auto">
+                    {pabriks.map((pabrik) => {
+                      const idStr = String(pabrik.id);
+                      const checked = (newUser.pabrik_ids || []).includes(idStr);
+                      return (
+                        <label
+                          key={pabrik.id}
+                          className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setNewUser((prev) => {
+                                const set = new Set(prev.pabrik_ids || []);
+                                if (set.has(idStr)) set.delete(idStr);
+                                else set.add(idStr);
+                                return { ...prev, pabrik_ids: [...set] };
+                              });
+                            }}
+                          />
+                          {pabrik.pabrik_code} — {pabrik.nama_pabrik}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">{t('fieldOfficerPabriksNone')}</p>
+                )}
+              </div>
+            )}
+            {!isHeadOfFinanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role) && (
                 <select
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   value={newUser.office_id}
@@ -688,7 +733,7 @@ export default function AdminDashboard() {
                     <option value="">{t('noOfficesAvailable')}</option>
                   )}
                 </select>
-              ))}
+              )}
             <button
               type="submit"
               className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-500"
@@ -830,6 +875,43 @@ export default function AdminDashboard() {
                           ))}
                         </select>
                       ))}
+                    {usesMultipleOfficesRole(editingUser.role) && (
+                      <div className="rounded-md border border-slate-200 bg-apple-fill p-2">
+                        <p className="mb-1 text-[10px] font-medium uppercase text-slate-500">
+                          {t('fieldOfficerPabriksLabel')}
+                        </p>
+                        {pabriks.length ? (
+                          <div className="max-h-32 space-y-1 overflow-y-auto">
+                            {pabriks.map((pabrik) => {
+                              const idStr = String(pabrik.id);
+                              const checked = (editingUser.pabrik_ids || []).includes(idStr);
+                              return (
+                                <label
+                                  key={pabrik.id}
+                                  className="flex cursor-pointer items-center gap-2 text-xs text-slate-800"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setEditingUser((prev) => {
+                                        const set = new Set(prev.pabrik_ids || []);
+                                        if (set.has(idStr)) set.delete(idStr);
+                                        else set.add(idStr);
+                                        return { ...prev, pabrik_ids: [...set] };
+                                      });
+                                    }}
+                                  />
+                                  {pabrik.pabrik_code} — {pabrik.nama_pabrik}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">{t('fieldOfficerPabriksNone')}</p>
+                        )}
+                      </div>
+                    )}
                     {isAttendanceRole(editingUser.role) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700">
                         <input
