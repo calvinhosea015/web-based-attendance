@@ -136,10 +136,10 @@ export default function AdminLoans() {
                   <th className="px-4 py-3 text-right">{t('loanActions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-black/[0.04]">
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-12 text-center text-apple-label">
                       {loading ? t('loading') : t('loanNoRequests')}
                     </td>
                   </tr>
@@ -147,10 +147,10 @@ export default function AdminLoans() {
                 {rows.map((row) => (
                   <tr key={row.id} className="hover:bg-apple-highlight">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{row.full_name}</div>
-                      <div className="text-xs text-slate-500">{row.employee_code}</div>
+                      <div className="font-medium text-apple-text">{row.full_name}</div>
+                      <div className="text-xs text-apple-label">{row.employee_code}</div>
                       {row.notes && (
-                        <p className="mt-1 text-xs text-slate-500">{row.notes}</p>
+                        <p className="mt-1 text-xs text-apple-label">{row.notes}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums font-medium">
@@ -159,7 +159,7 @@ export default function AdminLoans() {
                     <td className="px-4 py-3 text-right tabular-nums">
                       Rp {formatIdr(row.monthly_deduction)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">
+                    <td className="px-4 py-3 text-right tabular-nums text-apple-label">
                       {estimateMonths(row.loan_amount, row.monthly_deduction)}
                     </td>
                     <td className="px-4 py-3">
@@ -167,7 +167,7 @@ export default function AdminLoans() {
                         {t(`loanStatus_${row.approval_status}`)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
+                    <td className="px-4 py-3 text-xs text-apple-label">
                       {formatDisplayDateTime(row.created_at)}
                     </td>
                     <td className="px-4 py-3">
@@ -191,7 +191,7 @@ export default function AdminLoans() {
                           </Button>
                         </div>
                       ) : (
-                        <span className="block text-right text-xs text-slate-400">
+                        <span className="block text-right text-xs text-apple-muted">
                           {row.decided_at
                             ? formatDisplayDateTime(row.decided_at)
                             : t('emDash')}

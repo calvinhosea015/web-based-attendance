@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Badge, Button, Card, Field, inputClass } from '../components/ui.jsx';
+import { Alert, Badge, Button, Card, Field, PageHero, inputClass, panelClass } from '../components/ui.jsx';
 import LoanProgress from '../components/LoanProgress.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
@@ -12,7 +12,6 @@ import {
   ROLE_EMPLOYEE,
   ROLE_FIELD_OFFICER,
   isAccountingRole,
-  isUmumOrGeneralAffairsRole,
 } from '../roles.js';
 import {
   isFieldCheckoutFormatValid,
@@ -445,17 +444,18 @@ export default function EmployeeDashboard() {
   const canRemote = summary?.remote_work_allowed !== false;
   const canClockIn = assignedOffices.some((o) => o?.id);
   const isFieldOfficer = summary?.field_officer_mode === true;
-  const isFlexibleMonthly =
-    summary?.flexible_monthly_mode === true || isUmumOrGeneralAffairsRole(summary?.role);
+  const isUmum = summary?.umum_mode === true;
   const isOnceDailyInOut = summary?.once_daily_in_out_mode === true;
   const isAccounting =
     summary?.accounting_mode === true || isAccountingRole(summary?.role);
   const isStaffKantor = summary?.role === ROLE_EMPLOYEE;
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
-  const shiftLabel = isFieldOfficer || isFlexibleMonthly
+  const shiftLabel = isFieldOfficer
     ? t('fieldFlexibleSchedule')
-    : isAccounting && shift?.start_time && shift?.end_time
+    : isUmum
+      ? t('umumFlexibleSchedule')
+      : isAccounting && shift?.start_time && shift?.end_time
         ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
         : shift?.start_time && shift?.end_time
           ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
@@ -471,11 +471,11 @@ export default function EmployeeDashboard() {
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
   const scheduleHint = isFieldOfficer
     ? t('fieldOnceInOnceOut')
-    : isFlexibleMonthly
-      ? t('umumGeneralAffairsOnceInOut')
-      : isAccounting
-        ? t('accountingScheduleHint')
-        : t('onceInOnceOut');
+    : isUmum
+      ? t('umumOncePerDay')
+        : isAccounting
+          ? t('accountingScheduleHint')
+          : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
   const baseRadius = summary?.check_in_radius_meters ?? 500;
@@ -508,10 +508,10 @@ export default function EmployeeDashboard() {
             <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
               {translateRole(localStorage.getItem('role'))}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-apple-text">
               {t('payrollEmployeeTitle')}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">{t('headOfFinanceNoAttendance')}</p>
+            <p className="mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -535,17 +535,17 @@ export default function EmployeeDashboard() {
               {payroll.map((row) => (
                 <li
                   key={row.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 shadow-sm"
+                  className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-apple-text">
                       {payrollCycleLabel(row.payroll_period)}
                     </span>
                     <span className="font-semibold text-brand-700">
                       Rp {formatIdr(row.final_salary)}
                     </span>
                   </div>
-                  <div className="mt-2 grid gap-1 text-xs text-slate-600 sm:grid-cols-2">
+                  <div className="mt-2 grid gap-1 text-xs text-apple-label sm:grid-cols-2">
                     <div>
                       {t('payrollBasicSalary')}: Rp {formatIdr(row.basic_salary)}
                     </div>
@@ -559,7 +559,7 @@ export default function EmployeeDashboard() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-600">{t('payrollEmployeeEmpty')}</p>
+            <p className="text-sm text-apple-label">{t('payrollEmployeeEmpty')}</p>
           )}
         </Card>
       </div>
@@ -567,24 +567,21 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
-            {translateRole(localStorage.getItem('role'))}
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-            {t('employeeDashboard')}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {summary?.employee?.full_name}
-            {summary?.employee?.employee_id ? ` · ${summary.employee.employee_id}` : ''}
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          {t('logout')}
-        </Button>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-8 px-4 py-10 sm:px-6 sm:py-12">
+      <PageHero
+        eyebrow={translateRole(localStorage.getItem('role'))}
+        title={t('employeeDashboard')}
+        subtitle={
+          summary?.employee?.full_name
+            ? `${summary.employee.full_name}${summary?.employee?.employee_id ? ` · ${summary.employee.employee_id}` : ''}`
+            : undefined
+        }
+        action={
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            {t('logout')}
+          </Button>
+        }
+      />
 
       {message && (
         <Alert
@@ -600,21 +597,21 @@ export default function EmployeeDashboard() {
         </Alert>
       )}
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('todayStatus')}</h2>
-          <div className="mt-2 text-2xl font-semibold text-slate-900">
+      <section className="grid gap-6 md:grid-cols-3">
+        <div className={`${panelClass} p-6 md:col-span-2`}>
+          <h2 className="text-[13px] font-medium text-apple-label">{t('todayStatus')}</h2>
+          <div className="apple-metric mt-2">
             {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            {isOnceDailyInOut || isAccounting
+          <p className="mt-1 text-xs text-apple-label">
+            {isOnceDailyInOut || isUmum || isAccounting
               ? shiftLabel
               : `${t('expectedShift')}: ${shiftLabel}`}
-            {!isOnceDailyInOut && !isAccounting && shift?.shift_name
+            {!isOnceDailyInOut && !isUmum && !isAccounting && shift?.shift_name
               ? ` · ${shift.shift_name}`
               : ''}
           </p>
-          <p className="mt-1 text-xs font-medium text-slate-600">{scheduleHint}</p>
+          <p className="mt-1 text-xs font-medium text-apple-label">{scheduleHint}</p>
           {isFieldOfficer && summary?.has_checkout_code_today === false && (
             <p className="mt-1 text-xs text-amber-700">
               {t('fieldCodeRequiredToday')}
@@ -623,11 +620,11 @@ export default function EmployeeDashboard() {
           {isFieldOfficer && summary?.has_checkout_code_today === true && (
             <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
           )}
-          <div className="mt-3 space-y-2 text-sm text-slate-600">
+          <div className="mt-3 space-y-2 text-sm text-apple-label">
             {isOnceDailyInOut && sessionsToday.length > 0 ? (
               sessionsToday.map((seg, idx) => (
-                <div key={seg.id || idx} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
-                  <div className="font-medium text-slate-800">{t('sessionN', { n: idx + 1 })}</div>
+                <div key={seg.id || idx} className="apple-inset-panel">
+                  <div className="font-medium text-apple-text">{t('sessionN', { n: idx + 1 })}</div>
                   <div>
                     {t('checkIn')}: {seg.check_in ? formatDisplayDateTime(seg.check_in) : t('emDash')}
                   </div>
@@ -649,27 +646,31 @@ export default function EmployeeDashboard() {
                 <div>
                   {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
                 </div>
-                <div>
-                  {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
-                </div>
-                <div>
-                  {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
-                </div>
+                {!isUmum && (
+                  <>
+                    <div>
+                      {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
+                    </div>
+                    <div>
+                      {t('workHours')}: {today?.work_hours != null ? today.work_hours : t('emDash')}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('weekHours')}</h2>
-          <div className="mt-2 text-3xl font-semibold text-slate-900">{summary?.weekWorkHours ?? 0}</div>
+        <div className={`${panelClass} p-6`}>
+          <h2 className="text-[13px] font-medium text-apple-label">{t('weekHours')}</h2>
+          <div className="apple-metric mt-2">{summary?.weekWorkHours ?? 0}</div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('clockActions')}</h2>
+      <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
+        <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('clockActions')}</h2>
         <div className="mt-4 space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-apple-label">
               {isFieldOfficer
                 ? t('fieldOfficerAssignedLocations')
                 : assignedOffices.length > 1
@@ -677,12 +678,12 @@ export default function EmployeeDashboard() {
                   : t('assignedOffice')}
             </label>
             {assignedOffices.length ? (
-              <ul className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              <ul className="space-y-1.5 rounded-lg border border-black/[0.06] bg-apple-fill px-3 py-2 text-sm text-apple-text">
                 {assignedOffices.map((o) => (
                   <li key={o.id}>
                     {o.name || t('officeIdFallback', { id: o.id })}
                     {nearestOfficePreview?.office?.id === o.id && distancePreview != null ? (
-                      <span className="ml-1 text-xs text-slate-500">
+                      <span className="ml-1 text-xs text-apple-label">
                         ({t('locationNearest')})
                       </span>
                     ) : null}
@@ -693,13 +694,13 @@ export default function EmployeeDashboard() {
               <div className="text-sm text-amber-800">{t('noOfficeAssigned')}</div>
             )}
             {isFieldOfficer && assignedOffices.length > 1 ? (
-              <p className="mt-1 text-xs text-slate-500">{t('fieldOfficerMultiLocationHint')}</p>
+              <p className="mt-1 text-xs text-apple-label">{t('fieldOfficerMultiLocationHint')}</p>
             ) : null}
           </div>
           {assignedOffices.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-700">
+            <div className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-3 text-sm text-apple-text">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-medium uppercase tracking-wide text-apple-label">
                   {t('currentLocation')}
                 </span>
                 <button
@@ -748,16 +749,16 @@ export default function EmployeeDashboard() {
                   {geoPreviewLoading ? t('locating') : t('geoUnavailable')}
                 </p>
               )}
-              <p className="mt-2 text-xs text-slate-500">{t('locationHint')}</p>
+              <p className="mt-2 text-xs text-apple-label">{t('locationHint')}</p>
             </div>
           )}
           {nextAction === 'check_in' && canRemote ? (
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-apple-text">
               <input type="checkbox" checked={remoteWork} onChange={(e) => setRemoteWork(e.target.checked)} />
               {t('remoteWorkDay')}
             </label>
           ) : nextAction === 'check_in' ? (
-            <p className="text-xs text-slate-500">{t('remoteWorkDisabledByAdmin')}</p>
+            <p className="text-xs text-apple-label">{t('remoteWorkDisabledByAdmin')}</p>
           ) : null}
           {isFieldOfficer && (
             <Field
@@ -787,8 +788,8 @@ export default function EmployeeDashboard() {
                 {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
               </Button>
               {todayDeliveries.entries.length > 0 && (
-                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs">
-                  <p className="font-medium text-slate-800">
+                <div className="mt-3 rounded-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
+                  <p className="font-medium text-apple-text">
                     {t('fieldDeliveryTodayTotal', {
                       count: todayDeliveries.entries.length,
                       bonus: formatIdr(todayDeliveries.today_bonus_total),
@@ -796,9 +797,9 @@ export default function EmployeeDashboard() {
                   </p>
                   <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
                     {todayDeliveries.entries.map((entry) => (
-                      <li key={entry.id} className="border-t border-slate-100 pt-2 font-mono">
-                        <div className="break-all text-slate-700">{entry.checkout_code}</div>
-                        <div className="mt-0.5 text-slate-500">
+                      <li key={entry.id} className="border-t border-black/[0.04] pt-2 font-mono">
+                        <div className="break-all text-apple-text">{entry.checkout_code}</div>
+                        <div className="mt-0.5 text-apple-label">
                           {t('fieldDeliveryLineBonus', {
                             selisih: entry.selisih,
                             bonus: formatIdr(entry.bonus_amount),
@@ -849,35 +850,36 @@ export default function EmployeeDashboard() {
               return (
                 <li
                   key={row.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 shadow-sm"
+                  className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-apple-text">
                       {payrollCycleLabel(row.payroll_period)}
                     </span>
                     <span className="font-semibold text-brand-700">
                       Rp {formatIdr(row.final_salary)}
                     </span>
                   </div>
-                  <dl className="mt-3 grid gap-1 text-slate-600 sm:grid-cols-2">
+                  <dl className="mt-3 grid gap-1 text-apple-label sm:grid-cols-2">
                     <div>
-                      <dt className="text-xs uppercase tracking-wide text-slate-500">
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
                         {t('payrollDaysAttended')}
                       </dt>
-                      <dd className="font-medium text-slate-800">{row.days_attended ?? 0}</dd>
+                      <dd className="font-medium text-apple-text">{row.days_attended ?? 0}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs uppercase tracking-wide text-slate-500">
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
                         {t('payrollBasicSalary')}
                       </dt>
-                      <dd className="font-medium text-slate-800">Rp {formatIdr(row.basic_salary)}</dd>
+                      <dd className="font-medium text-apple-text">Rp {formatIdr(row.basic_salary)}</dd>
                     </div>
                     {(row.payroll_mode === 'monthly' ||
+                      row.payroll_mode === 'umum' ||
                       row.payroll_mode === 'general_affairs' ||
                       row.payroll_mode === 'accounting') &&
                       Number(row.absence_deduction || 0) > 0 && (
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        <dt className="text-xs uppercase tracking-wide text-apple-label">
                           {t('payrollAbsenceDeduction')}
                         </dt>
                         <dd className="font-medium text-rose-700">
@@ -887,7 +889,7 @@ export default function EmployeeDashboard() {
                     )}
                     {loanDeduction > 0 && (
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        <dt className="text-xs uppercase tracking-wide text-apple-label">
                           {t('payrollLoanDeduction')}
                         </dt>
                         <dd className="font-medium text-rose-700">Rp {formatIdr(loanDeduction)}</dd>
@@ -895,7 +897,7 @@ export default function EmployeeDashboard() {
                     )}
                     {pph21 > 0 && (
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        <dt className="text-xs uppercase tracking-wide text-apple-label">
                           {t('payrollPph21')}
                         </dt>
                         <dd className="font-medium text-rose-700">Rp {formatIdr(pph21)}</dd>
@@ -903,26 +905,26 @@ export default function EmployeeDashboard() {
                     )}
                     {otherDeductions > 0 && (
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        <dt className="text-xs uppercase tracking-wide text-apple-label">
                           {t('payrollOtherDeductions')}
                         </dt>
-                        <dd className="font-medium text-slate-800">Rp {formatIdr(otherDeductions)}</dd>
+                        <dd className="font-medium text-apple-text">Rp {formatIdr(otherDeductions)}</dd>
                       </div>
                     )}
                     {deductions > 0 && loanDeduction > 0 && otherDeductions > 0 && (
                       <div className="sm:col-span-2">
-                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        <dt className="text-xs uppercase tracking-wide text-apple-label">
                           {t('payrollDeductions')}
                         </dt>
-                        <dd className="font-medium text-slate-800">Rp {formatIdr(deductions)}</dd>
+                        <dd className="font-medium text-apple-text">Rp {formatIdr(deductions)}</dd>
                       </div>
                     )}
                     {row.keterangan ? (
                       <div className="sm:col-span-2">
-                        <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        <dt className="text-xs uppercase tracking-wide text-apple-label">
                           {t('payrollKeterangan')}
                         </dt>
-                        <dd className="font-medium text-slate-800">{row.keterangan}</dd>
+                        <dd className="font-medium text-apple-text">{row.keterangan}</dd>
                       </div>
                     ) : null}
                   </dl>
@@ -931,7 +933,7 @@ export default function EmployeeDashboard() {
             })}
           </ul>
         ) : (
-          <p className="text-sm text-slate-600">{t('payrollEmployeeEmpty')}</p>
+          <p className="text-sm text-apple-label">{t('payrollEmployeeEmpty')}</p>
         )}
       </Card>
 
@@ -942,15 +944,15 @@ export default function EmployeeDashboard() {
               {leaveBalances.map((b) => (
                 <div
                   key={b.leave_type}
-                  className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm"
+                  className="rounded-xl border border-black/[0.06] bg-apple-fill/60 px-4 py-3 text-sm"
                 >
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-apple-label">
                     {t(`leaveType_${b.leave_type}`)}
                   </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                  <p className="mt-1 text-[22px] font-semibold tracking-tightest text-apple-text">
                     {b.remaining_days} / {b.quota_days} {t('leaveDaysUnit')}
                   </p>
-                  <p className="text-xs text-slate-500">{t('leaveBalanceRemaining')}</p>
+                  <p className="text-xs text-apple-label">{t('leaveBalanceRemaining')}</p>
                 </div>
               ))}
             </div>
@@ -1023,18 +1025,18 @@ export default function EmployeeDashboard() {
             </div>
           </form>
           {leaveRequests.length > 0 && (
-            <ul className="mt-6 space-y-4 border-t border-slate-100 pt-6">
+            <ul className="mt-6 space-y-4 border-t border-black/[0.04] pt-6">
               {leaveRequests.map((req) => (
                 <li
                   key={req.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 text-sm shadow-sm"
+                  className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-semibold text-apple-text">
                         {t(`leaveType_${req.leave_type}`)}
                       </span>
-                      <span className="ml-2 text-slate-500">
+                      <span className="ml-2 text-apple-label">
                         {formatDateRange(req.start_date, req.end_date)} · {req.days_count}{' '}
                         {t('leaveDaysUnit')}
                       </span>
@@ -1051,19 +1053,19 @@ export default function EmployeeDashboard() {
                       {t(`leaveStatus_${req.approval_status}`)}
                     </Badge>
                   </div>
-                  {req.reason && <p className="mt-1 text-xs text-slate-500">{req.reason}</p>}
+                  {req.reason && <p className="mt-1 text-xs text-apple-label">{req.reason}</p>}
                   {req.approval_status === 'approved' && (
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-apple-label">
                       {t('leavePayStatus')}: {req.is_paid ? t('leavePaid') : t('leaveUnpaid')}
                     </p>
                   )}
                   {req.approval_status === 'pending' && req.leave_type === 'medical' && (
-                    <p className="mt-1 text-xs text-slate-500">{t('leaveMedicalPaidHint')}</p>
+                    <p className="mt-1 text-xs text-apple-label">{t('leaveMedicalPaidHint')}</p>
                   )}
                   {req.approval_status === 'pending' && req.leave_type === 'unpaid' && (
-                    <p className="mt-1 text-xs text-slate-500">{t('leaveUnpaidHint')}</p>
+                    <p className="mt-1 text-xs text-apple-label">{t('leaveUnpaidHint')}</p>
                   )}
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-apple-label">
                     {t('leaveSubmittedAt')}: {formatDisplayDateTime(req.created_at)}
                   </p>
                   {req.attachment_path && (
@@ -1119,18 +1121,18 @@ export default function EmployeeDashboard() {
           </div>
         </form>
         {loans.length > 0 && (
-          <ul className="mt-6 space-y-4 border-t border-slate-100 pt-6">
+          <ul className="mt-6 space-y-4 border-t border-black/[0.04] pt-6">
             {loans.map((loan) => (
               <li
                 key={loan.id}
-                className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4 text-sm shadow-sm"
+                className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm shadow-sm"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-apple-text">
                       Rp {Number(loan.loan_amount).toLocaleString('id-ID')}
                     </span>
-                    <span className="ml-2 text-slate-500">
+                    <span className="ml-2 text-apple-label">
                       · Rp {Number(loan.monthly_deduction).toLocaleString('id-ID')}/{t('loanPerMonth')}
                     </span>
                   </div>
@@ -1150,7 +1152,7 @@ export default function EmployeeDashboard() {
                       : t(`loanStatus_${loan.approval_status}`)}
                   </Badge>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-apple-label">
                   {t('loanSubmittedAt')}: {formatDisplayDateTime(loan.created_at)}
                   {loan.decided_at && (
                     <>
@@ -1167,9 +1169,9 @@ export default function EmployeeDashboard() {
       </Card>
 
       {isStaffKantor && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">{t('fieldDeliveryTitle')}</h2>
-          <p className="mt-1 text-sm text-slate-600">{t('fieldDeliveryHint')}</p>
+        <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
+          <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('fieldDeliveryTitle')}</h2>
+          <p className="mt-1 text-sm text-apple-label">{t('fieldDeliveryHint')}</p>
           {fieldDeliveries.length ? (
             <ul className="mt-4 space-y-4 text-sm">
               {fieldDeliveries.map((row) => {
@@ -1177,27 +1179,27 @@ export default function EmployeeDashboard() {
                 return (
                   <li
                     key={row.id}
-                    className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-3"
+                    className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
                   >
-                    <div className="font-medium text-slate-900">
+                    <div className="font-medium text-apple-text">
                       {row.full_name}
                       {row.employee_code ? ` · ${row.employee_code}` : ''}
                     </div>
-                    <div className="mt-1 text-slate-600">
+                    <div className="mt-1 text-apple-label">
                       {t('checkOut')}:{' '}
                       {row.check_out ? formatDisplayDateTime(row.check_out) : t('emDash')}
                     </div>
-                    <p className="mt-2 font-mono text-xs text-slate-800 break-all">
+                    <p className="mt-2 font-mono text-xs text-apple-text break-all">
                       {row.checkout_code}
                     </p>
                     {parsed ? (
                       <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
                         {Object.entries(parsed).map(([key, value]) => (
                           <div key={key}>
-                            <dt className="text-xs uppercase tracking-wide text-slate-500">
+                            <dt className="text-xs uppercase tracking-wide text-apple-label">
                               {t(`fieldDelivery_${key}`, key)}
                             </dt>
-                            <dd className="font-medium text-slate-800">{value}</dd>
+                            <dd className="font-medium text-apple-text">{value}</dd>
                           </div>
                         ))}
                       </dl>
@@ -1207,32 +1209,34 @@ export default function EmployeeDashboard() {
               })}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">{t('fieldDeliveryEmpty')}</p>
+            <p className="mt-3 text-sm text-apple-label">{t('fieldDeliveryEmpty')}</p>
           )}
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('history')}</h2>
+      <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
+        <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('history')}</h2>
         {history.length ? (
           <ul className="mt-3 space-y-3 text-sm">
             {history.map((item) => (
-              <li key={item.id} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
-                <div className="font-medium text-slate-900">{item.office_name}</div>
-                <div className="text-slate-600">
+              <li key={item.id} className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-2">
+                <div className="font-medium text-apple-text">{item.office_name}</div>
+                <div className="text-apple-label">
                   {t('status')}: {translateAttendanceStatus(item.attendance_status)}
                 </div>
-                <div className="text-slate-600">
+                <div className="text-apple-label">
                   {t('checkIn')}: {item.check_in ? formatDisplayDateTime(item.check_in) : ''}
                 </div>
-                <div className="text-slate-600">
-                  {t('checkOut')}: {item.check_out ? formatDisplayDateTime(item.check_out) : t('notCheckedOut')}
-                </div>
+                {!isUmum && (
+                  <div className="text-apple-label">
+                    {t('checkOut')}: {item.check_out ? formatDisplayDateTime(item.check_out) : t('notCheckedOut')}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-slate-600">{t('noHistory')}</p>
+          <p className="mt-2 text-sm text-apple-label">{t('noHistory')}</p>
         )}
       </section>
     </div>

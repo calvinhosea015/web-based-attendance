@@ -409,10 +409,6 @@ export default {
   generalAffairsAbsenceHint:
     'Potongan absen = gaji bulanan ÷ hari kerja wajib × jumlah hari tidak hadir.',
   generalAffairsOnceInOut: 'Satu absen masuk dan satu absen keluar per hari.',
-  umumGeneralAffairsBasicSalary: 'Gaji bulanan (Rp)',
-  umumGeneralAffairsAbsenceHint:
-    'Potongan absen = gaji bulanan ÷ hari kerja wajib × jumlah hari tidak hadir.',
-  umumGeneralAffairsOnceInOut: 'Satu absen masuk dan satu absen keluar per hari.',
   accountingWorkStart: 'Jam mulai kerja (kustom)',
   accountingWorkEnd: 'Jam selesai kerja (kustom)',
   accountingBasicSalary: 'Gaji bulanan (Rp)',
@@ -461,6 +457,9 @@ export default {
   onceInOnceOut: 'Satu absen masuk dan satu absen keluar per hari.',
   umumOncePerDay: 'Satu absen masuk per hari (tanpa absen keluar).',
   umumFlexibleSchedule: 'Jam fleksibel (hanya absen masuk)',
+  umumBasicSalary: 'Gaji bulanan (Rp)',
+  umumAbsenceHint:
+    'Payroll: gaji bulanan dikurangi potongan absen (gaji ÷ hari kerja × hari absen).',
   fieldFlexibleSchedule: 'Jam fleksibel (tanpa jadwal tetap)',
   fieldOnceInOnceOut:
     'Satu absen masuk per hari, lalu absen keluar dengan data pengiriman (9 field dengan *).',

@@ -172,6 +172,7 @@ function slipAmounts(row) {
   });
   const monthlyStaff =
     row.payroll_mode === 'monthly' ||
+    row.payroll_mode === 'umum' ||
     row.payroll_mode === 'general_affairs' ||
     row.payroll_mode === 'accounting';
   const monthlyGross =
@@ -232,7 +233,7 @@ function jabatanLabel(row) {
     employee: 'Staff Kantor',
     umum: 'Umum',
     accounting: 'Accounting',
-    general_affairs: 'General Affairs',
+    general_affairs: 'Umum',
     head_of_finance: 'Head of Finance',
   };
   if (byRole[role]) return byRole[role];

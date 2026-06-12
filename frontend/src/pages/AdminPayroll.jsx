@@ -16,6 +16,7 @@ import {
 } from '../components/ui.jsx';
 import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
+import { isMonthlyPayrollMode } from '../roles.js';
 import {
   currentPayrollPeriodKey,
   payrollCycleLabel,
@@ -210,8 +211,7 @@ export default function AdminPayroll() {
 
   const openEdit = (row) => {
     const mode = row.payroll_mode || 'daily';
-    const isMonthlyMode =
-      mode === 'monthly' || mode === 'general_affairs' || mode === 'accounting';
+    const isMonthlyMode = isMonthlyPayrollMode(mode);
     const monthlyGross =
       row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary ?? 0;
     const expectedDefault =
@@ -269,10 +269,7 @@ export default function AdminPayroll() {
       await ensureCsrf();
       const payload = { ...editForm };
       delete payload.payroll_mode;
-      const isMonthlyMode =
-        editForm.payroll_mode === 'monthly' ||
-        editForm.payroll_mode === 'general_affairs' ||
-        editForm.payroll_mode === 'accounting';
+      const isMonthlyMode = isMonthlyPayrollMode(editForm.payroll_mode);
       if (isMonthlyMode || editForm.payroll_mode === 'manual') {
         delete payload.upah_harian;
       }
@@ -308,10 +305,7 @@ export default function AdminPayroll() {
 
   const editingRow = rows.find((r) => r.employee_id === editingId);
   const editIsManual = editForm?.payroll_mode === 'manual';
-  const editIsMonthly =
-    editForm?.payroll_mode === 'monthly' ||
-    editForm?.payroll_mode === 'general_affairs' ||
-    editForm?.payroll_mode === 'accounting';
+  const editIsMonthly = isMonthlyPayrollMode(editForm?.payroll_mode);
   const editIsFieldOfficer = editingRow?.user_role === 'field_officer';
   const editShowsExpectedDays = editIsMonthly || editIsFieldOfficer;
 
@@ -352,13 +346,13 @@ export default function AdminPayroll() {
           </Alert>
         )}
 
-        <p className="text-xs text-slate-500">{t('deployUiStaleHint')}</p>
+        <p className="text-xs text-apple-label">{t('deployUiStaleHint')}</p>
 
         {payrollHolidays.length > 0 && (
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-apple-label">
             {t('payrollHolidaysExcluded', { count: payrollHolidays.length })}
             {requiredWorkDays != null && (
-              <span className="text-slate-500">
+              <span className="text-apple-label">
                 {' '}
                 · {t('payrollExpectedWorkDays')}: {requiredWorkDays}
               </span>
@@ -467,7 +461,7 @@ export default function AdminPayroll() {
             <div className="-mx-5 -mb-4 max-h-[min(65vh,calc(100vh-16rem))] overflow-auto sm:-mx-6">
               <table className="min-w-full text-left text-sm">
                 <thead className="sticky top-0 z-10">
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 shadow-[0_1px_0_0_rgb(226,232,240)]">
+                  <tr className="border-b border-black/[0.06] bg-apple-fill text-xs font-medium uppercase tracking-wide text-apple-label shadow-[0_1px_0_0_rgb(226,232,240)]">
                     <th className="px-4 py-3">{t('employee')}</th>
                     <th className="px-4 py-3 text-right">{t('payrollDaysAttended')}</th>
                     <th className="px-4 py-3 text-right">{t('payrollUpahHarian')}</th>
@@ -477,19 +471,19 @@ export default function AdminPayroll() {
                     <th className="px-4 py-3 text-right">{t('status')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-black/[0.04]">
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                      <td colSpan={7} className="px-4 py-12 text-center text-apple-label">
                         {loading ? t('loading') : t('payrollNoRows')}
                       </td>
                     </tr>
                   )}
                   {rows.map((row) => (
-                    <tr key={row.employee_id} className="transition hover:bg-slate-50/80">
+                    <tr key={row.employee_id} className="transition hover:bg-apple-fill/80">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{row.full_name}</div>
-                        <div className="text-xs text-slate-500">{row.employee_code}</div>
+                        <div className="font-medium text-apple-text">{row.full_name}</div>
+                        <div className="text-xs text-apple-label">{row.employee_code}</div>
                         {row.has_active_loan && (
                           <div className="mt-1 text-xs text-amber-700">
                             {t('payrollActiveLoanHint', {
@@ -499,22 +493,22 @@ export default function AdminPayroll() {
                           </div>
                         )}
                         {row.keterangan ? (
-                          <div className="mt-1 text-xs text-slate-600">
-                            <span className="font-medium text-slate-500">{t('payrollKeterangan')}:</span>{' '}
+                          <div className="mt-1 text-xs text-apple-label">
+                            <span className="font-medium text-apple-label">{t('payrollKeterangan')}:</span>{' '}
                             {row.keterangan}
                           </div>
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {row.payroll_mode === 'monthly' ||
-                        row.payroll_mode === 'general_affairs' ||
+                        isMonthlyPayrollMode(row.payroll_mode) ||
                         row.payroll_mode === 'accounting' ? (
                           <div>
                             <div>{row.days_attended ?? 0}</div>
                             {row.payroll_mode === 'monthly' ||
-                            row.payroll_mode === 'general_affairs' ||
+                            isMonthlyPayrollMode(row.payroll_mode) ||
                             row.payroll_mode === 'accounting' ? (
-                              <div className="text-xs text-slate-400">
+                              <div className="text-xs text-apple-muted">
                                 /{' '}
                                 {row.expected_work_days ??
                                   requiredWorkDays ??
@@ -526,29 +520,29 @@ export default function AdminPayroll() {
                           row.days_attended ?? 0
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-600">
+                      <td className="px-4 py-3 text-right tabular-nums text-apple-label">
                         {row.payroll_mode === 'manual' ? (
-                          <div className="text-xs text-slate-400">{t('payrollManualMode')}</div>
+                          <div className="text-xs text-apple-muted">{t('payrollManualMode')}</div>
                         ) : row.payroll_mode === 'monthly' ||
-                          row.payroll_mode === 'general_affairs' ||
+                          isMonthlyPayrollMode(row.payroll_mode) ||
                           row.payroll_mode === 'accounting' ? (
                           <div>
                             <div>{formatIdr(row.monthly_basic_gross ?? row.employee_basic_salary)}</div>
-                            <div className="text-xs text-slate-400">{t('payrollMonthlyBasic')}</div>
+                            <div className="text-xs text-apple-muted">{t('payrollMonthlyBasic')}</div>
                           </div>
                         ) : (
                           formatIdr(resolveUpahHarianDisplay(row, settings))
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="tabular-nums font-medium text-slate-900">
+                        <div className="tabular-nums font-medium text-apple-text">
                           {formatIdr(row.basic_salary)}
                         </div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-apple-muted">
                           {row.payroll_mode === 'manual'
                             ? t('payrollManualMode')
                             : row.payroll_mode === 'monthly' ||
-                                row.payroll_mode === 'general_affairs' ||
+                                isMonthlyPayrollMode(row.payroll_mode) ||
                                 row.payroll_mode === 'accounting'
                               ? t('payrollAbsenceDeduction') +
                                 `: Rp ${formatIdr(row.absence_deduction ?? 0)}`
@@ -627,7 +621,7 @@ export default function AdminPayroll() {
             onSubmit={handleSaveRow}
           >
             {editIsManual && (
-              <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
+              <p className="col-span-2 text-[10px] text-apple-label md:col-span-4">
                 {t('payrollManualHint')}
               </p>
             )}
@@ -693,7 +687,7 @@ export default function AdminPayroll() {
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
                     {t('payrollMonthlyNetBasic')}
                   </p>
-                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-apple-text">
                     Rp{' '}
                     {formatIdr(
                       Math.max(
@@ -704,7 +698,7 @@ export default function AdminPayroll() {
                     )}
                   </p>
                 </div>
-                <p className="col-span-2 text-[10px] text-slate-500 md:col-span-4">
+                <p className="col-span-2 text-[10px] text-apple-label md:col-span-4">
                   {editForm.payroll_mode === 'accounting'
                     ? t('payrollAccountingHint')
                     : t('payrollMonthlyFormula')}
@@ -726,7 +720,7 @@ export default function AdminPayroll() {
                     }
                   />
                 </CompactField>
-                <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
+                <div className="rounded-md border border-black/[0.06] bg-apple-fill px-2 py-1.5 text-xs text-apple-label">
                   <p>
                     {t('payrollDaysAttended')}: {editForm.days_attended ?? 0}
                   </p>
@@ -741,7 +735,7 @@ export default function AdminPayroll() {
               </>
             )}
 
-            <p className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 md:col-span-4">
+            <p className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wide text-apple-label md:col-span-4">
               {t('payrollSlipEarnings')}
             </p>
             <CompactField label={t('payrollTunjanganMasaKerja')}>
@@ -820,7 +814,7 @@ export default function AdminPayroll() {
               />
             </CompactField>
             <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-apple-text">
                 <input
                   type="checkbox"
                   className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
@@ -831,7 +825,7 @@ export default function AdminPayroll() {
                 />
                 {t('payrollTransportEligible')}
               </label>
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-apple-text">
                 <input
                   type="checkbox"
                   className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
@@ -844,7 +838,7 @@ export default function AdminPayroll() {
               </label>
             </div>
 
-            <p className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 md:col-span-4">
+            <p className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wide text-apple-label md:col-span-4">
               {t('payrollSlipDeductions')}
             </p>
             {(editIsMonthly || editIsFieldOfficer) && (

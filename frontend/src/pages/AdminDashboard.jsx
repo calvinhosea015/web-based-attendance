@@ -2,7 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
-import { Alert, Button, PasswordInput } from '../components/ui.jsx';
+import {
+  Alert,
+  Button,
+  PasswordInput,
+  StatCard,
+  PageSection,
+  inputClass,
+  selectClass,
+} from '../components/ui.jsx';
 import {
   ResponsiveContainer,
   BarChart,
@@ -17,7 +25,7 @@ import { translateApiMessage, translateAttendanceStatus, translateRole } from '.
 import {
   isAttendanceRole,
   isAccountingRole,
-  isUmumOrGeneralAffairsRole,
+  isUmumRole,
   isHeadOfFinanceRole,
   usesMultipleOfficesRole,
   requiresFullName,
@@ -237,7 +245,7 @@ export default function AdminDashboard() {
         payload.custom_work_end = newUser.custom_work_end;
         payload.basic_salary = Number(newUser.basic_salary) || 0;
       }
-      if (isUmumOrGeneralAffairsRole(newUser.role) || isHeadOfFinanceRole(newUser.role)) {
+      if (isUmumRole(newUser.role) || isHeadOfFinanceRole(newUser.role)) {
         payload.basic_salary = Number(newUser.basic_salary) || 0;
       }
       const res = await api.post(paths.users, payload);
@@ -346,7 +354,7 @@ export default function AdminDashboard() {
           body.custom_work_end = editingUser.custom_work_end;
           body.basic_salary = Number(editingUser.basic_salary) || 0;
         }
-        if (isUmumOrGeneralAffairsRole(editingUser.role)) {
+        if (isUmumRole(editingUser.role)) {
           body.basic_salary = Number(editingUser.basic_salary) || 0;
         }
       } else if (editingUser.office_id) {
@@ -439,68 +447,73 @@ export default function AdminDashboard() {
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('attendanceCharts')}</h2>
-        <div className="mt-4 h-72">
+      <PageSection title={t('attendanceCharts')} bodyClassName="!pt-4">
+        <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="present" name={t('presentLike')} fill="#22c55e" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="late" name={t('late')} fill="#f97316" radius={[4, 4, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#d2d2d7" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#86868b' }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#86868b' }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 12,
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+                }}
+              />
+              <Bar dataKey="present" name={t('presentLike')} fill="#34c759" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="late" name={t('late')} fill="#ff9500" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </section>
+      </PageSection>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-900">{t('payrollSummary')}</h2>
+      <PageSection
+        title={t('payrollSummary')}
+        action={
           <Link to="/admin/payroll">
             <Button variant="secondary" size="sm">
               {t('payrollOpenAdmin')}
             </Button>
           </Link>
-        </div>
+        }
+      >
         {overview?.payrollSummary?.length > 0 ? (
-          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          <ul className="divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06]">
             {overview.payrollSummary.map((p) => (
-              <li key={p.payroll_period} className="flex justify-between py-2">
-                <span className="font-medium text-slate-800">{p.payroll_period}</span>
-                <span className="text-slate-600">
+              <li key={p.payroll_period} className="flex justify-between gap-4 px-4 py-3.5 text-[15px] sm:px-5">
+                <span className="font-medium text-apple-text">{p.payroll_period}</span>
+                <span className="text-apple-label tabular-nums">
                   {t('rows')}: {p.rows} · {t('total')}: {Number(p.total_final).toLocaleString()}
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-slate-600">{t('payrollSummaryEmpty')}</p>
+          <p className="text-[15px] text-apple-label">{t('payrollSummaryEmpty')}</p>
         )}
-      </section>
+      </PageSection>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">{t('manageUsers')}</h2>
-          <form className="mt-4 space-y-3" onSubmit={handleAddUser}>
+      <section className="apple-section-grid">
+        <PageSection title={t('manageUsers')}>
+          <form className="space-y-3" onSubmit={handleAddUser}>
             <input
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={inputClass}
               placeholder={t('username')}
               value={newUser.username}
               onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
               required
             />
             <PasswordInput
-              inputClassName="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              inputClassName={inputClass}
               placeholder={t('password')}
               value={newUser.password}
               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
               required
             />
-            <p className="text-xs text-slate-500">{t('passwordPolicyHint')}</p>
+            <p className="text-[12px] text-apple-muted">{t('passwordPolicyHint')}</p>
             <select
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={selectClass}
               value={newUser.role}
               onChange={(e) => {
                 const role = e.target.value;
@@ -517,13 +530,12 @@ export default function AdminDashboard() {
               <option value="field_officer">{t('roleFieldOfficer')}</option>
               <option value="umum">{t('roleUmum')}</option>
               <option value="accounting">{t('roleAccounting')}</option>
-              <option value="general_affairs">{t('roleGeneralAffairs')}</option>
               <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
               <option value="admin">{t('roleAdmin')}</option>
             </select>
             {requiresFullName(newUser.role) && (
               <input
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                 placeholder={t('fullName')}
                 value={newUser.full_name}
                 onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
@@ -531,7 +543,7 @@ export default function AdminDashboard() {
               />
             )}
             {isAttendanceRole(newUser.role) && !isHeadOfFinanceRole(newUser.role) && (
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-apple-text">
                 <input
                   type="checkbox"
                   checked={newUser.remote_work_allowed}
@@ -541,17 +553,17 @@ export default function AdminDashboard() {
               </label>
             )}
             {newUser.role === 'employee' && (
-              <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
+              <p className="text-xs text-apple-label">{t('twoClockScheduleFixed')}</p>
             )}
-            {isUmumOrGeneralAffairsRole(newUser.role) && (
+            {isUmumRole(newUser.role) && (
               <>
-                <p className="text-xs text-slate-500">{t('umumGeneralAffairsOnceInOut')}</p>
-                <p className="text-xs text-slate-500">{t('umumGeneralAffairsAbsenceHint')}</p>
+                <p className="text-xs text-apple-label">{t('umumOncePerDay')}</p>
+                <p className="text-xs text-apple-label">{t('umumAbsenceHint')}</p>
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder={t('umumGeneralAffairsBasicSalary')}
+                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                  placeholder={t('umumBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
                 />
@@ -559,11 +571,11 @@ export default function AdminDashboard() {
             )}
             {isHeadOfFinanceRole(newUser.role) && (
               <>
-                <p className="text-xs text-slate-500">{t('headOfFinanceNoAttendance')}</p>
+                <p className="text-xs text-apple-label">{t('headOfFinanceNoAttendance')}</p>
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                   placeholder={t('headOfFinanceBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
@@ -572,15 +584,15 @@ export default function AdminDashboard() {
             )}
             {isAccountingRole(newUser.role) && (
               <>
-                <p className="text-xs text-slate-500">{t('accountingScheduleHint')}</p>
+                <p className="text-xs text-apple-label">{t('accountingScheduleHint')}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm text-slate-700">
-                    <span className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="block text-sm text-apple-text">
+                    <span className="mb-1 block text-xs font-medium text-apple-label">
                       {t('accountingWorkStart')}
                     </span>
                     <input
                       type="time"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                       value={newUser.custom_work_start}
                       onChange={(e) =>
                         setNewUser({ ...newUser, custom_work_start: e.target.value })
@@ -588,13 +600,13 @@ export default function AdminDashboard() {
                       required
                     />
                   </label>
-                  <label className="block text-sm text-slate-700">
-                    <span className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="block text-sm text-apple-text">
+                    <span className="mb-1 block text-xs font-medium text-apple-label">
                       {t('accountingWorkEnd')}
                     </span>
                     <input
                       type="time"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                       value={newUser.custom_work_end}
                       onChange={(e) => setNewUser({ ...newUser, custom_work_end: e.target.value })}
                       required
@@ -604,7 +616,7 @@ export default function AdminDashboard() {
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                   placeholder={t('accountingBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
@@ -613,20 +625,20 @@ export default function AdminDashboard() {
             )}
             {isAttendanceRole(newUser.role) && !isHeadOfFinanceRole(newUser.role) && (
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm text-slate-700">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">{t('startDate')}</span>
+                <label className="block text-sm text-apple-text">
+                  <span className="mb-1 block text-xs font-medium text-apple-label">{t('startDate')}</span>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                     value={newUser.join_date}
                     onChange={(e) => setNewUser({ ...newUser, join_date: e.target.value })}
                   />
                 </label>
-                <label className="block text-sm text-slate-700">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">{t('birthday')}</span>
+                <label className="block text-sm text-apple-text">
+                  <span className="mb-1 block text-xs font-medium text-apple-label">{t('birthday')}</span>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                     value={newUser.birthday}
                     onChange={(e) => setNewUser({ ...newUser, birthday: e.target.value })}
                   />
@@ -634,9 +646,9 @@ export default function AdminDashboard() {
               </div>
             )}
             {usesMultipleOfficesRole(newUser.role) && (
-              <div className="rounded-lg border border-slate-200 bg-apple-fill p-3">
-                <p className="mb-2 text-xs font-medium text-slate-600">{t('fieldOfficerPabriksLabel')}</p>
-                <p className="mb-2 text-xs text-slate-500">{t('fieldOfficerPabriksHint')}</p>
+              <div className="rounded-lg border border-black/[0.06] bg-apple-fill p-3">
+                <p className="mb-2 text-xs font-medium text-apple-label">{t('fieldOfficerPabriksLabel')}</p>
+                <p className="mb-2 text-xs text-apple-label">{t('fieldOfficerPabriksHint')}</p>
                 {pabriks.length ? (
                   <div className="max-h-40 space-y-1.5 overflow-y-auto">
                     {pabriks.map((pabrik) => {
@@ -645,7 +657,7 @@ export default function AdminDashboard() {
                       return (
                         <label
                           key={pabrik.id}
-                          className="flex cursor-pointer items-start gap-2 text-sm text-slate-800"
+                          className="flex cursor-pointer items-start gap-2 text-sm text-apple-text"
                         >
                           <input
                             type="checkbox"
@@ -663,7 +675,7 @@ export default function AdminDashboard() {
                           <span>
                             {pabrik.pabrik_code} — {pabrik.nama_pabrik}
                             {pabrik.office_name ? (
-                              <span className="block text-xs text-slate-500">
+                              <span className="block text-xs text-apple-label">
                                 {t('fieldOfficerPabrikLocation', { name: pabrik.office_name })}
                               </span>
                             ) : (
@@ -677,13 +689,13 @@ export default function AdminDashboard() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500">{t('fieldOfficerPabriksNone')}</p>
+                  <p className="text-xs text-apple-label">{t('fieldOfficerPabriksNone')}</p>
                 )}
               </div>
             )}
             {!isHeadOfFinanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role) && (
                 <select
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
                   value={newUser.office_id}
                   onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
                 >
@@ -698,22 +710,19 @@ export default function AdminDashboard() {
                   )}
                 </select>
               )}
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-500"
-            >
+            <Button type="submit" variant="primary" className="w-full">
               {t('addUser')}
-            </button>
+            </Button>
           </form>
-          <ul className="mt-4 space-y-2 text-sm">
+          <ul className="mt-6 divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06]">
             {users.map((user) => (
               <li
                 key={user.id}
-                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-apple-fill px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 bg-white px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5"
               >
                 <div>
-                  <div className="font-medium text-slate-900">{user.username}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="font-medium text-apple-text">{user.username}</div>
+                  <div className="text-xs text-apple-label">
                     {translateRole(user.role)}
                     {user.full_name ? ` · ${user.full_name}` : ''}
                   </div>
@@ -721,14 +730,14 @@ export default function AdminDashboard() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                    className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
                     onClick={() => openEditUser(user)}
                   >
                     {t('editUser')}
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                    className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
                     onClick={() => {
                       setEditingUser(null);
                       setChangingPasswordFor(user.id);
@@ -747,16 +756,16 @@ export default function AdminDashboard() {
                   )}
                 </div>
                 {editingUser != null && Number(editingUser.id) === Number(user.id) && (
-                  <form className="mt-2 w-full space-y-2 rounded-lg border border-slate-200 bg-white p-3" onSubmit={handleSaveUser}>
+                  <form className="mt-2 w-full space-y-2 rounded-lg border border-black/[0.06] bg-white p-3" onSubmit={handleSaveUser}>
                     <input
-                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                       placeholder={t('username')}
                       value={editingUser.username}
                       onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
                       required
                     />
                     <select
-                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                       value={editingUser.role}
                       onChange={(e) => {
                         const role = e.target.value;
@@ -779,14 +788,13 @@ export default function AdminDashboard() {
                       <option value="field_officer">{t('roleFieldOfficer')}</option>
                       <option value="umum">{t('roleUmum')}</option>
                       <option value="accounting">{t('roleAccounting')}</option>
-                      <option value="general_affairs">{t('roleGeneralAffairs')}</option>
                       <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
                       <option value="admin">{t('roleAdmin')}</option>
                     </select>
                     {!isHeadOfFinanceRole(editingUser.role) &&
                       (usesMultipleOfficesRole(editingUser.role) ? null : (
                         <select
-                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                           value={editingUser.office_id}
                           onChange={(e) =>
                             setEditingUser({ ...editingUser, office_id: e.target.value })
@@ -803,11 +811,11 @@ export default function AdminDashboard() {
                         </select>
                       ))}
                     {usesMultipleOfficesRole(editingUser.role) && (
-                      <div className="rounded-md border border-slate-200 bg-apple-fill p-2">
-                        <p className="mb-1 text-[10px] font-medium uppercase text-slate-500">
+                      <div className="rounded-md border border-black/[0.06] bg-apple-fill p-2">
+                        <p className="mb-1 text-[10px] font-medium uppercase text-apple-label">
                           {t('fieldOfficerPabriksLabel')}
                         </p>
-                        <p className="mb-2 text-xs text-slate-500">{t('fieldOfficerPabriksHint')}</p>
+                        <p className="mb-2 text-xs text-apple-label">{t('fieldOfficerPabriksHint')}</p>
                         {pabriks.length ? (
                           <div className="max-h-32 space-y-1 overflow-y-auto">
                             {pabriks.map((pabrik) => {
@@ -816,7 +824,7 @@ export default function AdminDashboard() {
                               return (
                                 <label
                                   key={pabrik.id}
-                                  className="flex cursor-pointer items-start gap-2 text-xs text-slate-800"
+                                  className="flex cursor-pointer items-start gap-2 text-xs text-apple-text"
                                 >
                                   <input
                                     type="checkbox"
@@ -834,7 +842,7 @@ export default function AdminDashboard() {
                                   <span>
                                     {pabrik.pabrik_code} — {pabrik.nama_pabrik}
                                     {pabrik.office_name ? (
-                                      <span className="block text-[10px] text-slate-500">
+                                      <span className="block text-[10px] text-apple-label">
                                         {t('fieldOfficerPabrikLocation', { name: pabrik.office_name })}
                                       </span>
                                     ) : (
@@ -848,12 +856,12 @@ export default function AdminDashboard() {
                             })}
                           </div>
                         ) : (
-                          <p className="text-xs text-slate-500">{t('fieldOfficerPabriksNone')}</p>
+                          <p className="text-xs text-apple-label">{t('fieldOfficerPabriksNone')}</p>
                         )}
                       </div>
                     )}
                     {isAttendanceRole(editingUser.role) && (
-                      <label className="flex items-center gap-2 text-xs text-slate-700">
+                      <label className="flex items-center gap-2 text-xs text-apple-text">
                         <input
                           type="checkbox"
                           checked={editingUser.remote_work_allowed}
@@ -865,17 +873,17 @@ export default function AdminDashboard() {
                       </label>
                     )}
                     {editingUser.role === 'employee' && (
-                      <p className="text-xs text-slate-500">{t('twoClockScheduleFixed')}</p>
+                      <p className="text-xs text-apple-label">{t('twoClockScheduleFixed')}</p>
                     )}
-                    {isUmumOrGeneralAffairsRole(editingUser.role) && (
+                    {isUmumRole(editingUser.role) && (
                       <>
-                        <p className="text-xs text-slate-500">{t('umumGeneralAffairsOnceInOut')}</p>
-                        <p className="text-xs text-slate-500">{t('umumGeneralAffairsAbsenceHint')}</p>
+                        <p className="text-xs text-apple-label">{t('umumOncePerDay')}</p>
+                        <p className="text-xs text-apple-label">{t('umumAbsenceHint')}</p>
                         <input
                           type="number"
                           min="0"
-                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
-                          placeholder={t('umumGeneralAffairsBasicSalary')}
+                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                          placeholder={t('umumBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
                             setEditingUser({ ...editingUser, basic_salary: e.target.value })
@@ -885,11 +893,11 @@ export default function AdminDashboard() {
                     )}
                     {isHeadOfFinanceRole(editingUser.role) && (
                       <>
-                        <p className="text-xs text-slate-500">{t('headOfFinanceNoAttendance')}</p>
+                        <p className="text-xs text-apple-label">{t('headOfFinanceNoAttendance')}</p>
                         <input
                           type="number"
                           min="0"
-                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                           placeholder={t('headOfFinanceBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
@@ -900,15 +908,15 @@ export default function AdminDashboard() {
                     )}
                     {isAccountingRole(editingUser.role) && (
                       <>
-                        <p className="text-xs text-slate-500">{t('accountingScheduleHint')}</p>
+                        <p className="text-xs text-apple-label">{t('accountingScheduleHint')}</p>
                         <div className="grid gap-2 sm:grid-cols-2">
-                          <label className="block text-xs text-slate-700">
-                            <span className="mb-0.5 block font-medium text-slate-600">
+                          <label className="block text-xs text-apple-text">
+                            <span className="mb-0.5 block font-medium text-apple-label">
                               {t('accountingWorkStart')}
                             </span>
                             <input
                               type="time"
-                              className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                              className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                               value={editingUser.custom_work_start}
                               onChange={(e) =>
                                 setEditingUser({ ...editingUser, custom_work_start: e.target.value })
@@ -916,13 +924,13 @@ export default function AdminDashboard() {
                               required
                             />
                           </label>
-                          <label className="block text-xs text-slate-700">
-                            <span className="mb-0.5 block font-medium text-slate-600">
+                          <label className="block text-xs text-apple-text">
+                            <span className="mb-0.5 block font-medium text-apple-label">
                               {t('accountingWorkEnd')}
                             </span>
                             <input
                               type="time"
-                              className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                              className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                               value={editingUser.custom_work_end}
                               onChange={(e) =>
                                 setEditingUser({ ...editingUser, custom_work_end: e.target.value })
@@ -934,7 +942,7 @@ export default function AdminDashboard() {
                         <input
                           type="number"
                           min="0"
-                          className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                           placeholder={t('accountingBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
@@ -945,7 +953,7 @@ export default function AdminDashboard() {
                     )}
                     {requiresFullName(editingUser.role) && (
                       <input
-                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                        className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                         placeholder={t('fullName')}
                         value={editingUser.full_name}
                         onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
@@ -954,20 +962,20 @@ export default function AdminDashboard() {
                     )}
                     {isAttendanceRole(editingUser.role) && (
                       <div className="grid gap-2 sm:grid-cols-2">
-                        <label className="block text-xs text-slate-700">
-                          <span className="mb-0.5 block font-medium text-slate-600">{t('startDate')}</span>
+                        <label className="block text-xs text-apple-text">
+                          <span className="mb-0.5 block font-medium text-apple-label">{t('startDate')}</span>
                           <input
                             type="date"
-                            className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                            className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                             value={editingUser.join_date}
                             onChange={(e) => setEditingUser({ ...editingUser, join_date: e.target.value })}
                           />
                         </label>
-                        <label className="block text-xs text-slate-700">
-                          <span className="mb-0.5 block font-medium text-slate-600">{t('birthday')}</span>
+                        <label className="block text-xs text-apple-text">
+                          <span className="mb-0.5 block font-medium text-apple-label">{t('birthday')}</span>
                           <input
                             type="date"
-                            className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                            className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                             value={editingUser.birthday}
                             onChange={(e) => setEditingUser({ ...editingUser, birthday: e.target.value })}
                           />
@@ -980,7 +988,7 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         type="button"
-                        className="rounded-md border border-slate-200 px-3 py-1 text-xs"
+                        className="rounded-md border border-black/[0.06] px-3 py-1 text-xs"
                         onClick={() => setEditingUser(null)}
                       >
                         {t('cancel')}
@@ -992,18 +1000,18 @@ export default function AdminDashboard() {
                   <form className="mt-2 flex w-full flex-col gap-2 sm:flex-row" onSubmit={handleChangePassword}>
                     <PasswordInput
                       className="flex-1 min-w-0"
-                      inputClassName="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
+                      inputClassName="w-full rounded-md border border-black/[0.06] px-2 py-1 text-xs"
                       placeholder={t('newPassword')}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
                     />
-                    <button type="submit" className="rounded-md bg-slate-900 px-3 py-1 text-xs text-white">
+                    <button type="submit" className="rounded-full bg-brand-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-500">
                       {t('change')}
                     </button>
                     <button
                       type="button"
-                      className="rounded-md border border-slate-200 px-3 py-1 text-xs"
+                      className="rounded-md border border-black/[0.06] px-3 py-1 text-xs"
                       onClick={() => {
                         setChangingPasswordFor(null);
                         setNewPassword('');
@@ -1016,37 +1024,34 @@ export default function AdminDashboard() {
               </li>
             ))}
           </ul>
-        </div>
+        </PageSection>
 
-        <div
+        <PageSection
           id="location-management"
-          className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="scroll-mt-24"
+          title={t('locationManagement')}
+          description={t('locationManagementHint')}
         >
-          <h2 className="text-lg font-semibold text-slate-900">{t('locationManagement')}</h2>
-          <p className="mt-1 text-sm text-slate-600">{t('locationManagementHint')}</p>
-          <form className="mt-4 space-y-3" onSubmit={handleAddOffice}>
+          <form className="space-y-3" onSubmit={handleAddOffice}>
             <input
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={inputClass}
               placeholder={t('officeName')}
               value={newOffice.name}
               onChange={(e) => setNewOffice({ ...newOffice, name: e.target.value })}
               required
             />
             <input
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={inputClass}
               placeholder={t('locationLink')}
               value={newOffice.locationLink}
               onChange={(e) => setNewOffice({ ...newOffice, locationLink: e.target.value })}
               required
             />
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-500"
-            >
+            <Button type="submit" variant="primary" className="w-full">
               {t('addOffice')}
-            </button>
+            </Button>
           </form>
-          <ul className="mt-4 space-y-2 text-sm">
+          <ul className="mt-6 divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06]">
             {offices.map((office) => {
               const linkedFactories = pabriks.filter(
                 (p) => Number(p.office_id) === Number(office.id)
@@ -1054,11 +1059,11 @@ export default function AdminDashboard() {
               return (
               <li
                 key={office.id}
-                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-apple-fill px-3 py-2"
+                className="flex flex-col gap-2 bg-white px-4 py-3.5 sm:px-5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-medium text-slate-900">{office.name}</div>
+                    <div className="font-medium text-apple-text">{office.name}</div>
                     {office.link && (
                       <a
                         className="text-xs text-brand-600 hover:underline"
@@ -1070,25 +1075,25 @@ export default function AdminDashboard() {
                       </a>
                     )}
                     {office.lat != null && office.lng != null && (
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-apple-label">
                         {Number(office.lat).toFixed(5)}, {Number(office.lng).toFixed(5)}
                       </p>
                     )}
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-apple-label">
                       {t('locationFactories')}:{' '}
                       {linkedFactories.length ? (
                         linkedFactories
                           .map((p) => `${p.pabrik_code} — ${p.nama_pabrik}`)
                           .join(', ')
                       ) : (
-                        <span className="text-slate-400">{t('locationFactoriesNone')}</span>
+                        <span className="text-apple-muted">{t('locationFactoriesNone')}</span>
                       )}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
-                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                      className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
                       onClick={() => openEditOffice(office)}
                     >
                       {t('editOffice')}
@@ -1103,16 +1108,16 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 {editingOffice != null && Number(editingOffice.id) === Number(office.id) && (
-                  <form className="space-y-2 rounded-lg border border-slate-200 bg-white p-3" onSubmit={handleSaveOffice}>
+                  <form className="space-y-2 rounded-lg border border-black/[0.06] bg-white p-3" onSubmit={handleSaveOffice}>
                     <input
-                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                       placeholder={t('officeName')}
                       value={editingOffice.name}
                       onChange={(e) => setEditingOffice({ ...editingOffice, name: e.target.value })}
                       required
                     />
                     <input
-                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs"
+                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
                       placeholder={t('locationLink')}
                       value={editingOffice.locationLink}
                       onChange={(e) =>
@@ -1129,7 +1134,7 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         type="button"
-                        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium"
+                        className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
                         onClick={() => setEditingOffice(null)}
                       >
                         {t('cancel')}
@@ -1141,16 +1146,15 @@ export default function AdminDashboard() {
               );
             })}
           </ul>
-        </div>
+        </PageSection>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">{t('attendance')}</h2>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <label className="flex min-w-[12rem] flex-1 flex-col text-sm text-slate-600">
-            <span className="mb-1 font-medium text-slate-800">{t('attendanceByUser')}</span>
+      <PageSection title={t('attendance')}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <label className="flex min-w-[12rem] flex-1 flex-col text-sm text-apple-label">
+            <span className="mb-1 font-medium text-apple-text">{t('attendanceByUser')}</span>
             <select
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900"
+              className={selectClass}
               value={perUserSelectedId}
               onChange={async (e) => {
                 const v = e.target.value;
@@ -1180,60 +1184,42 @@ export default function AdminDashboard() {
               ))}
             </select>
           </label>
-          {perUserLoading ? <span className="text-xs text-slate-500">{t('loading')}</span> : null}
+          {perUserLoading ? <span className="text-xs text-apple-label">{t('loading')}</span> : null}
         </div>
         {perUserSelectedId &&
         perUserAttendance &&
         perUserAttendance.user &&
         !perUserAttendance.user.employee_id ? (
-          <p className="mt-2 text-sm text-slate-600">{t('noEmployeeLinkedAttendance')}</p>
+          <p className="mt-2 text-sm text-apple-label">{t('noEmployeeLinkedAttendance')}</p>
         ) : null}
-        <div className="mt-3 max-h-96 overflow-auto text-sm">
-          <table className="min-w-full border-collapse text-left">
-            <thead className="sticky top-0 bg-apple-fill text-xs font-semibold text-apple-text">
+        <div className="apple-table-wrap mt-4 max-h-96 overflow-auto">
+          <table className="apple-table">
+            <thead className="apple-table-head sticky top-0">
               <tr>
-                <th className="border-b border-slate-200 px-2 py-2">{t('employee')}</th>
-                <th className="border-b border-slate-200 px-2 py-2">{t('office')}</th>
-                <th className="border-b border-slate-200 px-2 py-2">{t('status')}</th>
-                <th className="border-b border-slate-200 px-2 py-2">{t('checkIn')}</th>
-                <th className="border-b border-slate-200 px-2 py-2">{t('checkOut')}</th>
+                <th>{t('employee')}</th>
+                <th>{t('office')}</th>
+                <th>{t('status')}</th>
+                <th>{t('checkIn')}</th>
+                <th>{t('checkOut')}</th>
               </tr>
             </thead>
             <tbody>
               {(perUserSelectedId ? perUserAttendance?.attendance ?? [] : attendance).map((row) => (
-                <tr key={row.id} className="border-b border-slate-100">
-                  <td className="px-2 py-2">{row.full_name || row.employee_code}</td>
-                  <td className="px-2 py-2">{row.office_name}</td>
-                  <td className="px-2 py-2">{translateAttendanceStatus(row.attendance_status)}</td>
-                  <td className="px-2 py-2">{row.check_in ? formatDisplayDateTime(row.check_in) : ''}</td>
-                  <td className="px-2 py-2">
-                    {row.check_out ? formatDisplayDateTime(row.check_out) : t('notCheckedOut')}
-                  </td>
+                <tr key={row.id} className="apple-table-row">
+                  <td>{row.full_name || row.employee_code}</td>
+                  <td>{row.office_name}</td>
+                  <td>{translateAttendanceStatus(row.attendance_status)}</td>
+                  <td>{row.check_in ? formatDisplayDateTime(row.check_in) : ''}</td>
+                  <td>{row.check_out ? formatDisplayDateTime(row.check_out) : t('notCheckedOut')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
 
       </div>
     </AdminLayout>
   );
 }
 
-function StatCard({ label, value, tone }) {
-  const tones = {
-    blue: 'from-sky-500 to-indigo-600',
-    emerald: 'from-emerald-500 to-teal-600',
-    amber: 'from-amber-500 to-orange-600',
-    rose: 'from-rose-500 to-red-600',
-  };
-  return (
-    <div className={`rounded-2xl bg-gradient-to-br ${tones[tone]} p-[1px] shadow-sm`}>
-      <div className="rounded-2xl bg-white p-4">
-        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-        <div className="mt-2 text-3xl font-semibold text-slate-900">{value}</div>
-      </div>
-    </div>
-  );
-}

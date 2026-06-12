@@ -34,22 +34,24 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-57px)] flex-col items-center justify-center px-4 py-16 sm:px-6">
-      <div className="w-full max-w-[400px]">
+    <div className="flex min-h-[calc(100vh-57px)] flex-col items-center justify-center px-4 py-20 sm:px-6">
+      <div className="w-full max-w-[420px]">
         <div className="text-center">
           <img
             src="/company-logo.png"
             alt={t('appName')}
-            className="mx-auto h-24 w-auto"
+            className="mx-auto h-20 w-auto sm:h-24"
           />
-          <h1 className="mt-8 text-[28px] font-semibold tracking-tightest text-apple-text">
+          <h1 className="mt-10 text-[40px] font-semibold tracking-tightest text-apple-text sm:text-[48px] sm:leading-none">
             {t('login')}
           </h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-apple-label">{t('loginSubtitle')}</p>
+          <p className="mx-auto mt-4 max-w-sm text-[17px] leading-relaxed text-apple-label">
+            {t('loginSubtitle')}
+          </p>
         </div>
 
         <form
-          className="mt-10 space-y-5 rounded-apple-xl border border-black/[0.06] bg-white p-8 shadow-apple-md"
+          className="mt-12 space-y-5 rounded-apple-xl border border-black/[0.06] bg-white p-8 shadow-apple-md sm:p-10"
           onSubmit={handleLogin}
         >
           <Field label={t('username')}>

@@ -5,12 +5,10 @@ const ROLES = {
   EMPLOYEE: 'employee',
   /** Petugas lapangan — one check-in per day; checkout requires structured delivery data */
   FIELD_OFFICER: 'field_officer',
-  /** Umum — one check-in per day; no checkout; remote + geolocation on check-in */
+  /** Umum — one check-in per day (auto close); monthly gaji; potongan absen = gaji/hari kerja × hari absen */
   UMUM: 'umum',
   /** Accounting — monthly gaji like Staff Kantor; custom work hours; potongan absen from attendance */
   ACCOUNTING: 'accounting',
-  /** General Affairs — one in/out per day; monthly gaji; potongan absen = gaji/hari kerja × hari absen */
-  GENERAL_AFFAIRS: 'general_affairs',
   /** Head of Finance — no attendance; slip gaji filled manually by admin */
   HEAD_OF_FINANCE: 'head_of_finance',
 };
@@ -23,7 +21,6 @@ const ATTENDANCE_ROLES = [
   ROLES.FIELD_OFFICER,
   ROLES.UMUM,
   ROLES.ACCOUNTING,
-  ROLES.GENERAL_AFFAIRS,
 ];
 
 function isValidRole(role) {
@@ -56,18 +53,9 @@ function isAccounting(role) {
   return role === ROLES.ACCOUNTING;
 }
 
-function isGeneralAffairs(role) {
-  return role === ROLES.GENERAL_AFFAIRS;
-}
-
-/** Umum and General Affairs share attendance and monthly absence payroll rules. */
-function isUmumOrGeneralAffairs(role) {
-  return isUmum(role) || isGeneralAffairs(role);
-}
-
-/** One check-in and one check-out per day (petugas lapangan, umum, general affairs). */
+/** One check-in and one check-out per day (petugas lapangan only). */
 function usesOncePerDayInOut(role) {
-  return isFieldOfficer(role) || isUmumOrGeneralAffairs(role);
+  return isFieldOfficer(role);
 }
 
 function isHeadOfFinance(role) {
@@ -84,7 +72,7 @@ function isPayrollOnlyRole(role) {
   return isHeadOfFinance(role);
 }
 
-/** Pegawai, petugas lapangan, accounting, general affairs, head of finance require a display name. */
+/** Pegawai, petugas lapangan, umum, accounting, head of finance require a display name. */
 function requiresFullName(role) {
   return requiresLinkedEmployee(role);
 }
@@ -105,8 +93,6 @@ module.exports = {
   isStaffKantor,
   isUmum,
   isAccounting,
-  isGeneralAffairs,
-  isUmumOrGeneralAffairs,
   isHeadOfFinance,
   requiresLinkedEmployee,
   isPayrollOnlyRole,

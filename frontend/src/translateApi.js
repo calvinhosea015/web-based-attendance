@@ -227,7 +227,7 @@ export function translateRole(role) {
   if (role === 'field_officer') return i18n.t('roleFieldOfficer');
   if (role === 'umum') return i18n.t('roleUmum');
   if (role === 'accounting') return i18n.t('roleAccounting');
-  if (role === 'general_affairs') return i18n.t('roleGeneralAffairs');
+  if (role === 'general_affairs') return i18n.t('roleUmum');
   if (role === 'head_of_finance') return i18n.t('roleHeadOfFinance');
   return role ?? '';
 }

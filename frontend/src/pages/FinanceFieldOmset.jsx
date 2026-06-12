@@ -51,10 +51,10 @@ export default function FinanceFieldOmset() {
           <Link to="/employee" className="text-sm font-medium text-brand-600 hover:text-brand-700">
             ← {t('payrollEmployeeTitle')}
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+          <h1 className="mt-2 text-2xl font-semibold text-apple-text">
             {t('fieldOmsetReportTitle')}
           </h1>
-          <p className="mt-1 text-sm text-slate-600">{t('fieldOmsetReportSubtitle')}</p>
+          <p className="mt-1 text-sm text-apple-label">{t('fieldOmsetReportSubtitle')}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
           {t('logout')}

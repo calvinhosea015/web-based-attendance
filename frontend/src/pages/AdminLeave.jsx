@@ -231,10 +231,10 @@ export default function AdminLeave() {
                   <th className="px-4 py-3 text-right">{t('leaveActions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-black/[0.04]">
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="px-4 py-12 text-center text-apple-label">
                       {loading ? t('loading') : t('leaveNoRequests')}
                     </td>
                   </tr>
@@ -242,16 +242,16 @@ export default function AdminLeave() {
                 {rows.map((row) => (
                   <tr key={row.id} className="hover:bg-apple-highlight">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{row.full_name}</div>
-                      <div className="text-xs text-slate-500">{row.employee_code}</div>
-                      {row.reason && <p className="mt-1 text-xs text-slate-500">{row.reason}</p>}
+                      <div className="font-medium text-apple-text">{row.full_name}</div>
+                      <div className="text-xs text-apple-label">{row.employee_code}</div>
+                      {row.reason && <p className="mt-1 text-xs text-apple-label">{row.reason}</p>}
                     </td>
                     <td className="px-4 py-3">{t(`leaveType_${row.leave_type}`)}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
+                    <td className="px-4 py-3 text-xs text-apple-label whitespace-nowrap">
                       {formatDateRange(row.start_date, row.end_date)}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{row.days_count}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
+                    <td className="px-4 py-3 text-xs text-apple-label">
                       {row.approval_status === 'approved' ? (
                         row.is_paid ? t('leavePaid') : t('leaveUnpaid')
                       ) : row.leave_type === 'paternity' && row.approval_status === 'pending' ? (
@@ -269,7 +269,7 @@ export default function AdminLeave() {
                         {t(`leaveStatus_${row.approval_status}`)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
+                    <td className="px-4 py-3 text-xs text-apple-label">
                       {formatDisplayDateTime(row.created_at)}
                     </td>
                     <td className="px-4 py-3">
@@ -321,7 +321,7 @@ export default function AdminLeave() {
                             </Button>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-apple-muted">
                             {row.approved_at
                               ? formatDisplayDateTime(row.approved_at)
                               : t('emDash')}

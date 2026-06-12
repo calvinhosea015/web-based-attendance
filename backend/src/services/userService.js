@@ -11,7 +11,7 @@ const {
   requiresFullName,
   requiresLinkedEmployee,
   isAccounting,
-  isUmumOrGeneralAffairs,
+  isUmum,
   isHeadOfFinance,
   usesMultipleOffices,
 } = require('../constants/roles');
@@ -174,7 +174,7 @@ class UserService {
         salaryType: payload.salary_type || 'monthly',
         basicSalary:
           isAccounting(role) ||
-          isUmumOrGeneralAffairs(role) ||
+          isUmum(role) ||
           isHeadOfFinance(role) ||
           role === ROLES.EMPLOYEE
             ? Math.max(0, Number(payload.basic_salary) || 0)
@@ -182,7 +182,7 @@ class UserService {
         upahHarian:
           role === ROLES.EMPLOYEE ||
           isAccounting(role) ||
-          isUmumOrGeneralAffairs(role) ||
+          isUmum(role) ||
           isHeadOfFinance(role)
             ? 0
             : payload.upah_harian ?? 0,
@@ -347,9 +347,7 @@ class UserService {
       }
       if (
         has('basic_salary') &&
-        (isAccounting(effectiveRole) ||
-          isUmumOrGeneralAffairs(effectiveRole) ||
-          isHeadOfFinance(effectiveRole))
+        (isAccounting(effectiveRole) || isUmum(effectiveRole) || isHeadOfFinance(effectiveRole))
       ) {
         await this.employeeRepository.updatePayrollDefaults(latest.employee_id, {
           basic_salary: Math.max(0, Number(payload.basic_salary) || 0),

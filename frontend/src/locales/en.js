@@ -406,10 +406,6 @@ export default {
   generalAffairsAbsenceHint:
     'Absence deduction = monthly salary ÷ required work days × absent days.',
   generalAffairsOnceInOut: 'One check-in and one check-out per day.',
-  umumGeneralAffairsBasicSalary: 'Monthly salary (Rp)',
-  umumGeneralAffairsAbsenceHint:
-    'Absence deduction = monthly salary ÷ required work days × absent days.',
-  umumGeneralAffairsOnceInOut: 'One check-in and one check-out per day.',
   accountingWorkStart: 'Work start (custom)',
   accountingWorkEnd: 'Work end (custom)',
   accountingBasicSalary: 'Monthly salary (Rp)',
@@ -456,6 +452,9 @@ export default {
   onceInOnceOut: 'One check-in and one check-out per day.',
   umumOncePerDay: 'One check-in per day (no check-out required).',
   umumFlexibleSchedule: 'Flexible hours (check-in only)',
+  umumBasicSalary: 'Monthly salary (Rp)',
+  umumAbsenceHint:
+    'Payroll: monthly salary minus absence deduction (salary ÷ working days × absent days).',
   fieldFlexibleSchedule: 'Flexible hours (no fixed schedule)',
   fieldOnceInOnceOut:
     'One check-in per day, then check-out with delivery data (9 fields with *).',

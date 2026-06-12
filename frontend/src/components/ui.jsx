@@ -114,6 +114,100 @@ export function Field({ label, hint, children, className = '' }) {
 export const inputClass =
   'w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text shadow-none transition placeholder:text-apple-muted hover:border-apple-muted/60 focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35';
 
+export const selectClass = `${inputClass} appearance-none cursor-pointer`;
+
+export const panelClass =
+  'rounded-apple-xl border border-black/[0.06] bg-white shadow-apple';
+
+export function PageSection({
+  title,
+  description,
+  action,
+  children,
+  className = '',
+  bodyClassName = '',
+  id,
+}) {
+  return (
+    <section id={id} className={`overflow-hidden ${panelClass} ${className}`}>
+      {(title || description || action) && (
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-6 py-5 sm:px-8">
+          <div className="max-w-3xl">
+            {title && (
+              <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{title}</h2>
+            )}
+            {description && (
+              <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
+            )}
+          </div>
+          {action}
+        </div>
+      )}
+      <div className={`px-6 py-5 sm:px-8 sm:py-6 ${bodyClassName}`}>{children}</div>
+    </section>
+  );
+}
+
+export function ListGroup({ children, className = '' }) {
+  return (
+    <ul
+      className={`divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06] bg-white ${className}`}
+    >
+      {children}
+    </ul>
+  );
+}
+
+export function ListRow({ children, className = '', onClick, as: Tag = 'li' }) {
+  const interactive = typeof onClick === 'function';
+  return (
+    <Tag
+      className={`flex items-center gap-3 px-4 py-3.5 text-[15px] sm:px-5 ${
+        interactive ? 'cursor-pointer transition hover:bg-apple-highlight' : ''
+      } ${className}`}
+      onClick={onClick}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+export function StatCard({ label, value, tone = 'neutral' }) {
+  const accents = {
+    blue: 'bg-brand-600',
+    emerald: 'bg-emerald-500',
+    amber: 'bg-amber-500',
+    rose: 'bg-rose-500',
+    neutral: 'bg-apple-muted',
+  };
+  return (
+    <div className={`${panelClass} p-6`}>
+      <div className="flex items-center gap-2">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${accents[tone] || accents.neutral}`} aria-hidden />
+        <p className="text-[13px] font-medium text-apple-label">{label}</p>
+      </div>
+      <p className="mt-3 text-[36px] font-semibold tabular-nums tracking-tightest text-apple-text sm:text-[40px]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export function PageHero({ eyebrow, title, subtitle, action, className = '' }) {
+  return (
+    <div className={`mb-10 flex flex-wrap items-end justify-between gap-6 ${className}`}>
+      <div className="max-w-3xl">
+        {eyebrow && <p className="text-[13px] font-medium text-apple-label">{eyebrow}</p>}
+        <h1 className="mt-2 text-[32px] font-semibold tracking-tightest text-apple-text sm:text-[40px] sm:leading-tight">
+          {title}
+        </h1>
+        {subtitle && <p className="mt-3 text-[17px] leading-relaxed text-apple-label">{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
 export function PasswordInput({ className = '', inputClassName = inputClass, ...props }) {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);

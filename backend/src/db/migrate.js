@@ -40,7 +40,7 @@ const SCHEMA_STATEMENTS = [
     id SERIAL PRIMARY KEY,
     username VARCHAR(128) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'general_affairs', 'head_of_finance')),
+    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'head_of_finance')),
     office_id INTEGER REFERENCES offices(id),
     employee_id INTEGER UNIQUE REFERENCES employees(id)
   )`,
@@ -417,6 +417,11 @@ async function seed() {
   }
 }
 
+/** Former general_affairs accounts are umum (same attendance and payroll rules). */
+async function migrateMergeGeneralAffairsIntoUmum() {
+  await query(`UPDATE users SET role = 'umum' WHERE role = 'general_affairs'`);
+}
+
 /** Allow pegawai (employee) and petugas lapangan (field_officer) roles on existing DBs. */
 async function migrateUserRoleConstraint() {
   const r = await query(`
@@ -432,7 +437,7 @@ async function migrateUserRoleConstraint() {
   }
   await query(`
     ALTER TABLE users ADD CONSTRAINT users_role_check
-    CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'general_affairs', 'head_of_finance'))
+    CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'head_of_finance'))
   `);
 }
 
@@ -655,6 +660,7 @@ async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
   }
+  await migrateMergeGeneralAffairsIntoUmum();
   await migrateUserRoleConstraint();
   await migrateEnterpriseColumns();
   await migrateAttendanceCheckoutCode();

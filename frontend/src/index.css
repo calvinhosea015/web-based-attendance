@@ -71,4 +71,16 @@
   .apple-expand-panel {
     @apply rounded-apple-lg border border-black/[0.06] bg-white p-5 shadow-apple;
   }
+
+  .apple-inset-panel {
+    @apply rounded-apple-lg border border-black/[0.05] bg-apple-fill/60 p-4;
+  }
+
+  .apple-metric {
+    @apply text-[32px] font-semibold tabular-nums tracking-tightest text-apple-text sm:text-[36px];
+  }
+
+  .apple-section-grid {
+    @apply grid gap-6 lg:grid-cols-2;
+  }
 }
