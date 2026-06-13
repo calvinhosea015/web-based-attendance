@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Badge, Button, Card, Field, StatTile, inputClass } from './ui.jsx';
+import { Alert, Badge, Button, Card, Field, FilterChip, StatTile, inputClass } from './ui.jsx';
 import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import {
@@ -25,10 +25,15 @@ export default function FieldOperationsPanel({
   showTonase = true,
 }) {
   const showCatalog = showPabrik || showTonase;
+  const showTabs = showCatalog && showOmset;
   const omsetPeriod = periodProp ?? currentPayrollPeriodKey();
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState('omset');
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('info');
+
+  const showCatalogPanel = showCatalog && (!showTabs || activeTab === 'catalog');
+  const showOmsetPanel = showOmset && (!showTabs || activeTab === 'omset');
 
   const [pabriks, setPabriks] = useState([]);
   const [pabrikOfficeLinkSavingId, setPabrikOfficeLinkSavingId] = useState(null);
@@ -337,7 +342,32 @@ export default function FieldOperationsPanel({
         </Alert>
       )}
 
-      {showCatalog && (
+      {showTabs && (
+        <div
+          className="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label={t('fieldOpsDashboardTitle')}
+        >
+          <FilterChip
+            active={activeTab === 'omset'}
+            role="tab"
+            aria-selected={activeTab === 'omset'}
+            onClick={() => setActiveTab('omset')}
+          >
+            {t('fieldOpsTabOmset')}
+          </FilterChip>
+          <FilterChip
+            active={activeTab === 'catalog'}
+            role="tab"
+            aria-selected={activeTab === 'catalog'}
+            onClick={() => setActiveTab('catalog')}
+          >
+            {t('fieldOpsTabCatalog')}
+          </FilterChip>
+        </div>
+      )}
+
+      {showCatalogPanel && (
         <section id="pabrik-catalog" className="scroll-mt-24">
           <Card
             title={t('pabrikCatalogTitle')}
@@ -769,7 +799,7 @@ export default function FieldOperationsPanel({
         </section>
       )}
 
-      {showOmset && (
+      {showOmsetPanel && (
         <section id="field-omset" className="scroll-mt-24">
           <Card
             title={t('fieldOmsetReportTitle')}

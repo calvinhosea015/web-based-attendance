@@ -157,7 +157,9 @@ export default {
     'From delivery codes: omset = price × selisih when price is set, else tonase × selisih; bonus = omset × 2%. Can override manually.',
   fieldOpsDashboardTitle: 'Field operations',
   fieldOpsDashboardSubtitle:
-    'Factories, item codes, tonase bonus rates, and field officer omset — one place.',
+    'Field officer omset and factory catalog — use the tabs to switch.',
+  fieldOpsTabOmset: 'Field officer omset',
+  fieldOpsTabCatalog: 'Factories, items & tonase bonus',
   pabrikCatalogTitle: 'Factories, items & tonase bonus',
   pabrikCatalogHint:
     'Manage factories, locations, and item codes. Expand a factory to add items and edit price per item (saved on blur or Enter). Omset = price × selisih when set, else tonase × selisih. Bonus = omset × 2%.',

@@ -14,32 +14,38 @@ import FinanceFieldOmset from './pages/FinanceFieldOmset.jsx';
 function PublicHeader({ showName = true, showLogo = true }) {
   const { t, i18n } = useTranslation();
   return (
-    <header className="border-b border-black/[0.08] bg-white/72 backdrop-blur-2xl backdrop-saturate-150">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <span className="flex items-center gap-3 text-[15px] font-semibold tracking-tight text-apple-text">
-          {showLogo ? (
-            <img src="/company-logo.png" alt={t('appName')} className="h-8 w-auto rounded-lg" />
-          ) : null}
-          {showName ? t('appName') : null}
-        </span>
-        <div className="flex rounded-full bg-apple-fill p-0.5" role="group" aria-label={t('language')}>
-          {['en', 'id'].map((lng) => (
-            <button
-              key={lng}
-              type="button"
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition ${
-                i18n.language?.startsWith(lng)
-                  ? 'bg-white text-apple-text shadow-apple'
-                  : 'text-apple-muted hover:text-apple-text'
-              }`}
-              onClick={() => i18n.changeLanguage(lng)}
-            >
-              {lng}
-            </button>
-          ))}
+    <div className="relative z-20 px-4 pt-6 sm:px-6">
+      <div className="nav-island mx-auto max-w-6xl">
+        <div className="nav-island-inner">
+          <span className="flex items-center gap-3 font-display text-[15px] font-semibold tracking-tight text-apple-text">
+            {showLogo ? (
+              <img src="/company-logo.png" alt={t('appName')} className="h-8 w-auto rounded-xl" />
+            ) : null}
+            {showName ? t('appName') : null}
+          </span>
+          <div
+            className="flex rounded-full bg-apple-fill p-0.5 ring-1 ring-black/[0.04]"
+            role="group"
+            aria-label={t('language')}
+          >
+            {['en', 'id'].map((lng) => (
+              <button
+                key={lng}
+                type="button"
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition-all duration-300 ease-premium ${
+                  i18n.language?.startsWith(lng)
+                    ? 'bg-white text-apple-text shadow-apple'
+                    : 'text-apple-muted hover:text-apple-text'
+                }`}
+                onClick={() => i18n.changeLanguage(lng)}
+              >
+                {lng}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </header>
+    </div>
   );
 }
 
@@ -61,11 +67,11 @@ export default function App() {
   }, [i18n.language, t]);
 
   return (
-    <div className="min-h-screen bg-apple-bg font-sans">
+    <div className="page-canvas font-sans">
       {!isAdminRoute && (
         <PublicHeader showName={!isLoginRoute} showLogo={!isLoginRoute} />
       )}
-      <main>
+      <main className="relative z-10">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminDashboard />} />

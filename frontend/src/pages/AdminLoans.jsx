@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
-import { Alert, Badge, Button, Card } from '../components/ui.jsx';
+import { Alert, Badge, Button, Card, FilterChip } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
@@ -101,21 +101,12 @@ export default function AdminLoans() {
 
         <div className="flex flex-wrap gap-2">
           {['pending', 'approved', 'rejected', 'all'].map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                filter === f
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'border border-apple-border bg-white text-apple-label hover:bg-apple-highlight hover:text-apple-text'
-              }`}
-            >
+            <FilterChip key={f} active={filter === f} onClick={() => setFilter(f)}>
               {t(`loanFilter_${f}`)}
               {f === 'pending' && pendingCount != null && filter === 'pending' && (
                 <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-xs">{pendingCount}</span>
               )}
-            </button>
+            </FilterChip>
           ))}
           <Button variant="secondary" onClick={load} disabled={loading}>
             {loading ? t('loading') : t('payrollRefresh')}

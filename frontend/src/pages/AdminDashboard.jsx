@@ -439,11 +439,32 @@ export default function AdminDashboard() {
       {message && <Alert tone="info">{message}</Alert>}
 
       {overview && (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label={t('totalEmployees')} value={overview.totalEmployees} tone="blue" />
-          <StatCard label={t('presentToday')} value={overview.presentToday} tone="emerald" />
-          <StatCard label={t('lateToday')} value={overview.lateToday} tone="amber" />
-          <StatCard label={t('absentToday')} value={overview.absentToday} tone="rose" />
+        <section className="bento-grid">
+          <StatCard
+            label={t('totalEmployees')}
+            value={overview.totalEmployees}
+            tone="blue"
+            featured
+            className="bento-featured"
+          />
+          <StatCard
+            label={t('presentToday')}
+            value={overview.presentToday}
+            tone="emerald"
+            className="bento-compact"
+          />
+          <StatCard
+            label={t('lateToday')}
+            value={overview.lateToday}
+            tone="amber"
+            className="bento-compact"
+          />
+          <StatCard
+            label={t('absentToday')}
+            value={overview.absentToday}
+            tone="rose"
+            className="bento-wide"
+          />
         </section>
       )}
 
@@ -451,7 +472,7 @@ export default function AdminDashboard() {
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#d2d2d7" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#86868b' }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#86868b' }} axisLine={false} tickLine={false} />
               <Tooltip

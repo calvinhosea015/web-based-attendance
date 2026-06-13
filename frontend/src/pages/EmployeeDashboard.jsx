@@ -567,7 +567,7 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 py-10 sm:px-6 sm:py-12">
+    <div className="mx-auto max-w-5xl space-y-10 px-4 py-16 sm:px-6 sm:py-24">
       <PageHero
         eyebrow={translateRole(localStorage.getItem('role'))}
         title={t('employeeDashboard')}

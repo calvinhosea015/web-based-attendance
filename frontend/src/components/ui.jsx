@@ -1,25 +1,35 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export function Card({ title, description, action, children, className = '' }) {
+export function DoubleBezel({ children, className = '', innerClassName = '' }) {
   return (
-    <section
-      className={`overflow-hidden rounded-apple-xl border border-black/[0.06] bg-white shadow-apple ${className}`}
-    >
-      {(title || description || action) && (
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-6 py-5 sm:px-8">
-          <div className="max-w-3xl">
-            {title && (
-              <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{title}</h2>
-            )}
-            {description && (
-              <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
-            )}
+    <div className={`bezel-outer ${className}`}>
+      <div className={`bezel-inner ${innerClassName}`}>{children}</div>
+    </div>
+  );
+}
+
+export function Card({ title, description, action, children, className = '', bodyClassName = '' }) {
+  return (
+    <section className={`bezel-outer shadow-apple ${className}`}>
+      <div className="bezel-inner overflow-hidden">
+        {(title || description || action) && (
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.04] px-6 py-5 sm:px-8">
+            <div className="max-w-3xl">
+              {title && (
+                <h2 className="font-display text-[22px] font-semibold tracking-tightest text-apple-text">
+                  {title}
+                </h2>
+              )}
+              {description && (
+                <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
+              )}
+            </div>
+            {action}
           </div>
-          {action}
-        </div>
-      )}
-      <div className="px-6 py-5 sm:px-8 sm:py-6">{children}</div>
+        )}
+        <div className={`px-6 py-5 sm:px-8 sm:py-6 ${bodyClassName}`}>{children}</div>
+      </div>
     </section>
   );
 }
@@ -29,51 +39,67 @@ export function Button({
   size = 'md',
   className = '',
   children,
+  trailingIcon,
   ...props
 }) {
   const base =
-    'inline-flex items-center justify-center gap-2 font-medium transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-40';
+    'group inline-flex items-center justify-center gap-2 font-medium transition-all duration-premium ease-premium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-40';
   const sizes = {
-    sm: 'px-3.5 py-1.5 text-[13px] rounded-full',
-    md: 'px-5 py-2 text-[15px] rounded-full',
-    lg: 'px-6 py-2.5 text-[15px] rounded-full',
+    sm: 'px-4 py-2 text-[13px] rounded-full',
+    md: 'px-5 py-2.5 text-[15px] rounded-full',
+    lg: 'px-6 py-3 text-[15px] rounded-full',
   };
   const variants = {
-    primary: 'bg-brand-600 text-white hover:bg-brand-500 active:scale-[0.98]',
+    primary:
+      'bg-brand-600 text-white shadow-apple hover:bg-brand-500 active:scale-[0.98]',
     secondary:
-      'border border-apple-border bg-white text-apple-text shadow-apple hover:bg-apple-fill active:scale-[0.98]',
-    success: 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98]',
-    ghost: 'text-apple-label hover:bg-apple-highlight hover:text-brand-700',
+      'bg-white text-apple-text shadow-apple ring-1 ring-black/[0.06] hover:bg-apple-fill active:scale-[0.98]',
+    success:
+      'bg-emerald-600 text-white shadow-apple hover:bg-emerald-500 active:scale-[0.98]',
+    ghost:
+      'text-apple-label hover:bg-apple-highlight/80 hover:text-brand-700',
     danger:
-      'border border-rose-200/80 bg-rose-50 text-rose-700 hover:bg-rose-100/80 active:scale-[0.98]',
+      'bg-rose-50 text-rose-700 ring-1 ring-rose-200/60 hover:bg-rose-100/80 active:scale-[0.98]',
   };
+
+  const showTrailing = trailingIcon || (typeof children === 'string' && children.includes('→'));
+
   return (
     <button
       type="button"
       className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
       {...props}
     >
-      {children}
+      <span>{children}</span>
+      {showTrailing && (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] transition-all duration-premium ease-premium group-hover:translate-x-0.5 group-hover:-translate-y-px group-hover:scale-105 group-active:scale-95 dark:bg-white/10">
+          {trailingIcon || (
+            <span className="text-[14px] leading-none" aria-hidden>
+              ↗
+            </span>
+          )}
+        </span>
+      )}
     </button>
   );
 }
 
 export function Alert({ tone = 'info', children, onDismiss }) {
   const tones = {
-    info: 'border-apple-border bg-apple-highlight text-apple-text',
-    success: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-900',
-    error: 'border-rose-200/80 bg-rose-50/80 text-rose-900',
+    info: 'bg-apple-highlight/80 text-apple-text ring-1 ring-brand-100',
+    success: 'bg-emerald-50/90 text-emerald-900 ring-1 ring-emerald-200/60',
+    error: 'bg-rose-50/90 text-rose-900 ring-1 ring-rose-200/60',
   };
   return (
     <div
-      className={`flex items-start justify-between gap-3 rounded-apple-lg border px-4 py-3.5 text-[15px] ${tones[tone]}`}
+      className={`flex items-start justify-between gap-3 rounded-apple-lg px-4 py-3.5 text-[15px] ${tones[tone]}`}
       role="status"
     >
       <span>{children}</span>
       {onDismiss && (
         <button
           type="button"
-          className="shrink-0 rounded-full p-1 text-apple-muted transition hover:bg-black/[0.06] hover:text-apple-text"
+          className="shrink-0 rounded-full p-1 text-apple-muted transition-all duration-300 ease-premium hover:bg-black/[0.06] hover:text-apple-text"
           onClick={onDismiss}
           aria-label="Dismiss"
         >
@@ -86,9 +112,11 @@ export function Alert({ tone = 'info', children, onDismiss }) {
 
 export function Badge({ variant = 'neutral', children }) {
   const variants = {
-    neutral: 'bg-apple-fill text-apple-text',
-    success: 'bg-emerald-100 text-emerald-800',
-    muted: 'bg-apple-fill text-apple-label',
+    neutral: 'bg-apple-fill text-apple-text ring-1 ring-black/[0.04]',
+    success: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200/50',
+    muted: 'bg-apple-fill text-apple-label ring-1 ring-black/[0.04]',
+    warning: 'bg-amber-100 text-amber-800 ring-1 ring-amber-200/50',
+    danger: 'bg-rose-100 text-rose-800 ring-1 ring-rose-200/50',
   };
   return (
     <span
@@ -99,6 +127,18 @@ export function Badge({ variant = 'neutral', children }) {
   );
 }
 
+export function FilterChip({ active, children, className = '', ...props }) {
+  return (
+    <button
+      type="button"
+      className={`${active ? 'apple-chip-active' : 'apple-chip'} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function Field({ label, hint, children, className = '' }) {
   return (
     <label className={`block ${className}`}>
@@ -106,18 +146,19 @@ export function Field({ label, hint, children, className = '' }) {
         <span className="mb-2 block text-[13px] font-medium text-apple-label">{label}</span>
       )}
       {children}
-      {hint && <span className="mt-1.5 block text-[12px] leading-relaxed text-apple-muted">{hint}</span>}
+      {hint && (
+        <span className="mt-1.5 block text-[12px] leading-relaxed text-apple-muted">{hint}</span>
+      )}
     </label>
   );
 }
 
 export const inputClass =
-  'w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text shadow-none transition placeholder:text-apple-muted hover:border-apple-muted/60 focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35';
+  'w-full rounded-apple-lg bg-apple-fill px-4 py-3 text-[15px] text-apple-text shadow-inset transition-all duration-300 ease-premium placeholder:text-apple-muted ring-1 ring-black/[0.05] hover:ring-black/[0.08] focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/30';
 
 export const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
-export const panelClass =
-  'rounded-apple-xl border border-black/[0.06] bg-white shadow-apple';
+export const panelClass = 'bezel-outer shadow-apple';
 
 export function PageSection({
   title,
@@ -129,32 +170,34 @@ export function PageSection({
   id,
 }) {
   return (
-    <section id={id} className={`overflow-hidden ${panelClass} ${className}`}>
-      {(title || description || action) && (
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-6 py-5 sm:px-8">
-          <div className="max-w-3xl">
-            {title && (
-              <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{title}</h2>
-            )}
-            {description && (
-              <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
-            )}
+    <section id={id} className={`bezel-outer shadow-apple ${className}`}>
+      <div className="bezel-inner overflow-hidden">
+        {(title || description || action) && (
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.04] px-6 py-5 sm:px-8">
+            <div className="max-w-3xl">
+              {title && (
+                <h2 className="font-display text-[22px] font-semibold tracking-tightest text-apple-text">
+                  {title}
+                </h2>
+              )}
+              {description && (
+                <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
+              )}
+            </div>
+            {action}
           </div>
-          {action}
-        </div>
-      )}
-      <div className={`px-6 py-5 sm:px-8 sm:py-6 ${bodyClassName}`}>{children}</div>
+        )}
+        <div className={`px-6 py-5 sm:px-8 sm:py-6 ${bodyClassName}`}>{children}</div>
+      </div>
     </section>
   );
 }
 
 export function ListGroup({ children, className = '' }) {
   return (
-    <ul
-      className={`divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06] bg-white ${className}`}
-    >
-      {children}
-    </ul>
+    <DoubleBezel className={className}>
+      <ul className="divide-y divide-black/[0.04] overflow-hidden">{children}</ul>
+    </DoubleBezel>
   );
 }
 
@@ -162,8 +205,10 @@ export function ListRow({ children, className = '', onClick, as: Tag = 'li' }) {
   const interactive = typeof onClick === 'function';
   return (
     <Tag
-      className={`flex items-center gap-3 px-4 py-3.5 text-[15px] sm:px-5 ${
-        interactive ? 'cursor-pointer transition hover:bg-apple-highlight' : ''
+      className={`flex items-center gap-3 px-5 py-4 text-[15px] ${
+        interactive
+          ? 'cursor-pointer transition-all duration-300 ease-premium hover:bg-apple-highlight/60'
+          : ''
       } ${className}`}
       onClick={onClick}
     >
@@ -172,36 +217,49 @@ export function ListRow({ children, className = '', onClick, as: Tag = 'li' }) {
   );
 }
 
-export function StatCard({ label, value, tone = 'neutral' }) {
+export function StatCard({ label, value, tone = 'neutral', className = '', featured = false }) {
   const accents = {
-    blue: 'bg-brand-600',
-    emerald: 'bg-emerald-500',
-    amber: 'bg-amber-500',
-    rose: 'bg-rose-500',
-    neutral: 'bg-apple-muted',
+    blue: 'from-brand-600 to-brand-500',
+    emerald: 'from-emerald-500 to-emerald-400',
+    amber: 'from-amber-500 to-amber-400',
+    rose: 'from-rose-500 to-rose-400',
+    neutral: 'from-apple-muted to-apple-label',
   };
+  const gradient = accents[tone] || accents.neutral;
+
   return (
-    <div className={`${panelClass} p-6`}>
-      <div className="flex items-center gap-2">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${accents[tone] || accents.neutral}`} aria-hidden />
-        <p className="text-[13px] font-medium text-apple-label">{label}</p>
+    <div className={`bezel-outer shadow-apple transition-all duration-premium ease-premium hover:shadow-apple-md ${className}`}>
+      <div className={`bezel-inner p-6 sm:p-8 ${featured ? 'sm:p-10' : ''}`}>
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full bg-gradient-to-br ${gradient}`}
+            aria-hidden
+          />
+          <p className="text-[13px] font-medium text-apple-label">{label}</p>
+        </div>
+        <p
+          className={`mt-4 font-display font-semibold tabular-nums tracking-tightest text-apple-text ${
+            featured ? 'text-[48px] sm:text-[56px]' : 'text-[36px] sm:text-[40px]'
+          }`}
+        >
+          {value}
+        </p>
       </div>
-      <p className="mt-3 text-[36px] font-semibold tabular-nums tracking-tightest text-apple-text sm:text-[40px]">
-        {value}
-      </p>
     </div>
   );
 }
 
 export function PageHero({ eyebrow, title, subtitle, action, className = '' }) {
   return (
-    <div className={`mb-10 flex flex-wrap items-end justify-between gap-6 ${className}`}>
+    <div className={`mb-12 flex flex-wrap items-end justify-between gap-8 py-4 ${className}`}>
       <div className="max-w-3xl">
-        {eyebrow && <p className="text-[13px] font-medium text-apple-label">{eyebrow}</p>}
-        <h1 className="mt-2 text-[32px] font-semibold tracking-tightest text-apple-text sm:text-[40px] sm:leading-tight">
+        {eyebrow && <span className="apple-eyebrow">{eyebrow}</span>}
+        <h1 className="mt-4 font-display text-[36px] font-semibold tracking-tightest text-apple-text sm:text-[48px] sm:leading-[1.05]">
           {title}
         </h1>
-        {subtitle && <p className="mt-3 text-[17px] leading-relaxed text-apple-label">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-4 text-[17px] leading-relaxed text-apple-label">{subtitle}</p>
+        )}
       </div>
       {action}
     </div>
@@ -221,7 +279,7 @@ export function PasswordInput({ className = '', inputClassName = inputClass, ...
       />
       <button
         type="button"
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-3 py-1 text-[12px] font-medium text-apple-label transition hover:bg-apple-fill-hover hover:text-apple-text"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-[12px] font-medium text-apple-label transition-all duration-300 ease-premium hover:bg-apple-fill-hover hover:text-apple-text"
         onClick={() => setVisible((v) => !v)}
         aria-pressed={visible}
         aria-label={visible ? t('hidePassword') : t('showPassword')}
@@ -240,41 +298,47 @@ const modalSizes = {
 
 export function Modal({ title, subtitle, onClose, children, footer, size = 'md', fitScreen = false }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6">
       <button
         type="button"
-        className="absolute inset-0 bg-black/30 backdrop-blur-md"
+        className="absolute inset-0 bg-black/25 backdrop-blur-glass transition-opacity duration-premium ease-premium"
         aria-label="Close"
         onClick={onClose}
       />
       <div
-        className={`relative flex w-full flex-col overflow-hidden rounded-apple-xl border border-black/[0.08] bg-white shadow-apple-lg ${modalSizes[size] || modalSizes.md} ${
-          fitScreen ? 'max-h-[calc(100vh-2rem)]' : 'max-h-[min(90vh,800px)]'
+        className={`relative flex w-full flex-col overflow-hidden bezel-outer shadow-apple-lg ${modalSizes[size] || modalSizes.md} ${
+          fitScreen ? 'max-h-[calc(100dvh-2rem)]' : 'max-h-[min(90dvh,800px)]'
         }`}
         role="dialog"
         aria-modal="true"
       >
-        <div className="shrink-0 border-b border-black/[0.06] px-6 py-4">
-          <h3 className="text-[20px] font-semibold tracking-tight text-apple-text">{title}</h3>
-          {subtitle && <p className="mt-1 truncate text-[15px] text-apple-label">{subtitle}</p>}
-        </div>
-        <div
-          className={`shrink-0 px-6 py-4 ${fitScreen ? 'overflow-hidden' : 'flex-1 overflow-y-auto'}`}
-        >
-          {children}
-        </div>
-        {footer && (
-          <div className="flex shrink-0 justify-end gap-2 border-t border-black/[0.06] bg-apple-fill/40 px-6 py-4">
-            {footer}
+        <div className="bezel-inner flex max-h-full flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-black/[0.04] px-6 py-5">
+            <h3 className="font-display text-[20px] font-semibold tracking-tight text-apple-text">
+              {title}
+            </h3>
+            {subtitle && (
+              <p className="mt-1 truncate text-[15px] text-apple-label">{subtitle}</p>
+            )}
           </div>
-        )}
+          <div
+            className={`shrink-0 px-6 py-5 ${fitScreen ? 'overflow-hidden' : 'flex-1 overflow-y-auto'}`}
+          >
+            {children}
+          </div>
+          {footer && (
+            <div className="flex shrink-0 justify-end gap-2 border-t border-black/[0.04] bg-apple-fill/40 px-6 py-4">
+              {footer}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 export const inputClassCompact =
-  'w-full rounded-lg border border-apple-border bg-apple-fill px-2.5 py-2 text-[14px] text-apple-text transition placeholder:text-apple-muted focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35';
+  'w-full rounded-lg bg-apple-fill px-2.5 py-2 text-[14px] text-apple-text shadow-inset transition-all duration-300 ease-premium placeholder:text-apple-muted ring-1 ring-black/[0.05] focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/30';
 
 export function CompactField({ label, hint, children, className = '' }) {
   return (
@@ -283,19 +347,23 @@ export function CompactField({ label, hint, children, className = '' }) {
         <span className="mb-1 block text-[11px] font-medium text-apple-label">{label}</span>
       )}
       {children}
-      {hint && <span className="mt-0.5 block truncate text-[11px] text-apple-muted">{hint}</span>}
+      {hint && (
+        <span className="mt-0.5 block truncate text-[11px] text-apple-muted">{hint}</span>
+      )}
     </label>
   );
 }
 
-export function StatTile({ label, value, sub }) {
+export function StatTile({ label, value, sub, className = '' }) {
   return (
-    <div className="rounded-apple-lg border border-black/[0.06] bg-white p-5 shadow-apple">
-      <p className="text-[13px] font-medium text-apple-label">{label}</p>
-      <p className="mt-2 text-[28px] font-semibold tabular-nums tracking-tightest text-apple-text">
-        {value}
-      </p>
-      {sub && <p className="mt-1 text-[12px] leading-relaxed text-apple-muted">{sub}</p>}
+    <div className={`bezel-outer shadow-apple ${className}`}>
+      <div className="bezel-inner p-5 sm:p-6">
+        <p className="text-[13px] font-medium text-apple-label">{label}</p>
+        <p className="mt-2 font-display text-[28px] font-semibold tabular-nums tracking-tightest text-apple-text">
+          {value}
+        </p>
+        {sub && <p className="mt-1 text-[12px] leading-relaxed text-apple-muted">{sub}</p>}
+      </div>
     </div>
   );
 }

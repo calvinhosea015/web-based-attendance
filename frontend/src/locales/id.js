@@ -157,7 +157,9 @@ export default {
     'Dari kode pengiriman: omset = harga × selisih jika harga diisi, jika tidak tonase × selisih; bonus = omset × 2%. Bisa di-override manual.',
   fieldOpsDashboardTitle: 'Operasi lapangan',
   fieldOpsDashboardSubtitle:
-    'Pabrik, kode barang, tonase bonus, dan omset petugas lapangan — dalam satu halaman.',
+    'Omset petugas lapangan dan katalog pabrik — gunakan tab untuk berpindah.',
+  fieldOpsTabOmset: 'Omset petugas lapangan',
+  fieldOpsTabCatalog: 'Pabrik, barang & tonase bonus',
   pabrikCatalogTitle: 'Pabrik, barang & tonase bonus',
   pabrikCatalogHint:
     'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga × selisih jika diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
