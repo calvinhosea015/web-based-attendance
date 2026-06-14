@@ -1,5 +1,8 @@
 # Start attendance-api at Windows boot (no user login required).
 # Invoked by the "Attendance API Boot" scheduled task.
+#
+# Runs node server.js directly (not PM2) so SYSTEM boot does not grab the global
+# PM2 named pipe and block interactive pm2 commands for the calvin user.
 
 $ErrorActionPreference = "Stop"
 
@@ -43,6 +46,20 @@ function Wait-ApiHealthy([int]$MaxAttempts, [int]$SecondsBetween) {
     return $false
 }
 
+function Stop-BackendServer([string]$BackendPath) {
+    $backendNorm = $BackendPath.ToLowerInvariant()
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.CommandLine -and
+            $_.CommandLine.ToLowerInvariant().Contains($backendNorm) -and
+            $_.CommandLine -match 'server\.js'
+        } |
+        ForEach-Object {
+            Write-BootLog "Stopping stale server.js PID $($_.ProcessId)."
+            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+}
+
 try {
     Write-BootLog "Boot start (repo=$RepoRoot, node=$NodeDir)."
 
@@ -51,7 +68,6 @@ try {
     }
 
     $env:Path = "$NodeDir;$env:Path"
-    $env:PM2_HOME = $Pm2Home
 
     # Wait for disk and network after reboot (Neon DB, DNS).
     Start-Sleep -Seconds 30
@@ -67,17 +83,10 @@ try {
         throw "Missing backend/.env at $Backend"
     }
 
-    Set-Location $Backend
-    $Pm2Bin = Join-Path $NodeDir "node_modules\pm2\bin\pm2"
-    if (-not (Test-Path $Pm2Bin)) {
-        throw "PM2 not found at $Pm2Bin (run: npm install -g pm2 in $NodeDir)"
-    }
     $NodeExe = Join-Path $NodeDir "node.exe"
+    Stop-BackendServer -BackendPath $Backend
 
-    # Do not use "pm2 resurrect" on Windows — dump.pm2 env keys break JSON parsing.
-    & $NodeExe $Pm2Bin delete attendance-api 2>$null
-    & $NodeExe $Pm2Bin start server.js --name attendance-api --cwd $Backend --interpreter $NodeExe
-    & $NodeExe $Pm2Bin save
+    Start-Process -FilePath $NodeExe -ArgumentList "server.js" -WorkingDirectory $Backend -WindowStyle Hidden
 
     if (Wait-ApiHealthy -MaxAttempts 12 -SecondsBetween 10) {
         Write-BootLog "API started successfully."
