@@ -1,8 +1,8 @@
-# Web-Based Attendance System
+# Web-Based Attendance System 123
 
 This document is the **operator and user manual** for the Web-Based Attendance System: what it does, how to install and configure it, and how to use the web application day to day.
 
-**Default demo login** (fresh database seed — see [§7](#7-default-demo-accounts-fresh-install)): `admin` / `Admin123456`, `employee` / `Employee123456`.
+**Default demo login** (fresh database seed — see [§7](#7-default-demo-accounts-fresh-install)): `admin` / `admin123`, `employee` / `Employee123456`.
 
 ---
 
@@ -492,6 +492,38 @@ flowchart LR
 8. **Vercel → Environment Variables** → set **`VITE_API_BASE`** to `https://<your-tunnel-host>/api` and **redeploy** the frontend.
 9. Check **`https://<tunnel-host>/health`** → `{ "ok": true }`, then open your Vercel URL and log in.
 
+#### Auto-start on Windows (after reboot)
+
+To keep the local API running after a PC restart **without anyone logging in**, install the **Attendance API Boot** scheduled task once (runs as **SYSTEM** at startup):
+
+**Prerequisites**
+
+- `backend/.env` exists (same Neon `DATABASE_URL` as above).
+- Node.js is available (this repo’s scripts expect `D:\Calvin\node\node.exe` on the production PC; adjust paths in `scripts/start-backend-at-boot.ps1` if yours differ).
+
+**One-time install** (PowerShell **as Administrator**, from the repo root):
+
+```powershell
+.\scripts\install-backend-boot-task.ps1
+```
+
+This registers a task that waits ~60 seconds after boot, then runs `scripts/start-backend-at-boot.ps1`, which starts `node server.js` and checks `http://127.0.0.1:5001/health`. Allow **1–2 minutes** after reboot before the API is ready (network/DNS for Neon may still be coming up).
+
+**Test without rebooting** (Administrator):
+
+```powershell
+Start-ScheduledTask -TaskName "Attendance API Boot"
+Get-Content C:\Users\calvin\.pm2\logs\boot-start.log -Tail 20
+```
+
+**After code updates**, pull and restart the running API (does not reinstall the boot task):
+
+```powershell
+.\scripts\deploy-backend.ps1
+```
+
+Re-run `install-backend-boot-task.ps1` only if you change the boot scripts or move the repo path.
+
 **Migrations on startup:** the API only applies additive schema changes and skips demo seed rows that already exist (`ON CONFLICT DO NOTHING`). Your attendance and user data stay intact.
 
 **Local dev (optional):** run `cd frontend && npm run dev` with the API on port 5001; Vite proxies `/api` to localhost (no tunnel needed for that workflow).
@@ -526,7 +558,7 @@ The current app does **not** persist files to object storage (payroll/attendance
 
 - **Frontend**: push to `main` → Vercel redeploys.
 - **Backend (Railway)**: push to `main` → Railway redeploys.
-- **Backend (local)**: restart `npm start` on your machine after code changes; keep the tunnel running.
+- **Backend (local)**: restart with `.\scripts\deploy-backend.ps1` after code changes; keep the tunnel running. After a PC reboot, the **Attendance API Boot** task starts the API automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)).
 - **Schema**: migrations run on API startup; no separate migrate job.
 
 ---

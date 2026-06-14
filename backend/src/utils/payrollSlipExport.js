@@ -55,6 +55,7 @@ const ROW = {
 
 const BASE_SHEET_LAST_ROW = 22;
 const FIELD_OFFICER_SECTION_LAST_ROW = 50;
+const FIELD_OFFICER_DETAIL_FIRST_ROW = 34;
 
 const COL_WIDTHS = { A: 19, B: 16, C: 25, D: 16 };
 const ROW_HEIGHT = 15;
@@ -274,6 +275,14 @@ function setAmountCell(ws, row, col, amount) {
   cell.alignment = { horizontal: 'right', vertical: 'middle' };
 }
 
+function setAmountFormulaCell(ws, row, col, formula, result) {
+  const cell = ws.getCell(row, col);
+  cell.value = { formula, result: num(result) };
+  cell.numFmt = AMOUNT_NUMFMT;
+  cell.font = FONT_BODY;
+  cell.alignment = { horizontal: 'right', vertical: 'middle' };
+}
+
 function setLabelColon(ws, row, col, label) {
   setCell(ws, row, col, `${label}`, {
     alignment: { horizontal: 'left', vertical: 'middle' },
@@ -319,6 +328,19 @@ function fillTableLine(ws, row, labelCol, amountCol, label, amount) {
   setAmountCell(ws, row, amountCol, amount);
 }
 
+function fillTableLineFormula(ws, row, labelCol, amountCol, label, formula, result) {
+  setLabelColon(ws, row, labelCol, label);
+  setAmountFormulaCell(ws, row, amountCol, formula, result);
+}
+
+function fieldOfficerEarningResult(row, amounts, key) {
+  if (key === 'gaji') {
+    const hariKerja = Math.max(0, num(row.days_attended));
+    return num(row.upah_harian || 0) * hariKerja;
+  }
+  return num(amounts[key]);
+}
+
 function setThickBottomBorderRow(ws, rowNumber) {
   for (let c = COL.A; c <= COL.D; c += 1) {
     const current = ws.getCell(rowNumber, c).border || {};
@@ -361,7 +383,7 @@ function addFieldOfficerCalculationSection(
   setCell(ws, 28, COL.D, gajiBulanLabel(period));
 
   setCell(ws, 29, COL.A, 'Jabatan');
-  setCell(ws, 29, COL.B, String(jabatanLabel(row) || '').toUpperCase());
+  setCell(ws, 29, COL.B, jabatanLabel(row) || '');
   setCell(ws, 29, COL.C, 'Usia Kerja');
   setCell(ws, 29, COL.D, computeUsiaKerja(row.join_date, slipAsOfDate(row, period)));
 
@@ -463,7 +485,10 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   applyColumnWidths(ws);
 
   const amounts = slipAmounts(row);
-  const totalPendapatan = sumAmountKeys(amounts, EARNINGS);
+  const isFieldOfficerSlip = isFieldOfficer(row.user_role);
+  const totalPendapatan = isFieldOfficerSlip
+    ? fieldOfficerEarningsTotal(row, amounts)
+    : sumAmountKeys(amounts, EARNINGS);
   const totalPotongan = sumAmountKeys(amounts, DEDUCTIONS);
   const netPay = num(row.final_salary) || Math.max(0, totalPendapatan - totalPotongan);
   const bAmt = colLetter(COL.B);
@@ -507,9 +532,26 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   potonganHead.font = FONT_TABLE_HEAD;
   potonganHead.alignment = { horizontal: 'center', vertical: 'middle' };
 
+  if (isFieldOfficerSlip) {
+    addFieldOfficerCalculationSection(ws, row, period, amounts, totalPendapatan, netPay);
+  }
+
   for (let i = 0; i < EARNINGS.length; i += 1) {
     const r = ROW.TABLE_FIRST + i;
-    fillTableLine(ws, r, COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key]);
+    if (isFieldOfficerSlip) {
+      const detailRow = FIELD_OFFICER_DETAIL_FIRST_ROW + i;
+      fillTableLineFormula(
+        ws,
+        r,
+        COL.A,
+        COL.B,
+        EARNINGS[i].label,
+        `D${detailRow}`,
+        fieldOfficerEarningResult(row, amounts, EARNINGS[i].key)
+      );
+    } else {
+      fillTableLine(ws, r, COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key]);
+    }
     if (i < DEDUCTIONS.length) {
       fillTableLine(ws, r, COL.C, COL.D, DEDUCTIONS[i].label, amounts[DEDUCTIONS[i].key]);
     }
@@ -535,7 +577,6 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   rightTotal.font = FONT_TOTAL;
   rightTotal.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  const isFieldOfficerSlip = isFieldOfficer(row.user_role);
   applyTableBorders(
     ws,
     isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW
@@ -591,10 +632,6 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   netAmount.numFmt = NET_AMOUNT_NUMFMT;
   netAmount.font = FONT_NET_AMOUNT;
   netAmount.alignment = { horizontal: 'center', vertical: 'middle' };
-
-  if (isFieldOfficerSlip) {
-    addFieldOfficerCalculationSection(ws, row, period, amounts, totalPendapatan, netPay);
-  }
 
   applyUniformRowHeights(
     ws,

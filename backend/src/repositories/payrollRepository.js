@@ -103,6 +103,7 @@ class PayrollRepository {
         e.employee_id AS employee_code,
         e.full_name,
         e.join_date,
+        e.upah_harian AS employee_upah_harian,
         e.transport_eligible AS employee_transport_eligible,
         e.transport_allowance_amount AS employee_transport_allowance_amount,
         e.diligence_allowance_amount AS employee_diligence_allowance_amount,

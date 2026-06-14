@@ -113,8 +113,8 @@ export default function AdminPayroll() {
     }
   };
 
-  const loadPeriod = useCallback(async () => {
-    setLoading(true);
+  const loadPeriod = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     notify('');
     try {
       await ensureCsrf();
@@ -131,10 +131,12 @@ export default function AdminPayroll() {
       if (data.period_cycle_label) setPeriodCycleLabel(data.period_cycle_label);
       else setPeriodCycleLabel(payrollCycleLabel(period));
     } catch (err) {
-      notify(translateApiMessage(err) || String(err), 'error');
-      setRows([]);
+      if (!silent) {
+        notify(translateApiMessage(err) || String(err), 'error');
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [period]);
 
@@ -150,6 +152,25 @@ export default function AdminPayroll() {
     }
     loadPeriod();
   }, [navigate, loadPeriod]);
+
+  const PAYROLL_POLL_MS = 30000;
+
+  useEffect(() => {
+    if (editingId != null) return undefined;
+
+    const refreshSilent = () => loadPeriod({ silent: true });
+    const intervalId = setInterval(refreshSilent, PAYROLL_POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshSilent();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [period, editingId, loadPeriod]);
 
   useEffect(() => {
     const host = apiHostForHealth();

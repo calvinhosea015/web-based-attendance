@@ -612,6 +612,12 @@ class PayrollService {
 
     return {
       ...merged,
+      upah_harian: num(merged.upah_harian ?? merged.employee_upah_harian),
+      tunjangan_masa_kerja: num(merged.tunjangan_masa_kerja),
+      overtime_pay: num(merged.overtime_pay),
+      insentif: num(merged.insentif),
+      bonus_omset: num(merged.bonus_omset),
+      final_salary: num(totals.final_salary ?? merged.final_salary),
       transport_eligible: transportEligible,
       diligence_eligible: diligenceEligible,
       transport_allowance: totals.transport_allowance,
@@ -871,11 +877,10 @@ class PayrollService {
       );
     }
 
-    const tunjanganMasaKerja = resolveTunjanganMasaKerjaForRole(
-      role,
-      employee.join_date,
-      bounds.payroll_period
-    );
+    const tunjanganMasaKerja =
+      row.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)
+        ? num(row.tunjangan_masa_kerja)
+        : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period);
 
     const transportEligible = resolveTransportEligible(row, employee);
     const diligenceEligible = resolveDiligenceEligible(row);
@@ -1013,12 +1018,9 @@ class PayrollService {
       employees.map((e) => e.id)
     );
     const listed = await this.payrollRepository.listByPeriod(payrollPeriod);
-    const synced = await Promise.all(
-      listed.map((row) => this.syncPayrollRowFromAttendance(row, bounds))
-    );
-    const persistedRequired = synced.find((row) => row.expected_work_days != null)?.expected_work_days;
+    const persistedRequired = listed.find((row) => row.expected_work_days != null)?.expected_work_days;
     const meta = this.periodMeta(period, persistedRequired);
-    const rows = await this.enrichPayrollRows(synced);
+    const rows = await this.enrichPayrollRows(listed);
     return { ...meta, settings, rows };
   }
 
@@ -1622,7 +1624,7 @@ class PayrollService {
     return row;
   }
 
-  async getSlipRow(period, employeeId) {
+  async getSlipRow(period, employeeId, { sync = true } = {}) {
     const bounds = parsePeriod(period);
     const empId = Number(employeeId);
     if (!Number.isFinite(empId) || empId < 1) {
@@ -1636,13 +1638,19 @@ class PayrollService {
         'PAYROLL_NOT_FOUND'
       );
     }
-    const role = await this.payrollRepository.getRoleForEmployee(empId);
-    row = await this.syncPayrollRowFromAttendance({ ...row, user_role: role }, bounds);
+    const role = row.user_role || (await this.payrollRepository.getRoleForEmployee(empId));
+    if (sync) {
+      row = await this.syncPayrollRowFromAttendance({ ...row, user_role: role }, bounds);
+    } else {
+      row = { ...row, user_role: role };
+    }
     return { period: bounds.payroll_period, row };
   }
 
   async exportEmployeeSlip(period, employeeId) {
-    const { period: payroll_period, row } = await this.getSlipRow(period, employeeId);
+    const { period: payroll_period, row } = await this.getSlipRow(period, employeeId, {
+      sync: false,
+    });
     const slipRow = await this.enrichSlipRow(row, payroll_period);
     const wb = buildEmployeeSlipWorkbook(slipRow, payroll_period);
     const buffer = await writeSlipBuffer(wb);
@@ -1704,17 +1712,14 @@ class PayrollService {
         'PAYROLL_NOT_FOUND'
       );
     }
-    const rows = await Promise.all(
-      listed.map((row) => this.syncPayrollRowFromAttendance(row, bounds))
-    );
     const slipRows = await Promise.all(
-      rows.map((row) => this.enrichSlipRow(row, bounds.payroll_period))
+      listed.map((row) => this.enrichSlipRow(row, bounds.payroll_period))
     );
     const wb = slipWorkbookFromRows(slipRows, bounds.payroll_period);
     const buffer = await writeSlipBuffer(wb);
     const label = periodLabel(bounds.payroll_period).replace(/\s+/g, '_');
     const filename = `slip_gaji_semua_${bounds.payroll_period.replace('-', '')}.xlsx`;
-    return { buffer, filename, count: rows.length, label };
+    return { buffer, filename, count: listed.length, label };
   }
 }
 

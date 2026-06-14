@@ -435,10 +435,6 @@ async function migrateUserRoleConstraint() {
   for (const row of r.rows) {
     await query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS "${row.conname}"`);
   }
-
-  // Legacy role values from older deployments (must run before ADD CONSTRAINT).
-  await query(`UPDATE users SET role = 'employee' WHERE role = 'accounting'`);
-
   await query(`
     ALTER TABLE users ADD CONSTRAINT users_role_check
     CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'head_of_finance'))
