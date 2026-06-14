@@ -53,6 +53,8 @@ export default {
   geoTimeout: 'Location request timed out. Try again.',
   geoUnsupported: 'This browser does not support geolocation.',
   apiUnreachable: 'Cannot reach the server. Start the API (e.g. backend on port 5001) and reload.',
+  apiNotFound:
+    'API endpoint not found (404). Check Vercel VITE_API_BASE is https://<your-tunnel-host>/api (not /health or /api/v1), then redeploy.',
   history: 'Attendance history',
   noHistory: 'No history yet',
   notCheckedOut: 'Not checked out',

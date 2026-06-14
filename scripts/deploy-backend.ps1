@@ -30,7 +30,7 @@ git checkout $Branch
 git reset --hard "origin/$Branch"
 
 if (-not (Test-Path (Join-Path $Backend ".env"))) {
-    throw "Missing backend/.env — create it before deploying (see backend/.env.production-local.example)."
+    throw "Missing backend/.env - create it before deploying (see backend/.env.production-local.example)."
 }
 
 Set-Location $Backend
@@ -38,20 +38,21 @@ Write-Host "Installing dependencies..."
 npm ci --omit=dev
 
 Write-Host "Restarting API..."
-if (Get-Command pm2 -ErrorAction SilentlyContinue) {
+$RestartScript = Join-Path $RepoRoot "scripts\restart-api.ps1"
+if (Test-Path $RestartScript) {
+    & $RestartScript -RepoRoot $RepoRoot
+} elseif (Get-Command pm2 -ErrorAction SilentlyContinue) {
     $pm2List = pm2 jlist 2>$null | ConvertFrom-Json
     $existing = $pm2List | Where-Object { $_.name -eq $ServiceName }
     if ($existing) {
         pm2 restart $ServiceName
     } else {
-        pm2 start npm --name $ServiceName -- start
+        $NodeExe = if (Test-Path "D:\Calvin\node\node.exe") { "D:\Calvin\node\node.exe" } else { (Get-Command node).Source }
+        pm2 start server.js --name $ServiceName --cwd $Backend --interpreter $NodeExe
     }
     pm2 save
 } else {
-    Write-Warning "pm2 not found — starting npm in a new window. Install pm2 for reliable restarts:"
-    Write-Warning "  npm install -g pm2"
-    Write-Warning "  .\scripts\install-backend-service.ps1"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$Backend'; npm start"
+    throw "No restart script found. Run .\scripts\install-backend-boot-task.ps1 first."
 }
 
 Write-Host "Done. Health check: http://127.0.0.1:5001/health"

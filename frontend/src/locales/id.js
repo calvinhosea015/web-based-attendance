@@ -53,6 +53,8 @@ export default {
   geoTimeout: 'Permintaan lokasi habis waktu. Coba lagi.',
   geoUnsupported: 'Browser ini tidak mendukung geolocation.',
   apiUnreachable: 'Tidak bisa menghubungi server. Jalankan API (mis. backend port 5001) lalu muat ulang.',
+  apiNotFound:
+    'Endpoint API tidak ditemukan (404). Periksa VITE_API_BASE di Vercel: https://<host-tunnel>/api (bukan /health atau /api/v1), lalu deploy ulang.',
   history: 'Riwayat kehadiran',
   noHistory: 'Belum ada riwayat',
   notCheckedOut: 'Belum absen keluar',

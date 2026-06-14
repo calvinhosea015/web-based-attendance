@@ -212,6 +212,10 @@ export function translateApiMessage(input) {
     }
   }
 
+  if (input.response?.status === 404) {
+    return i18n.t('apiNotFound');
+  }
+
   return message || input.message || String(input);
 }
 

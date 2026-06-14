@@ -1,6 +1,6 @@
 
 $ErrorActionPreference = "Stop"
-$Backend = Join-Path $PSScriptRoot ".." "backend" | Resolve-Path
+$Backend = Join-Path (Join-Path $PSScriptRoot "..") "backend" | Resolve-Path
 $ServiceName = "attendance-api"
 
 if (-not (Get-Command pm2 -ErrorAction SilentlyContinue)) {
@@ -12,7 +12,8 @@ if (-not (Test-Path (Join-Path $Backend ".env"))) {
     throw "Create backend/.env first (copy from backend/.env.production-local.example)."
 }
 
-$NodeExe = (Get-Command node -ErrorAction SilentlyContinue)?.Source
+$NodeCmd = Get-Command node -ErrorAction SilentlyContinue
+$NodeExe = if ($NodeCmd) { $NodeCmd.Source } else { $null }
 if (-not $NodeExe -and (Test-Path "D:\Calvin\node\node.exe")) {
     $NodeExe = "D:\Calvin\node\node.exe"
 }
@@ -21,7 +22,10 @@ if (-not $NodeExe) {
 }
 
 Set-Location $Backend
-pm2 delete $ServiceName 2>$null
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+pm2 delete $ServiceName 2>$null | Out-Null
+$ErrorActionPreference = $prevEAP
 # npm start is unreliable under PM2 on Windows; run server.js with an explicit node path.
 pm2 start server.js --name $ServiceName --cwd $Backend --interpreter $NodeExe
 pm2 save

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-/** Ensure split-stack builds hit Railway, not the Vercel SPA (POST → 405 on static host). */
+/** Ensure split-stack builds hit the API host, not the Vercel SPA (POST → 405 on static host). */
 function normalizeApiBase(raw) {
   const fallback = '/api';
   if (!raw || raw === fallback) return fallback;
@@ -9,6 +9,9 @@ function normalizeApiBase(raw) {
     base = `https://${base.replace(/^\/+/, '')}`;
   }
   base = base.replace(/\/+$/, '');
+  // Common misconfiguration: pasting /health or /api/v1 from docs into Vercel env.
+  base = base.replace(/\/health$/i, '');
+  if (base.endsWith('/api/v1')) base = base.slice(0, -3);
   if (!base.endsWith('/api')) base = `${base}/api`;
   return base;
 }
