@@ -409,26 +409,39 @@ Good default for a small team (low cost, minimal ops):
 |-------|---------|------|
 | **Frontend** | [Vercel](https://vercel.com) (free tier) | Hosts the React SPA (`frontend/`) |
 | **Backend** | [Railway](https://railway.app) **or your PC** | Runs the Node API (`backend/`) |
-| **Database** | [Neon](https://neon.tech) | Serverless PostgreSQL |
+| **Database** | [Supabase](https://supabase.com) or [Neon](https://neon.tech) | Managed PostgreSQL |
 | **Storage** | [Cloudflare R2](https://developers.cloudflare.com/r2/) | Optional — not required today (Excel exports are generated in memory) |
 
 ```mermaid
 flowchart LR
   User[Browser] --> Vercel[Vercel SPA]
   Vercel -->|HTTPS /api| Railway[Railway API]
-  Railway --> Neon[(Neon Postgres)]
+  Railway --> DB[(Supabase or Neon Postgres)]
   Railway -.->|optional| R2[Cloudflare R2]
 ```
 
 Env templates: **`deploy/split-stack.env.example`**.
 
-#### Step 1 — Neon (database)
+#### Step 1 — Database (Supabase or Neon)
+
+**Supabase (recommended if you already use it)**
+
+1. Create a [Supabase](https://supabase.com) project.
+2. **Settings → Database → Connection string → URI**.
+3. For the Node API (Railway or your PC), use **Session pooler** or **Direct** (port **5432**). Avoid Transaction pooler (6543) for this long-running Express app.
+4. Set `DATABASE_URL` on the API host to that URI. SSL is auto-enabled for `supabase.co` URLs.
+
+**Neon (alternative)**
 
 1. Create a Neon project and database.
 2. Copy the **pooled** connection string (includes `?sslmode=require`).
-3. Keep it for Railway — the API enables SSL automatically for Neon URLs.
+3. Set `DATABASE_URL` on the API host. SSL is auto-enabled for Neon URLs.
+
+**Note:** Supabase does **not** host this Express API — only PostgreSQL. Edge Functions are Deno-only. Keep the API on Railway or your PC (Steps 2 / 2b below).
 
 On first successful API start, **migrations and seed data** run (same as local dev).
+
+**Migrating from Neon to Supabase:** `pg_dump` from Neon, `psql` restore into Supabase, then point `DATABASE_URL` at Supabase and restart the API. Do not run two APIs against different databases.
 
 #### Step 2 — Railway (API)
 
@@ -441,7 +454,7 @@ On first successful API start, **migrations and seed data** run (same as local d
 |----------|--------|
 | `NODE_ENV` | `production` |
 | `SERVE_FRONTEND` | `false` |
-| `DATABASE_URL` | Neon connection string |
+| `DATABASE_URL` | Supabase or Neon connection string |
 | `JWT_SECRET` | Long random secret (32+ chars) |
 | `COOKIE_SECRET` | Long random secret |
 | `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (exact UI origin, no trailing slash) |
@@ -494,39 +507,74 @@ flowchart LR
 
 #### Auto-start on Windows (after reboot)
 
-To keep the local API running after a PC restart **without anyone logging in**, install the **Attendance API Boot** scheduled task once (runs as **SYSTEM** at startup):
+To keep the local stack running after a PC restart **without anyone logging in**, install one or both scheduled tasks (each runs as **SYSTEM** at startup):
+
+| Task | What starts | URL |
+|------|-------------|-----|
+| **Attendance API Boot** | Backend API (`node server.js`) | `http://127.0.0.1:5001/health` |
+| **Attendance Frontend Boot** | Vite dev server (`npm run dev` equivalent) | `http://localhost:3000` |
+| **Attendance Tunnel Boot** | Cloudflare tunnel to port 5001 | stable: `tunnel-url.txt` after named setup |
 
 **Prerequisites**
 
 - `backend/.env` exists (same Neon `DATABASE_URL` as above).
-- Node.js is available (this repo’s scripts expect `D:\Calvin\node\node.exe` on the production PC; adjust paths in `scripts/start-backend-at-boot.ps1` if yours differ).
+- Node.js is available (this repo’s scripts expect `D:\Calvin\node\node.exe` on the production PC; adjust paths in the boot scripts if yours differ).
+- For the frontend task: `cd frontend && npm install` once so `node_modules/vite` exists.
+- For the tunnel task: `cloudflared.exe` at `D:\Calvin\cloudflared\cloudflared.exe`. For a **stable** public URL, also run `setup-named-tunnel.ps1` with a hostname on your Cloudflare domain.
 
 **One-time install** (PowerShell **as Administrator**, from the repo root):
 
 ```powershell
 .\scripts\install-backend-boot-task.ps1
+.\scripts\install-frontend-boot-task.ps1
+.\scripts\install-tunnel-boot-task.ps1
 ```
 
-This registers a task that waits ~60 seconds after boot, then runs `scripts/start-backend-at-boot.ps1`, which starts `node server.js` and checks `http://127.0.0.1:5001/health`. Allow **1–2 minutes** after reboot before the API is ready (network/DNS for Neon may still be coming up).
+The API task waits ~60 seconds after boot, then starts the backend. The frontend task waits ~2 minutes. The tunnel task waits ~2.5 minutes, then starts cloudflared once the API is healthy. Allow **3–4 minutes** after reboot before the full stack is ready.
+
+**Important (Vercel + quick tunnel):** Quick tunnel hostnames **change every restart**. Auto-sync is handled by:
+
+1. **Attendance Tunnel Boot** — starts cloudflared and syncs Vercel when the tunnel is healthy
+2. **Attendance Vercel Sync** — fallback task ~5 min after boot (install below)
+
+One-time setup:
+
+```powershell
+.\scripts\install-vercel-sync.ps1
+# Edit D:\Calvin\cloudflared\vercel-sync.env — add VERCEL_TOKEN from https://vercel.com/account/tokens
+.\scripts\install-vercel-sync-boot-task.ps1   # Administrator
+.\scripts\sync-vercel-api-url.ps1 -Force      # test once
+```
+
+Log: `C:\Users\calvin\.pm2\logs\vercel-sync.log`
+
+For a **stable URL** without redeploys, use a named Cloudflare tunnel with your own domain (`setup-named-tunnel.ps1`).
 
 **Test without rebooting** (Administrator):
 
 ```powershell
 Start-ScheduledTask -TaskName "Attendance API Boot"
+Start-ScheduledTask -TaskName "Attendance Frontend Boot"
+Start-ScheduledTask -TaskName "Attendance Tunnel Boot"
 Get-Content C:\Users\calvin\.pm2\logs\boot-start.log -Tail 20
+Get-Content C:\Users\calvin\.pm2\logs\boot-frontend.log -Tail 20
+Get-Content C:\Users\calvin\.pm2\logs\boot-tunnel.log -Tail 20
+Get-Content D:\Calvin\cloudflared\tunnel-url.txt
 ```
 
-**After code updates**, pull and restart the running API (does not reinstall the boot task):
+**After code updates**, pull and restart the running API (does not reinstall the boot tasks):
 
 ```powershell
 .\scripts\deploy-backend.ps1
 ```
 
-Re-run `install-backend-boot-task.ps1` only if you change the boot scripts or move the repo path.
+Restart the frontend dev server manually after frontend changes (`cd frontend && npm run dev`), or re-run `Start-ScheduledTask -TaskName "Attendance Frontend Boot"`.
+
+Re-run the install scripts only if you change the boot scripts or move the repo path.
 
 **Migrations on startup:** the API only applies additive schema changes and skips demo seed rows that already exist (`ON CONFLICT DO NOTHING`). Your attendance and user data stay intact.
 
-**Local dev (optional):** run `cd frontend && npm run dev` with the API on port 5001; Vite proxies `/api` to localhost (no tunnel needed for that workflow).
+**Local dev (optional):** run `cd frontend && npm run dev` with the API on port 5001, or install **Attendance Frontend Boot** (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)); Vite proxies `/api` to localhost (no tunnel needed for that workflow).
 
 #### Step 3 — Vercel (frontend)
 
@@ -558,7 +606,7 @@ The current app does **not** persist files to object storage (payroll/attendance
 
 - **Frontend**: push to `main` → Vercel redeploys.
 - **Backend (Railway)**: push to `main` → Railway redeploys.
-- **Backend (local)**: restart with `.\scripts\deploy-backend.ps1` after code changes; keep the tunnel running. After a PC reboot, the **Attendance API Boot** task starts the API automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)).
+- **Backend (local)**: restart with `.\scripts\deploy-backend.ps1` after code changes. After a PC reboot, **Attendance API Boot**, **Attendance Frontend Boot**, and **Attendance Tunnel Boot** start the stack automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)). If using Vercel, check `tunnel-url.txt` and update `VITE_API_BASE` when the tunnel hostname changes.
 - **Schema**: migrations run on API startup; no separate migrate job.
 
 ---

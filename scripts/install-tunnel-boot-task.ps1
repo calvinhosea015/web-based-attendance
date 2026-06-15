@@ -1,9 +1,8 @@
 
-
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ProdRepo = "D:\Calvin\web-based-attendance"
-$TaskName = "Attendance API Boot"
+$TaskName = "Attendance Tunnel Boot"
 
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator
@@ -12,60 +11,43 @@ if (-not $IsAdmin) {
     throw "Run PowerShell as Administrator to install the boot task."
 }
 
-# Keep production copy in sync when the server uses D:\Calvin.
 if ((Test-Path $ProdRepo) -and ($RepoRoot -ne $ProdRepo)) {
     $prodScripts = Join-Path $ProdRepo "scripts"
     if (-not (Test-Path $prodScripts)) {
         New-Item -ItemType Directory -Force -Path $prodScripts | Out-Null
     }
-    Copy-Item (Join-Path $RepoRoot "scripts\start-backend-at-boot.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\install-backend-boot-task.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\start-frontend-at-boot.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\install-frontend-boot-task.ps1") $prodScripts -Force
     Copy-Item (Join-Path $RepoRoot "scripts\start-tunnel-at-boot.ps1") $prodScripts -Force
     Copy-Item (Join-Path $RepoRoot "scripts\install-tunnel-boot-task.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\setup-named-tunnel.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\sync-vercel-api-url.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\install-vercel-sync.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\sync-vercel-at-boot.ps1") $prodScripts -Force
-    Copy-Item (Join-Path $RepoRoot "scripts\install-vercel-sync-boot-task.ps1") $prodScripts -Force
-    Write-Host "Synced boot scripts to $prodScripts"
+    Write-Host "Synced tunnel boot scripts to $prodScripts"
 }
 
-if (Test-Path (Join-Path $ProdRepo "scripts\start-backend-at-boot.ps1")) {
-    $BootScript = Join-Path $ProdRepo "scripts\start-backend-at-boot.ps1"
-    $Backend = Join-Path $ProdRepo "backend"
+if (Test-Path (Join-Path $ProdRepo "scripts\start-tunnel-at-boot.ps1")) {
+    $BootScript = Join-Path $ProdRepo "scripts\start-tunnel-at-boot.ps1"
 } else {
-    $BootScript = Join-Path $RepoRoot "scripts\start-backend-at-boot.ps1"
-    $Backend = Join-Path $RepoRoot "backend"
+    $BootScript = Join-Path $RepoRoot "scripts\start-tunnel-at-boot.ps1"
 }
 
 if (-not (Test-Path $BootScript)) {
     throw "Missing boot script: $BootScript"
 }
 
-# Login-only PM2 startup causes duplicate/confusing behavior once boot task exists.
-if (Get-Command pm2-startup -ErrorAction SilentlyContinue) {
-    pm2-startup uninstall 2>$null
+if (-not (Test-Path "D:\Calvin\cloudflared\cloudflared.exe")) {
+    throw "Install cloudflared at D:\Calvin\cloudflared\cloudflared.exe first."
 }
 
 $Pm2Home = "C:\Users\calvin\.pm2"
 if (Test-Path $Pm2Home) {
     icacls $Pm2Home /grant "SYSTEM:(OI)(CI)F" /T /Q | Out-Null
 }
-
-icacls $Backend /grant "SYSTEM:(OI)(CI)RX" /T /Q | Out-Null
-$EnvFile = Join-Path $Backend ".env"
-if (Test-Path $EnvFile) {
-    icacls $EnvFile /grant "SYSTEM:R" /Q | Out-Null
-}
+icacls "D:\Calvin\cloudflared" /grant "SYSTEM:(OI)(CI)RX" /T /Q | Out-Null
 
 $Action = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$BootScript`""
 
 $Trigger = New-ScheduledTaskTrigger -AtStartup
-$Trigger.Delay = "PT60S"
+# Start after API boot task (60s trigger + API startup).
+$Trigger.Delay = "PT150S"
 
 $Settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
@@ -86,7 +68,12 @@ Register-ScheduledTask `
 
 Write-Host "Installed scheduled task '$TaskName' (runs at system startup, no login required)."
 Write-Host "Boot script: $BootScript"
-Write-Host "Boot log: C:\Users\calvin\.pm2\logs\boot-start.log"
+Write-Host "Boot log: C:\Users\calvin\.pm2\logs\boot-tunnel.log"
+Write-Host "Tunnel URL file: D:\Calvin\cloudflared\tunnel-url.txt"
+Write-Host ""
+Write-Host "For a STABLE hostname (recommended), run once:"
+Write-Host "  .\scripts\setup-named-tunnel.ps1 -Hostname api.yourdomain.com"
+Write-Host "Requires a domain on Cloudflare (free plan). Quick tunnels change URL every restart."
 Write-Host ""
 Write-Host "Test without rebooting:"
 Write-Host "  Start-ScheduledTask -TaskName '$TaskName'"
