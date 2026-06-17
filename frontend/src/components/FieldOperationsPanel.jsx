@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Alert, Badge, Button, Card, Field, FilterChip, StatTile, inputClass } from './ui.jsx';
 import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
@@ -57,6 +56,9 @@ export default function FieldOperationsPanel({
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogFilterOffice, setCatalogFilterOffice] = useState('');
   const [showAddFactoryForm, setShowAddFactoryForm] = useState(false);
+  const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
+  const [editingOffice, setEditingOffice] = useState(null);
+  const [officeSaving, setOfficeSaving] = useState(false);
 
   const [report, setReport] = useState(null);
   const [omsetLoading, setOmsetLoading] = useState(false);
@@ -126,6 +128,13 @@ export default function FieldOperationsPanel({
   }, [omsetPeriod, showOmset, t]);
 
   useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'location-management' || hash === 'pabrik-catalog') {
+      setActiveTab('catalog');
+    }
+  }, []);
+
+  useEffect(() => {
     loadOffices();
   }, [loadOffices]);
 
@@ -172,6 +181,12 @@ export default function FieldOperationsPanel({
   }, [pabriks, catalogSearch, catalogFilterOffice]);
 
   const catalogFiltersActive = Boolean(catalogSearch.trim() || catalogFilterOffice);
+
+  const sortedOffices = useMemo(() => {
+    return [...offices].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+  }, [offices]);
 
   const filterCatalogItems = useCallback(
     (items) => {
@@ -304,6 +319,79 @@ export default function FieldOperationsPanel({
     }
   };
 
+  const handleAddOffice = async (e) => {
+    e.preventDefault();
+    setOfficeSaving(true);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.post(paths.offices, newOffice);
+      setNewOffice({ name: '', locationLink: '' });
+      await Promise.all([loadOffices(), loadPabriks()]);
+      notify(t('officeAdded'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setOfficeSaving(false);
+    }
+  };
+
+  const handleDeleteOffice = async (id) => {
+    const linked = pabriks.filter((p) => Number(p.office_id) === Number(id));
+    if (
+      linked.length &&
+      !window.confirm(
+        t('confirmDeleteOfficeWithFactories', {
+          count: linked.length,
+          names: linked.map((p) => p.nama_pabrik).join(', '),
+        })
+      )
+    ) {
+      return;
+    }
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.delete(paths.office(id));
+      if (editingOffice != null && Number(editingOffice.id) === Number(id)) {
+        setEditingOffice(null);
+      }
+      await Promise.all([loadOffices(), loadPabriks()]);
+      notify(t('officeDeleted'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    }
+  };
+
+  const openEditOffice = (office) => {
+    setEditingOffice({
+      id: office.id,
+      name: office.name || '',
+      locationLink: office.link || '',
+    });
+  };
+
+  const handleSaveOffice = async (e) => {
+    e.preventDefault();
+    if (!editingOffice) return;
+    setOfficeSaving(true);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.patch(paths.office(editingOffice.id), {
+        name: editingOffice.name,
+        locationLink: editingOffice.locationLink,
+      });
+      setEditingOffice(null);
+      await Promise.all([loadOffices(), loadPabriks()]);
+      notify(t('officeUpdated'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setOfficeSaving(false);
+    }
+  };
+
   const handleDownloadTonaseBonus = async () => {
     if (!tonaseExportFrom || !tonaseExportTo) return;
     setTonaseExporting(true);
@@ -365,6 +453,142 @@ export default function FieldOperationsPanel({
             {t('fieldOpsTabCatalog')}
           </FilterChip>
         </div>
+      )}
+
+      {showCatalogPanel && (
+        <section id="location-management" className="scroll-mt-24">
+          <Card title={t('locationManagement')} description={t('locationManagementHint')}>
+            <form className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]" onSubmit={handleAddOffice}>
+              <Field label={t('officeName')}>
+                <input
+                  className={inputClass}
+                  value={newOffice.name}
+                  onChange={(e) => setNewOffice({ ...newOffice, name: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label={t('locationLink')}>
+                <input
+                  className={inputClass}
+                  value={newOffice.locationLink}
+                  onChange={(e) => setNewOffice({ ...newOffice, locationLink: e.target.value })}
+                  required
+                />
+              </Field>
+              <div className="flex items-end">
+                <Button type="submit" variant="primary" disabled={officeSaving}>
+                  {officeSaving ? t('loading') : t('addOffice')}
+                </Button>
+              </div>
+            </form>
+            {offices.length === 0 ? (
+              <p className="text-[15px] text-apple-label">{t('noOfficesAvailable')}</p>
+            ) : (
+              <ul className="max-h-96 divide-y divide-black/[0.04] overflow-y-auto rounded-apple-lg border border-black/[0.06]">
+                {sortedOffices.map((office) => {
+                  const linkedFactories = pabriks.filter(
+                    (p) => Number(p.office_id) === Number(office.id)
+                  );
+                  return (
+                    <li
+                      key={office.id}
+                      className="flex flex-col gap-2 bg-white px-4 py-3.5 sm:px-5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-medium text-apple-text">{office.name}</div>
+                          {office.link ? (
+                            <a
+                              className="text-xs text-brand-600 hover:underline"
+                              href={office.link}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {t('mapLink')}
+                            </a>
+                          ) : null}
+                          {office.lat != null && office.lng != null ? (
+                            <p className="mt-0.5 text-xs text-apple-label">
+                              {Number(office.lat).toFixed(5)}, {Number(office.lng).toFixed(5)}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 text-xs text-apple-label">
+                            {t('locationFactories')}:{' '}
+                            {linkedFactories.length ? (
+                              linkedFactories
+                                .map((p) => `${p.pabrik_code} — ${p.nama_pabrik}`)
+                                .join(', ')
+                            ) : (
+                              <span className="text-apple-muted">{t('locationFactoriesNone')}</span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditOffice(office)}
+                          >
+                            {t('editOffice')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDeleteOffice(office.id)}
+                          >
+                            {t('delete')}
+                          </Button>
+                        </div>
+                      </div>
+                      {editingOffice != null && Number(editingOffice.id) === Number(office.id) ? (
+                        <form
+                          className="space-y-2 rounded-lg border border-black/[0.06] bg-apple-highlight/40 p-3"
+                          onSubmit={handleSaveOffice}
+                        >
+                          <Field label={t('officeName')}>
+                            <input
+                              className={inputClass}
+                              value={editingOffice.name}
+                              onChange={(e) =>
+                                setEditingOffice({ ...editingOffice, name: e.target.value })
+                              }
+                              required
+                            />
+                          </Field>
+                          <Field label={t('locationLink')}>
+                            <input
+                              className={inputClass}
+                              value={editingOffice.locationLink}
+                              onChange={(e) =>
+                                setEditingOffice({ ...editingOffice, locationLink: e.target.value })
+                              }
+                              required
+                            />
+                          </Field>
+                          <div className="flex gap-2">
+                            <Button type="submit" variant="primary" size="sm" disabled={officeSaving}>
+                              {officeSaving ? t('loading') : t('saveOffice')}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingOffice(null)}
+                            >
+                              {t('cancel')}
+                            </Button>
+                          </div>
+                        </form>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+        </section>
       )}
 
       {showCatalogPanel && (
@@ -436,12 +660,9 @@ export default function FieldOperationsPanel({
                 <p className="mb-3 text-[15px] font-medium text-apple-text">{t('pabrikCatalogNewFactory')}</p>
                 <p className="mb-4 text-[13px] text-apple-label">
                   {t('pabrikLocationHint')}{' '}
-                  <Link
-                    to="/admin#location-management"
-                    className="apple-link"
-                  >
+                  <a href="#location-management" className="apple-link">
                     {t('pabrikLocationManageLink')}
-                  </Link>
+                  </a>
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_auto]">
                   <Field label={t('pabrikItemPabrikCode')}>
@@ -475,7 +696,7 @@ export default function FieldOperationsPanel({
                       required
                     >
                       <option value="">{t('pabrikLocationSelect')}</option>
-                      {offices.map((office) => (
+                      {sortedOffices.map((office) => (
                         <option key={office.id} value={office.id} disabled={!office.link}>
                           {office.name}
                           {!office.link ? ` (${t('pabrikOfficeNoMap')})` : ''}
@@ -518,7 +739,7 @@ export default function FieldOperationsPanel({
                       onChange={(e) => setCatalogFilterOffice(e.target.value)}
                     >
                       <option value="">{t('pabrikCatalogFilterAllLocations')}</option>
-                      {offices.map((office) => (
+                      {sortedOffices.map((office) => (
                         <option key={office.id} value={office.id}>
                           {office.name}
                         </option>
@@ -604,7 +825,7 @@ export default function FieldOperationsPanel({
                                     }
                                   >
                                     <option value="">{t('pabrikLocationNone')}</option>
-                                    {offices.map((office) => (
+                                    {sortedOffices.map((office) => (
                                       <option
                                         key={office.id}
                                         value={office.id}

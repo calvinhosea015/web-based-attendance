@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
@@ -52,6 +52,21 @@ function toDateInputValue(v) {
   return '';
 }
 
+function toDateTimeLocalValue(v) {
+  if (v == null || v === '') return '';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromDateTimeLocalValue(s) {
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 function formatUserApiError(err) {
   return translateApiMessage(err) || String(err);
 }
@@ -82,12 +97,13 @@ export default function AdminDashboard() {
     custom_work_end: '17:00',
     basic_salary: '',
   });
-  const [newOffice, setNewOffice] = useState({ name: '', locationLink: '' });
-  const [editingOffice, setEditingOffice] = useState(null);
   const [message, setMessage] = useState('');
   const [changingPasswordFor, setChangingPasswordFor] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [editingUser, setEditingUser] = useState(null);
+  const [editingAttendanceId, setEditingAttendanceId] = useState(null);
+  const [attendanceEditDraft, setAttendanceEditDraft] = useState({ check_in: '', check_out: '' });
+  const [attendanceSavingId, setAttendanceSavingId] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -126,67 +142,6 @@ export default function AdminDashboard() {
       }
     } catch (e) {
       console.error(e);
-    }
-  };
-
-  const handleAddOffice = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post(paths.offices, newOffice);
-      setMessage(t('officeAdded'));
-      refresh();
-      setNewOffice({ name: '', locationLink: '' });
-    } catch (err) {
-      setMessage(translateApiMessage(err));
-    }
-  };
-
-  const handleDeleteOffice = async (id) => {
-    const linked = pabriks.filter((p) => Number(p.office_id) === Number(id));
-    if (
-      linked.length &&
-      !window.confirm(
-        t('confirmDeleteOfficeWithFactories', {
-          count: linked.length,
-          names: linked.map((p) => p.nama_pabrik).join(', '),
-        })
-      )
-    ) {
-      return;
-    }
-    try {
-      await api.delete(paths.office(id));
-      if (editingOffice != null && Number(editingOffice.id) === Number(id)) {
-        setEditingOffice(null);
-      }
-      setMessage(t('officeDeleted'));
-      refresh();
-    } catch (err) {
-      setMessage(translateApiMessage(err));
-    }
-  };
-
-  const openEditOffice = (office) => {
-    setEditingOffice({
-      id: office.id,
-      name: office.name || '',
-      locationLink: office.link || '',
-    });
-  };
-
-  const handleSaveOffice = async (e) => {
-    e.preventDefault();
-    if (!editingOffice) return;
-    try {
-      await api.patch(paths.office(editingOffice.id), {
-        name: editingOffice.name,
-        locationLink: editingOffice.locationLink,
-      });
-      setMessage(t('officeUpdated'));
-      setEditingOffice(null);
-      refresh();
-    } catch (err) {
-      setMessage(translateApiMessage(err));
     }
   };
 
@@ -419,6 +374,56 @@ export default function AdminDashboard() {
       present: row.present_like,
       late: row.late_cnt,
     })) || [];
+
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const nameA = (a.full_name || a.username || '').trim();
+      const nameB = (b.full_name || b.username || '').trim();
+      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+    });
+  }, [users]);
+
+  const sortedOffices = useMemo(() => {
+    return [...offices].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
+  }, [offices]);
+
+  const displayedAttendance = perUserSelectedId
+    ? perUserAttendance?.attendance ?? []
+    : attendance;
+
+  const openEditAttendance = (row) => {
+    setEditingAttendanceId(row.id);
+    setAttendanceEditDraft({
+      check_in: toDateTimeLocalValue(row.check_in),
+      check_out: toDateTimeLocalValue(row.check_out),
+    });
+  };
+
+  const handleSaveAttendance = async (e, rowId) => {
+    e.preventDefault();
+    setAttendanceSavingId(rowId);
+    setMessage('');
+    try {
+      await ensureCsrf();
+      const body = {
+        check_in: fromDateTimeLocalValue(attendanceEditDraft.check_in),
+        check_out: attendanceEditDraft.check_out
+          ? fromDateTimeLocalValue(attendanceEditDraft.check_out)
+          : null,
+      };
+      await api.patch(paths.attendanceRecord(rowId), body);
+      setMessage(t('attendanceTimesUpdated'));
+      setEditingAttendanceId(null);
+      setAttendanceEditDraft({ check_in: '', check_out: '' });
+      refresh();
+    } catch (err) {
+      setMessage(translateApiMessage(err));
+    } finally {
+      setAttendanceSavingId(null);
+    }
+  };
 
   return (
     <AdminLayout
@@ -720,8 +725,8 @@ export default function AdminDashboard() {
                   value={newUser.office_id}
                   onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
                 >
-                  {offices.length ? (
-                    offices.map((office) => (
+                  {sortedOffices.length ? (
+                    sortedOffices.map((office) => (
                       <option key={office.id} value={office.id}>
                         {office.name}
                       </option>
@@ -735,17 +740,19 @@ export default function AdminDashboard() {
               {t('addUser')}
             </Button>
           </form>
-          <ul className="mt-6 divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06]">
-            {users.map((user) => (
+          <ul className="mt-6 max-h-96 divide-y divide-black/[0.04] overflow-y-auto rounded-apple-lg border border-black/[0.06]">
+            {sortedUsers.map((user) => (
               <li
                 key={user.id}
                 className="flex flex-col gap-2 bg-white px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5"
               >
                 <div>
-                  <div className="font-medium text-apple-text">{user.username}</div>
+                  <div className="font-medium text-apple-text">
+                    {user.full_name || user.username}
+                  </div>
                   <div className="text-xs text-apple-label">
                     {translateRole(user.role)}
-                    {user.full_name ? ` · ${user.full_name}` : ''}
+                    {user.full_name ? ` · ${user.username}` : ''}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -824,7 +831,7 @@ export default function AdminDashboard() {
                           <option value="">
                             {offices.length ? t('selectOffice') : t('noOfficesAvailable')}
                           </option>
-                          {offices.map((office) => (
+                          {sortedOffices.map((office) => (
                             <option key={office.id} value={office.id}>
                               {office.name}
                             </option>
@@ -1046,128 +1053,6 @@ export default function AdminDashboard() {
             ))}
           </ul>
         </PageSection>
-
-        <PageSection
-          id="location-management"
-          className="scroll-mt-24"
-          title={t('locationManagement')}
-          description={t('locationManagementHint')}
-        >
-          <form className="space-y-3" onSubmit={handleAddOffice}>
-            <input
-              className={inputClass}
-              placeholder={t('officeName')}
-              value={newOffice.name}
-              onChange={(e) => setNewOffice({ ...newOffice, name: e.target.value })}
-              required
-            />
-            <input
-              className={inputClass}
-              placeholder={t('locationLink')}
-              value={newOffice.locationLink}
-              onChange={(e) => setNewOffice({ ...newOffice, locationLink: e.target.value })}
-              required
-            />
-            <Button type="submit" variant="primary" className="w-full">
-              {t('addOffice')}
-            </Button>
-          </form>
-          <ul className="mt-6 divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06]">
-            {offices.map((office) => {
-              const linkedFactories = pabriks.filter(
-                (p) => Number(p.office_id) === Number(office.id)
-              );
-              return (
-              <li
-                key={office.id}
-                className="flex flex-col gap-2 bg-white px-4 py-3.5 sm:px-5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-medium text-apple-text">{office.name}</div>
-                    {office.link && (
-                      <a
-                        className="text-xs text-brand-600 hover:underline"
-                        href={office.link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {t('mapLink')}
-                      </a>
-                    )}
-                    {office.lat != null && office.lng != null && (
-                      <p className="mt-0.5 text-xs text-apple-label">
-                        {Number(office.lat).toFixed(5)}, {Number(office.lng).toFixed(5)}
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs text-apple-label">
-                      {t('locationFactories')}:{' '}
-                      {linkedFactories.length ? (
-                        linkedFactories
-                          .map((p) => `${p.pabrik_code} — ${p.nama_pabrik}`)
-                          .join(', ')
-                      ) : (
-                        <span className="text-apple-muted">{t('locationFactoriesNone')}</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
-                      onClick={() => openEditOffice(office)}
-                    >
-                      {t('editOffice')}
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700"
-                      onClick={() => handleDeleteOffice(office.id)}
-                    >
-                      {t('delete')}
-                    </button>
-                  </div>
-                </div>
-                {editingOffice != null && Number(editingOffice.id) === Number(office.id) && (
-                  <form className="space-y-2 rounded-lg border border-black/[0.06] bg-white p-3" onSubmit={handleSaveOffice}>
-                    <input
-                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
-                      placeholder={t('officeName')}
-                      value={editingOffice.name}
-                      onChange={(e) => setEditingOffice({ ...editingOffice, name: e.target.value })}
-                      required
-                    />
-                    <input
-                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
-                      placeholder={t('locationLink')}
-                      value={editingOffice.locationLink}
-                      onChange={(e) =>
-                        setEditingOffice({ ...editingOffice, locationLink: e.target.value })
-                      }
-                      required
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500"
-                      >
-                        {t('saveOffice')}
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
-                        onClick={() => setEditingOffice(null)}
-                      >
-                        {t('cancel')}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </li>
-              );
-            })}
-          </ul>
-        </PageSection>
       </section>
 
       <PageSection title={t('attendance')}>
@@ -1197,10 +1082,10 @@ export default function AdminDashboard() {
               }}
             >
               <option value="">{t('allRecords')}</option>
-              {users.map((user) => (
+              {sortedUsers.map((user) => (
                 <option key={user.id} value={String(user.id)}>
-                  {user.username}
-                  {user.full_name ? ` — ${user.full_name}` : ''}
+                  {user.full_name || user.username}
+                  {user.full_name ? ` (${user.username})` : ''}
                 </option>
               ))}
             </select>
@@ -1222,16 +1107,88 @@ export default function AdminDashboard() {
                 <th>{t('status')}</th>
                 <th>{t('checkIn')}</th>
                 <th>{t('checkOut')}</th>
+                <th className="w-28">{t('leaveActions')}</th>
               </tr>
             </thead>
             <tbody>
-              {(perUserSelectedId ? perUserAttendance?.attendance ?? [] : attendance).map((row) => (
+              {displayedAttendance.map((row) => (
                 <tr key={row.id} className="apple-table-row">
                   <td>{row.full_name || row.employee_code}</td>
                   <td>{row.office_name}</td>
                   <td>{translateAttendanceStatus(row.attendance_status)}</td>
-                  <td>{row.check_in ? formatDisplayDateTime(row.check_in) : ''}</td>
-                  <td>{row.check_out ? formatDisplayDateTime(row.check_out) : t('notCheckedOut')}</td>
+                  {editingAttendanceId != null && Number(editingAttendanceId) === Number(row.id) ? (
+                    <>
+                      <td colSpan={2}>
+                        <form
+                          className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end"
+                          onSubmit={(e) => handleSaveAttendance(e, row.id)}
+                        >
+                          <label className="flex min-w-[11rem] flex-1 flex-col text-xs text-apple-label">
+                            <span className="mb-0.5 font-medium">{t('checkIn')}</span>
+                            <input
+                              type="datetime-local"
+                              className="rounded-apple border border-apple-border bg-apple-fill px-2 py-1.5 text-[13px] text-apple-text"
+                              value={attendanceEditDraft.check_in}
+                              onChange={(e) =>
+                                setAttendanceEditDraft((d) => ({ ...d, check_in: e.target.value }))
+                              }
+                              required
+                            />
+                          </label>
+                          <label className="flex min-w-[11rem] flex-1 flex-col text-xs text-apple-label">
+                            <span className="mb-0.5 font-medium">{t('checkOut')}</span>
+                            <input
+                              type="datetime-local"
+                              className="rounded-apple border border-apple-border bg-apple-fill px-2 py-1.5 text-[13px] text-apple-text"
+                              value={attendanceEditDraft.check_out}
+                              onChange={(e) =>
+                                setAttendanceEditDraft((d) => ({ ...d, check_out: e.target.value }))
+                              }
+                            />
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="submit" variant="primary" size="sm" disabled={attendanceSavingId === row.id}>
+                              {attendanceSavingId === row.id ? t('loading') : t('saveAttendance')}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAttendanceEditDraft((d) => ({ ...d, check_out: '' }))}
+                            >
+                              {t('clearCheckOut')}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingAttendanceId(null);
+                                setAttendanceEditDraft({ check_in: '', check_out: '' });
+                              }}
+                            >
+                              {t('cancel')}
+                            </Button>
+                          </div>
+                        </form>
+                      </td>
+                      <td />
+                    </>
+                  ) : (
+                    <>
+                      <td>{row.check_in ? formatDisplayDateTime(row.check_in) : ''}</td>
+                      <td>{row.check_out ? formatDisplayDateTime(row.check_out) : t('notCheckedOut')}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
+                          onClick={() => openEditAttendance(row)}
+                        >
+                          {t('editAttendance')}
+                        </button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -552,6 +552,131 @@ class AttendanceService {
   async absenHjsSummaryRows(dateFrom, dateTo) {
     return this.attendanceRepository.absenHjsSummary(dateFrom, dateTo);
   }
+
+  /**
+   * Admin: adjust check-in / check-out timestamps and recalculate derived fields.
+   * @param {number} attendanceId
+   * @param {{ check_in?: string|null, check_out?: string|null }} body
+   */
+  async adminUpdateTimes(attendanceId, body) {
+    const row = await this.attendanceRepository.findById(attendanceId);
+    if (!row) {
+      throw new AppError('Attendance record not found.', 404, 'ATTENDANCE_NOT_FOUND');
+    }
+
+    const hasCheckIn = Object.prototype.hasOwnProperty.call(body, 'check_in');
+    const hasCheckOut = Object.prototype.hasOwnProperty.call(body, 'check_out');
+    if (!hasCheckIn && !hasCheckOut) {
+      throw new AppError('Provide check_in and/or check_out.', 400, 'NO_FIELDS');
+    }
+
+    const nextCheckIn = hasCheckIn ? new Date(body.check_in) : new Date(row.check_in);
+    let nextCheckOut;
+    if (!hasCheckOut) {
+      nextCheckOut = row.check_out ? new Date(row.check_out) : null;
+    } else if (body.check_out == null || body.check_out === '') {
+      nextCheckOut = null;
+    } else {
+      nextCheckOut = new Date(body.check_out);
+    }
+
+    if (Number.isNaN(nextCheckIn.getTime())) {
+      throw new AppError('Invalid check-in time.', 400, 'INVALID_CHECK_IN');
+    }
+    if (nextCheckOut && Number.isNaN(nextCheckOut.getTime())) {
+      throw new AppError('Invalid check-out time.', 400, 'INVALID_CHECK_OUT');
+    }
+    if (nextCheckOut && nextCheckOut.getTime() < nextCheckIn.getTime()) {
+      throw new AppError('Check-out must be after check-in.', 400, 'CHECKOUT_BEFORE_CHECKIN');
+    }
+
+    const userRow = await this.userRepository.findByEmployeeId(row.employee_id);
+    const role = userRow?.role || 'employee';
+
+    let flags = row.validation_flags;
+    if (typeof flags === 'string') {
+      try {
+        flags = JSON.parse(flags);
+      } catch {
+        flags = {};
+      }
+    }
+    if (!flags || typeof flags !== 'object') flags = {};
+    const remoteWork = flags.remote_work === true;
+
+    let lateMinutes = row.late_minutes || 0;
+    let attendanceStatus = row.attendance_status;
+
+    if (remoteWork) {
+      attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
+    } else if (isUmum(role) || isFieldOfficer(role)) {
+      // Umum / field officer: no standard late window on check-in edit.
+      if (!nextCheckOut) {
+        attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
+      }
+    } else if (isAccounting(role)) {
+      const emp = await this.employeeRepository.findById(row.employee_id);
+      const shift = customShiftFromEmployee(emp);
+      const late = computeLateAndStatus(nextCheckIn.toISOString(), shift);
+      lateMinutes = late.lateMinutes;
+      attendanceStatus = late.status;
+    } else {
+      const late = computeLateAndStatus(nextCheckIn.toISOString(), STANDARD_TWO_CLOCK_SHIFT);
+      lateMinutes = late.lateMinutes;
+      attendanceStatus = late.status;
+    }
+
+    let workHours = null;
+    let overtimeHours = null;
+    let overtimeMinutes = 0;
+
+    if (nextCheckOut) {
+      const checkInIso = nextCheckIn.toISOString();
+      const checkOutIso = nextCheckOut.toISOString();
+      if (isFieldOfficer(role)) {
+        const rawHours = (nextCheckOut.getTime() - nextCheckIn.getTime()) / 3600000;
+        workHours = Number(Math.max(0, rawHours).toFixed(2));
+        overtimeHours = 0;
+      } else if (isAccounting(role)) {
+        const emp = await this.employeeRepository.findById(row.employee_id);
+        const shift = customShiftFromEmployee(emp);
+        const w = computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, attendanceStatus, {
+          skipBreakDeduction: true,
+        });
+        workHours = w.workHours;
+        overtimeHours = 0;
+        attendanceStatus = w.status;
+      } else if (isUmum(role)) {
+        workHours = Number(row.work_hours) || 0;
+        overtimeHours = 0;
+      } else {
+        const w = computeStaffKantorCheckout(checkInIso, checkOutIso, attendanceStatus);
+        workHours = w.workHours;
+        overtimeHours = w.overtimeHours;
+        overtimeMinutes = w.overtimeMinutes;
+        attendanceStatus = w.status;
+      }
+    }
+
+    const updated = await this.attendanceRepository.updateAdminTimes(attendanceId, {
+      checkIn: nextCheckIn.toISOString(),
+      checkOut: nextCheckOut ? nextCheckOut.toISOString() : null,
+      lateMinutes,
+      workHours,
+      overtimeHours,
+      overtimeMinutes,
+      attendanceStatus,
+      validationFlagsPatch: {
+        admin_time_edit: true,
+        admin_edited_at: new Date().toISOString(),
+      },
+    });
+    if (!updated) {
+      throw new AppError('Could not update attendance.', 409, 'UPDATE_FAILED');
+    }
+
+    return this.attendanceRepository.findByIdWithJoins(attendanceId);
+  }
 }
 
 module.exports = { AttendanceService };

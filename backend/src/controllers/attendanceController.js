@@ -62,6 +62,10 @@ function makeAttendanceController(attendanceService) {
       );
       res.send(buffer);
     }),
+    updateTimes: asyncHandler(async (req, res) => {
+      const attendance = await attendanceService.adminUpdateTimes(Number(req.params.id), req.body);
+      res.json({ message: 'Attendance times updated.', attendance });
+    }),
     exportProfessionalReport: asyncHandler(async (req, res) => {
       const to = req.body.date_to || req.query.date_to || new Date().toISOString().slice(0, 10);
       const from =

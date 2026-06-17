@@ -16,6 +16,7 @@ const {
   updateUserValidators,
   idParamValidator,
   userAttendanceQueryValidators,
+  adminAttendanceUpdateValidators,
   officeCreateValidators,
   officeUpdateValidators,
   departmentCreateValidators,
@@ -97,6 +98,14 @@ function buildProtectedRoutes(deps) {
   );
   r.get('/attendance/me', attendanceController.listMine);
   r.get('/attendance', requireRole('admin'), attendanceController.listAll);
+  r.patch(
+    '/attendance/:id',
+    requireRole('admin'),
+    idParamValidator,
+    adminAttendanceUpdateValidators,
+    validateRequest,
+    attendanceController.updateTimes
+  );
   r.post('/attendance/export', requireRole('admin'), attendanceController.exportExcel);
   r.post(
     '/attendance/report/professional',

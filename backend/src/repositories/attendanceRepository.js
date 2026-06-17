@@ -120,6 +120,51 @@ class AttendanceRepository {
     return r.rows[0] || null;
   }
 
+  async findById(id) {
+    const r = await query(`SELECT * FROM attendance WHERE id = $1`, [id]);
+    return r.rows[0] || null;
+  }
+
+  async findByIdWithJoins(id) {
+    const r = await query(
+      `SELECT a.*, e.full_name, e.employee_id AS employee_code, o.name AS office_name
+       FROM attendance a
+       JOIN employees e ON e.id = a.employee_id
+       JOIN offices o ON o.id = a.office_id
+       WHERE a.id = $1`,
+      [id]
+    );
+    return r.rows[0] || null;
+  }
+
+  async updateAdminTimes(id, row) {
+    const r = await query(
+      `UPDATE attendance SET
+        check_in = $2,
+        check_out = $3,
+        late_minutes = $4,
+        work_hours = $5,
+        overtime_hours = $6,
+        overtime_minutes = $7,
+        attendance_status = $8,
+        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $9::jsonb
+      WHERE id = $1
+      RETURNING *`,
+      [
+        id,
+        row.checkIn,
+        row.checkOut,
+        row.lateMinutes ?? 0,
+        row.workHours,
+        row.overtimeHours,
+        row.overtimeMinutes ?? 0,
+        row.attendanceStatus,
+        JSON.stringify(row.validationFlagsPatch || {}),
+      ]
+    );
+    return r.rows[0] || null;
+  }
+
   async listAllWithJoins() {
     const r = await query(
       `SELECT a.*, e.full_name, e.employee_id AS employee_code, o.name AS office_name

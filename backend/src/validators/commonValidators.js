@@ -197,6 +197,34 @@ const idParamValidator = [param('id').isInt({ min: 1 })];
 
 const userAttendanceQueryValidators = [query('limit').optional().isInt({ min: 1, max: 500 })];
 
+function isParsableDateTime(value) {
+  if (value == null || value === '') return true;
+  return !Number.isNaN(Date.parse(String(value)));
+}
+
+const adminAttendanceUpdateValidators = [
+  body('check_in')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!isParsableDateTime(value)) throw new Error('check_in invalid');
+      return true;
+    }),
+  body('check_out')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!isParsableDateTime(value)) throw new Error('check_out invalid');
+      return true;
+    }),
+  body().custom((_, { req }) => {
+    const hasCheckIn = Object.prototype.hasOwnProperty.call(req.body, 'check_in');
+    const hasCheckOut = Object.prototype.hasOwnProperty.call(req.body, 'check_out');
+    if (!hasCheckIn && !hasCheckOut) {
+      throw new Error('check_in or check_out is required');
+    }
+    return true;
+  }),
+];
+
 const officeCreateValidators = [
   body('name').trim().notEmpty(),
   body('locationLink').trim().notEmpty(),
@@ -314,6 +342,7 @@ module.exports = {
   updateUserValidators,
   idParamValidator,
   userAttendanceQueryValidators,
+  adminAttendanceUpdateValidators,
   officeCreateValidators,
   officeUpdateValidators,
   departmentCreateValidators,

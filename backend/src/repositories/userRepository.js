@@ -29,6 +29,17 @@ class UserRepository {
     return r.rows[0] || null;
   }
 
+  async findByEmployeeId(employeeId) {
+    const r = await query(
+      `SELECT u.id, u.username, u.role, u.employee_id
+       FROM users u
+       WHERE u.employee_id = $1
+       LIMIT 1`,
+      [employeeId]
+    );
+    return r.rows[0] || null;
+  }
+
   async findById(id) {
     const r = await query(
       `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
