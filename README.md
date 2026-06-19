@@ -1,27 +1,33 @@
-# Web-Based Attendance System 123
+# Web-Based Attendance System
 
 This document is the **operator and user manual** for the Web-Based Attendance System: what it does, how to install and configure it, and how to use the web application day to day.
 
-**Default demo login** (fresh database seed — see [§7](#7-default-demo-accounts-fresh-install)): `admin` / `admin123`, `employee` / `Employee123456`.
+**Default demo login** (fresh database seed — see [§7](#7-default-demo-accounts-fresh-install)): `admin` / `Admin123456`, `employee` / `Employee123456`.
 
 ---
 
 ## 1. What this system is
 
-The Web-Based Attendance System is a **full-stack office attendance** application. It lets **employees** record check-in and check-out with **GPS verification** against configured **office locations**, and gives **administrators** tools to manage users, offices, and attendance data.
+The Web-Based Attendance System is a **full-stack HR and attendance** application. Staff record check-in and check-out with **GPS verification** against configured **office locations** (or field check-in sites). Administrators manage users, payroll, leave, loans, and **field operations** (petugas lapangan delivery codes, pabrik rates, and omset reporting).
 
 **Typical use**
 
-- Employees open the site on a phone or laptop, sign in, and use one button to **check in** or **check out** (the app chooses the correct action based on whether they already have an open session).
-- Optionally, on check-in only, they can mark the day as **remote work** if the administrator has allowed it for their account.
-- Administrators maintain **offices** (from Google Maps links), **user accounts**, and **optional split-shift schedules**, and can **export** attendance to Excel and view **dashboard statistics**.
+- Staff open the site on a phone or laptop, sign in, and use one button to **check in** or **check out** (the app chooses the correct action based on role and whether they already have an open session).
+- **Staff kantor** (`employee`) may mark **remote work** on check-in when allowed. **Petugas lapangan** (`field_officer`) check out with structured delivery data and may be assigned to **multiple locations**.
+- Administrators maintain **users**, **payroll** (monthly periods, allowances, deductions, slip export), **leave requests**, **loan approvals**, and **field ops** (locations, checkout codes, pabrik item rates). Attendance can be exported to Excel and reviewed on the organization dashboard.
 
 **Roles**
 
-| Role       | Purpose |
-|-----------|---------|
-| **admin** | Manage offices and users, view all attendance, run exports, see organization dashboard. |
-| **employee** | Clock in/out for themselves, see today’s status, weekly hours, and personal history. Each employee login is tied to an **employee profile** (name, employee code, and HR-related fields in the database). |
+| Role | Purpose |
+|------|---------|
+| **admin** | Full admin console: users, attendance, payroll, leave, loans, field ops, exports, dashboard. |
+| **employee** | Staff kantor — clock in/out (two or four clocks per day), optional remote work, payslips, loans, leave. |
+| **field_officer** | Petugas lapangan — one in/out per day, multiple assigned locations, structured checkout with delivery codes. |
+| **umum** | One check-in per day (auto close); monthly payroll with absence deductions. |
+| **accounting** | Custom work hours; monthly payroll similar to staff kantor. |
+| **head_of_finance** | No attendance; admin enters payroll manually. Can open **Field omset** (`/finance/field-omset`). |
+
+Each login (except admin) is tied to an **employee profile** (name, employee code, and HR-related fields).
 
 **Important technical facts**
 
@@ -271,11 +277,6 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 - **Professional report** (`absen_hjs.xlsx`): Indonesian-formatted summary workbook (name, working days, etc.) for a default rolling window (see API for optional date range).
 - **Excel export** (`attendance.xlsx`): spreadsheet built from the full attendance export query.
 
-**Offices**
-
-- **Add office**: human-readable **name** + **Google Maps location link**. The server resolves redirects and parses coordinates from common Maps URL patterns (`backend/src/utils/mapsLink.js`).
-- **Delete office**: removes that office record (ensure no users depend on it before deleting in production).
-
 **Users**
 
 - **Add user**:
@@ -290,9 +291,28 @@ Use **Logout** on the dashboard. The client calls the logout endpoint with the r
 
 **Attendance tables**
 
-- Global attendance list and **per-user** attendance (select a user to load history).
+- Global attendance list and **per-user** attendance (select a user to load history). Admins can **edit check-in and check-out times** on existing rows.
 
-### 8.6 Payroll (`/admin/payroll`)
+### 8.6 Field operations (`/admin/field`)
+
+Use **Field ops** in the admin header for petugas lapangan workflows:
+
+- **Locations (offices)**: add check-in sites from **Google Maps links** (`backend/src/utils/mapsLink.js` resolves coordinates). Delete locations when no longer needed.
+- **Field checkout codes**, **pabrik catalog**, and **item rates** for delivery reporting.
+- Field attendance and delivery data tied to assigned locations.
+
+### 8.7 Leave (`/admin/leave`)
+
+- Review **pending**, **approved**, and **rejected** leave requests; approve or reject with optional notes.
+- Configure annual quotas (medical, unpaid, paternity days).
+- Open attached leave documents when employees upload supporting files.
+
+### 8.8 Loans (`/admin/loans`)
+
+- Review and approve or reject **loan requests**.
+- Approved loans apply **potong gaji** deductions automatically when payroll is generated.
+
+### 8.9 Payroll (`/admin/payroll`)
 
 Use the **Payroll** item in the admin header (or **Open payroll** on the dashboard).
 
@@ -302,6 +322,10 @@ Use the **Payroll** item in the admin header (or **Open payroll** on the dashboa
 4. **Export**: download an individual **slip** (Excel) or **all slips** for the period.
 
 Employees see finalized periods under **My payroll** on `/employee` after you generate payroll for that month.
+
+### 8.10 Field omset (`/finance/field-omset`)
+
+**Admin** and **head of finance** can open this report for petugas lapangan delivery revenue (omset) from checkout codes.
 
 ---
 
@@ -352,18 +376,16 @@ Exact formulas live in `backend/src/services/attendanceService.js` and helpers u
 
 ## 12. Backend capabilities not exposed in the current web UI
 
-The REST API includes additional **admin** and **employee** endpoints for enterprise-style features (departments, notifications, overtime decisions, attendance correction decisions, analytics, employee profile updates, etc.). These are defined in `backend/src/routes/v1/protected.routes.js`.
-
-Examples:
+The REST API includes additional endpoints defined in `backend/src/routes/v1/protected.routes.js`. The React app covers payroll, leave, loans, field ops, and core attendance; some enterprise-style features are **API-only** today:
 
 - `GET /api/v1/admin/audit-logs`, `GET /api/v1/admin/activity-logs`
 - `GET/POST /api/v1/admin/notifications`, `POST /api/v1/admin/notifications/scan`
 - `GET/POST /api/v1/admin/departments`
 - `GET /api/v1/admin/overtime-requests/pending`, `PUT /api/v1/admin/overtime-requests/:id`
 - `GET /api/v1/admin/attendance-corrections/pending`, `PUT /api/v1/admin/attendance-corrections/:id`
-- `PUT /api/v1/admin/employees/:id`
 - Analytics: `/api/v1/admin/analytics/...`
-The shipped React app **does not** include screens for all of these; use **Swagger**, API clients, or future UI work to operate them.
+
+Use **Swagger** (`/api-docs`) or an API client for these until dedicated UI screens are added.
 
 ---
 
@@ -582,8 +604,9 @@ The current app does **not** persist files to object storage (payroll/attendance
 
 #### Updates (split stack)
 
-- **Frontend**: push to `main` → Vercel redeploys.
-- **Backend (local)**: push to `main` → GitHub Actions runs `deploy-backend.ps1` on your server (if secrets are configured), or restart with `.\scripts\deploy-backend.ps1` after `git pull`. After a PC reboot, **Attendance API Boot**, **Attendance Frontend Boot**, and **Attendance Tunnel Boot** start the stack automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)). If using Vercel, check `tunnel-url.txt` and update `VITE_API_BASE` when the tunnel hostname changes.
+- **Frontend**: push to `main` → Vercel redeploys automatically.
+- **Backend (local)**: push to `main` with changes under `backend/` → **GitHub Actions** (`.github/workflows/deploy-backend.yml`) SSHs to your Windows PC and runs `scripts/deploy-backend.ps1` when repo secrets are set (`DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_REPO_PATH`). One-time setup: `scripts/setup-github-deploy.ps1`. Manual deploy: `.\scripts\deploy-backend.ps1` after `git pull`.
+- After a PC reboot, **Attendance API Boot**, **Attendance Frontend Boot**, and **Attendance Tunnel Boot** start the stack automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)). If using a quick Cloudflare tunnel, check `tunnel-url.txt` and sync `VITE_API_BASE` when the hostname changes.
 - **Schema**: migrations run on API startup; no separate migrate job.
 
 ---
