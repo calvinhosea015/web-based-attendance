@@ -32,6 +32,7 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 15m
           script_stop: true
           script: |
-            powershell -NoProfile -ExecutionPolicy Bypass -File "${{ secrets.DEPLOY_REPO_PATH }}\scripts\deploy-backend.ps1" -RepoRoot "${{ secrets.DEPLOY_REPO_PATH }}"
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "$r='${{ secrets.DEPLOY_REPO_PATH }}'.Replace('\','/'); & ($r + '/scripts/deploy-backend.ps1') -RepoRoot $r"
