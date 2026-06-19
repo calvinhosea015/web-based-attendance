@@ -174,7 +174,7 @@ The static output is under **`frontend/dist`**. If the UI is **not** served from
 | `JWT_SECRET` | Secret for signing access tokens (**change in production**). |
 | `COOKIE_SECRET` | Secret for signed cookies (CSRF); defaults to `JWT_SECRET` if unset. |
 | `ALLOWED_ORIGINS` | Comma-separated browser origins allowed by CORS (e.g. `http://localhost:3000`). Empty means permissive for origins (still subject to browser rules). |
-| `COOKIE_SAME_SITE` | CSRF cookie `SameSite` (`lax` locally; use **`none`** when UI and API are on different hosts, e.g. Vercel + Railway). |
+| `COOKIE_SAME_SITE` | CSRF cookie `SameSite` (`lax` locally; use **`none`** when UI and API are on different hosts, e.g. Vercel + local API). |
 | `DATABASE_SSL` | Set to `true` to force TLS to Postgres (auto-enabled for Neon URLs and `sslmode=require`). |
 | `SERVE_FRONTEND` | `false` when the API does not serve `frontend/dist` (split hosting). |
 | `CSRF_ENABLED` | Set to `false` to disable CSRF checks (not recommended in production). |
@@ -374,7 +374,7 @@ The shipped React app **does not** include screens for all of these; use **Swagg
 | Backend exits on startup with Postgres errors | Docker running? `DATABASE_URL` correct? Port 5432 free? |
 | Frontend “network” errors | Backend up? Dev proxy: UI must use **`http://localhost:3000`** so `/api` hits Vite’s proxy. |
 | CORS errors in custom setups | Add your UI origin to **`ALLOWED_ORIGINS`**. |
-| 403 on POST after login (“security token”) | UI must call **`ensureCsrf`** before login and send **`X-CSRF-Token`**. On Vercel + Railway, login uses the token from the JSON response (cookies are optional). Redeploy the API after CSRF changes. On mobile/other browsers, third-party cookies are often blocked — the header must carry the token. |
+| 403 on POST after login (“security token”) | UI must call **`ensureCsrf`** before login and send **`X-CSRF-Token`**. On Vercel + a remote API, login uses the token from the JSON response (cookies are optional). Restart the API after CSRF changes. On mobile/other browsers, third-party cookies are often blocked — the header must carry the token. |
 | Always “not within radius” | Office link coordinates, `OFFICE_RADIUS_METERS`, GPS accuracy indoors. |
 | Employee cannot clock | Office assigned? Already completed all segments for the day? Open session still waiting for check-out? |
 
@@ -408,16 +408,17 @@ Good default for a small team (low cost, minimal ops):
 | Piece | Service | Role |
 |-------|---------|------|
 | **Frontend** | [Vercel](https://vercel.com) (free tier) | Hosts the React SPA (`frontend/`) |
-| **Backend** | [Railway](https://railway.app) **or your PC** | Runs the Node API (`backend/`) |
+| **Backend** | Your PC (or VPS) | Runs the Node API (`backend/`) |
 | **Database** | [Supabase](https://supabase.com) or [Neon](https://neon.tech) | Managed PostgreSQL |
 | **Storage** | [Cloudflare R2](https://developers.cloudflare.com/r2/) | Optional — not required today (Excel exports are generated in memory) |
 
 ```mermaid
 flowchart LR
   User[Browser] --> Vercel[Vercel SPA]
-  Vercel -->|HTTPS /api| Railway[Railway API]
-  Railway --> DB[(Supabase or Neon Postgres)]
-  Railway -.->|optional| R2[Cloudflare R2]
+  Vercel -->|HTTPS /api| Tunnel[Cloudflare Tunnel or ngrok]
+  Tunnel --> Local[Local API port 5001]
+  Local --> DB[(Supabase or Neon Postgres)]
+  Local -.->|optional| R2[Cloudflare R2]
 ```
 
 Env templates: **`deploy/split-stack.env.example`**.
@@ -428,7 +429,7 @@ Env templates: **`deploy/split-stack.env.example`**.
 
 1. Create a [Supabase](https://supabase.com) project.
 2. **Settings → Database → Connection string → URI**.
-3. For the Node API (Railway or your PC), use **Session pooler** or **Direct** (port **5432**). Avoid Transaction pooler (6543) for this long-running Express app.
+3. For the Node API on your PC, use **Session pooler** or **Direct** (port **5432**). Avoid Transaction pooler (6543) for this long-running Express app.
 4. Set `DATABASE_URL` on the API host to that URI. SSL is auto-enabled for `supabase.co` URLs.
 
 **Neon (alternative)**
@@ -437,60 +438,37 @@ Env templates: **`deploy/split-stack.env.example`**.
 2. Copy the **pooled** connection string (includes `?sslmode=require`).
 3. Set `DATABASE_URL` on the API host. SSL is auto-enabled for Neon URLs.
 
-**Note:** Supabase does **not** host this Express API — only PostgreSQL. Edge Functions are Deno-only. Keep the API on Railway or your PC (Steps 2 / 2b below).
+**Note:** Supabase does **not** host this Express API — only PostgreSQL. Edge Functions are Deno-only. Keep the API on your PC (Step 2 below).
 
 On first successful API start, **migrations and seed data** run (same as local dev).
 
 **Migrating from Neon to Supabase:** `pg_dump` from Neon, `psql` restore into Supabase, then point `DATABASE_URL` at Supabase and restart the API. Do not run two APIs against different databases.
 
-#### Step 2 — Railway (API)
+#### Step 2 — Local API (backend on your PC)
 
-1. New project → **Deploy from GitHub** (this repo).
-2. Set the service **root directory** to **`backend`** (or deploy only that folder).
-3. Railway assigns **`PORT`**; the app reads it automatically.
-4. Variables (minimum):
-
-| Variable | Value |
-|----------|--------|
-| `NODE_ENV` | `production` |
-| `SERVE_FRONTEND` | `false` |
-| `DATABASE_URL` | Supabase or Neon connection string |
-| `JWT_SECRET` | Long random secret (32+ chars) |
-| `COOKIE_SECRET` | Long random secret |
-| `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (exact UI origin, no trailing slash) |
-| `COOKIE_SAME_SITE` | `none` (required for cross-origin cookies) |
-
-5. Deploy and note the public URL, e.g. `https://web-based-attendance-production.up.railway.app`.
-6. Check **`https://<railway-host>/health`** → `{ "ok": true }`.
-
-`backend/railway.toml` sets the start command and health check.
-
-#### Step 2b — Local API instead of Railway (same Neon database)
-
-Use this when you want the backend on **your machine** and the UI still on **Vercel**, without changing or resetting the database.
+Run the backend on **your machine** with the UI on **Vercel**.
 
 ```mermaid
 flowchart LR
   User[Browser] --> Vercel[Vercel SPA]
   Vercel -->|HTTPS /api| Tunnel[Cloudflare Tunnel or ngrok]
   Tunnel --> Local[Local API port 5001]
-  Local --> Neon[(Neon Postgres — unchanged)]
+  Local --> DB[(Supabase or Neon Postgres)]
 ```
 
-**Keep your data:** copy the **exact** `DATABASE_URL` from Railway (Neon). Do **not** start local Docker Postgres for this setup — that would be a separate empty database.
+**Keep your data:** use your existing production **`DATABASE_URL`**. Do **not** start local Docker Postgres for this setup — that would be a separate empty database.
 
-1. **Stop Railway API** (pause or delete the Railway service) so only one backend talks to Neon.
-2. **Create `backend/.env`:**
+1. **Create `backend/.env`:**
    ```bash
    cp backend/.env.production-local.example backend/.env
    ```
-3. **From Railway → Variables**, paste into `backend/.env`:
-   - `DATABASE_URL` (Neon — same string as production)
+2. **Set production values** in `backend/.env`:
+   - `DATABASE_URL` (Supabase or Neon — same string as production)
    - `JWT_SECRET`, `COOKIE_SECRET` (keeps existing logins valid)
    - Any other production vars you customized (`OFFICE_RADIUS_METERS`, etc.)
-4. Set **`ALLOWED_ORIGINS`** to your Vercel URL, e.g. `https://your-app.vercel.app`.
-5. Keep **`COOKIE_SAME_SITE=none`** and **`SERVE_FRONTEND=false`**.
-6. **Install and start the API locally:**
+3. Set **`ALLOWED_ORIGINS`** to your Vercel URL, e.g. `https://your-app.vercel.app`.
+4. Keep **`COOKIE_SAME_SITE=none`** and **`SERVE_FRONTEND=false`**.
+5. **Install and start the API locally:**
    ```powershell
    # Windows
    .\scripts\start-local-api.ps1
@@ -499,11 +477,11 @@ flowchart LR
    # Mac / Linux
    cd backend && npm install && npm start
    ```
-7. **Expose port 5001 to the internet** (Vercel cannot call `localhost`):
+6. **Expose port 5001 to the internet** (Vercel cannot call `localhost`):
    - **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)** (free, stable hostname), or
    - **[ngrok](https://ngrok.com/)**: `ngrok http 5001`
-8. **Vercel → Environment Variables** → set **`VITE_API_BASE`** to `https://<your-tunnel-host>/api` and **redeploy** the frontend.
-9. Check **`https://<tunnel-host>/health`** → `{ "ok": true }`, then open your Vercel URL and log in.
+7. **Vercel → Environment Variables** → set **`VITE_API_BASE`** to `https://<your-tunnel-host>/api` and **redeploy** the frontend.
+8. Check **`https://<tunnel-host>/health`** → `{ "ok": true }`, then open your Vercel URL and log in.
 
 #### Auto-start on Windows (after reboot)
 
@@ -584,7 +562,7 @@ Re-run the install scripts only if you change the boot scripts or move the repo 
 
 | Variable | Value |
 |----------|--------|
-| `VITE_API_BASE` | `https://<api-host>/api` — Railway URL, tunnel URL, or other public API host (must include **`https://`** and **`/api`**) |
+| `VITE_API_BASE` | `https://<api-host>/api` — tunnel URL or other public API host (must include **`https://`** and **`/api`**) |
 
 4. Deploy. `frontend/vercel.json` rewrites all routes to the SPA for React Router.
 
@@ -592,7 +570,7 @@ Re-run the install scripts only if you change the boot scripts or move the repo 
 
 #### Step 4 — Cloudflare R2 (optional)
 
-The current app does **not** persist files to object storage (payroll/attendance Excel files are built on demand). Add R2 when you need archived exports, attachments, or backups. Wire credentials via Railway env vars when you implement that feature (`deploy/split-stack.env.example` lists placeholders).
+The current app does **not** persist files to object storage (payroll/attendance Excel files are built on demand). Add R2 when you need archived exports, attachments, or backups. Wire credentials via `backend/.env` when you implement that feature (`deploy/split-stack.env.example` lists placeholders).
 
 #### After deploy (split stack)
 
@@ -605,8 +583,7 @@ The current app does **not** persist files to object storage (payroll/attendance
 #### Updates (split stack)
 
 - **Frontend**: push to `main` → Vercel redeploys.
-- **Backend (Railway)**: push to `main` → Railway redeploys.
-- **Backend (local)**: restart with `.\scripts\deploy-backend.ps1` after code changes. After a PC reboot, **Attendance API Boot**, **Attendance Frontend Boot**, and **Attendance Tunnel Boot** start the stack automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)). If using Vercel, check `tunnel-url.txt` and update `VITE_API_BASE` when the tunnel hostname changes.
+- **Backend (local)**: push to `main` → GitHub Actions runs `deploy-backend.ps1` on your server (if secrets are configured), or restart with `.\scripts\deploy-backend.ps1` after `git pull`. After a PC reboot, **Attendance API Boot**, **Attendance Frontend Boot**, and **Attendance Tunnel Boot** start the stack automatically (see [Auto-start on Windows](#auto-start-on-windows-after-reboot)). If using Vercel, check `tunnel-url.txt` and update `VITE_API_BASE` when the tunnel hostname changes.
 - **Schema**: migrations run on API startup; no separate migrate job.
 
 ---

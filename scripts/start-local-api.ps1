@@ -13,7 +13,7 @@ if (-not (Test-Path (Join-Path $backend ".env"))) {
   Write-Host ""
   Write-Host "Missing backend/.env" -ForegroundColor Red
   Write-Host "  1. Copy backend/.env.production-local.example to backend/.env"
-  Write-Host "  2. Paste DATABASE_URL and secrets from Railway (same Neon database)"
+  Write-Host "  2. Set DATABASE_URL and secrets (same production database)"
   Write-Host "  3. Set ALLOWED_ORIGINS to your Vercel URL"
   Write-Host ""
   exit 1
@@ -26,6 +26,6 @@ if (-not (Test-Path "node_modules")) {
 }
 
 Write-Host "Starting API on http://127.0.0.1:5001 (health: /health)"
-Write-Host "For Vercel users, expose this port with a tunnel — see README section 16.1b"
+Write-Host "For Vercel users, expose this port with a tunnel — see README section 16.1"
 Write-Host ""
 npm start

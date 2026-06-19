@@ -548,16 +548,22 @@ class PayrollService {
     const employee = row.employee_id
       ? await this.employeeRepository.findById(row.employee_id)
       : null;
-    const merged = attachEmployeeFields(
-      attachPayrollMode({
-        ...row,
-        ...enriched,
-        payroll_period: period,
-        user_role: enriched.user_role ?? row.user_role,
-      }),
-      employee
-        ? { ...employee, employee_code: employee.employee_id, user_role: enriched.user_role ?? row.user_role }
-        : null
+    const merged = attachPayrollMode(
+      attachEmployeeFields(
+        {
+          ...row,
+          ...enriched,
+          payroll_period: period,
+          user_role: enriched.user_role ?? row.user_role,
+        },
+        employee
+          ? {
+              ...employee,
+              employee_code: employee.employee_id,
+              user_role: enriched.user_role ?? row.user_role,
+            }
+          : null
+      )
     );
 
     const transportEligible = resolveTransportEligible(merged, employee);
@@ -612,11 +618,34 @@ class PayrollService {
 
     return {
       ...merged,
+      payroll_period: period,
       upah_harian: num(merged.upah_harian ?? merged.employee_upah_harian),
-      tunjangan_masa_kerja: num(merged.tunjangan_masa_kerja),
+      monthly_basic_gross: num(merged.monthly_basic_gross ?? merged.employee_basic_salary),
+      tunjangan_masa_kerja:
+        merged.tunjangan_masa_kerja != null
+          ? num(merged.tunjangan_masa_kerja)
+          : receivesTunjanganMasaKerja(merged.user_role)
+            ? resolveTunjanganMasaKerjaForRole(
+                merged.user_role,
+                merged.join_date ?? employee?.join_date,
+                period
+              )
+            : 0,
       overtime_pay: num(merged.overtime_pay),
       insentif: num(merged.insentif),
       bonus_omset: num(merged.bonus_omset),
+      absence_deduction: num(merged.absence_deduction ?? totals.absence_deduction),
+      late_deduction: num(merged.late_deduction ?? totals.late_deduction),
+      bpjs_tk: num(merged.bpjs_tk),
+      bpjs_kes: num(merged.bpjs_kes),
+      pph_21: num(merged.pph_21 ?? totals.pph_21),
+      loan_deduction: Math.max(
+        num(merged.loan_deduction),
+        num(enriched.loan_deduction_preview ?? 0)
+      ),
+      other_deductions: num(
+        merged.other_deductions ?? merged.deductions ?? totals.other_deductions
+      ),
       final_salary: num(totals.final_salary ?? merged.final_salary),
       transport_eligible: transportEligible,
       diligence_eligible: diligenceEligible,

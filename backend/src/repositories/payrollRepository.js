@@ -104,6 +104,8 @@ class PayrollRepository {
         e.full_name,
         e.join_date,
         e.upah_harian AS employee_upah_harian,
+        e.basic_salary AS employee_basic_salary,
+        e.tunjangan_masa_kerja AS employee_tunjangan_masa_kerja,
         e.transport_eligible AS employee_transport_eligible,
         e.transport_allowance_amount AS employee_transport_allowance_amount,
         e.diligence_allowance_amount AS employee_diligence_allowance_amount,

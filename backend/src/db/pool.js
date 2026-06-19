@@ -7,7 +7,7 @@ if (!config.databaseUrl) {
 
 const useSsl =
   process.env.DATABASE_SSL === 'true' ||
-  /neon\.tech|sslmode=require/i.test(config.databaseUrl || '');
+  /neon\.tech|supabase\.co|pooler\.supabase\.com|sslmode=require/i.test(config.databaseUrl || '');
 
 const pool = new Pool({
   connectionString: config.databaseUrl,

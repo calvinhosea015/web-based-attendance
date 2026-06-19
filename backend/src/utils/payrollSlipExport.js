@@ -159,6 +159,7 @@ function slipAsOfDate(row, period) {
 }
 
 function slipAmounts(row) {
+  const fieldOfficer = isFieldOfficer(row.user_role);
   const transportEligible = resolveTransportEligible(row);
   const diligenceEligible = resolveDiligenceEligible(row);
   const { transport_allowance: transport, diligence_bonus: kerajinan } = resolvePayrollAllowanceAmounts({
@@ -180,14 +181,17 @@ function slipAmounts(row) {
     row.monthly_basic_gross != null
       ? num(row.monthly_basic_gross)
       : num(row.employee_basic_salary);
-  let absenceDeduction = monthlyStaff ? num(row.absence_deduction) : 0;
-  if (!monthlyStaff) {
-    if (row.absence_deduction != null) {
-      absenceDeduction = num(row.absence_deduction);
-    } else if (row.payroll_mode !== 'manual') {
-      const expected = expectedWorkDaysForSlip(row, row.payroll_period);
-      const absentDays = Math.max(0, expected - num(row.days_attended));
-      absenceDeduction = Math.round(absentDays * num(row.upah_harian));
+  let absenceDeduction = 0;
+  if (!fieldOfficer) {
+    absenceDeduction = monthlyStaff ? num(row.absence_deduction) : 0;
+    if (!monthlyStaff) {
+      if (row.absence_deduction != null) {
+        absenceDeduction = num(row.absence_deduction);
+      } else if (row.payroll_mode !== 'manual') {
+        const expected = expectedWorkDaysForSlip(row, row.payroll_period);
+        const absentDays = Math.max(0, expected - num(row.days_attended));
+        absenceDeduction = Math.round(absentDays * num(row.upah_harian));
+      }
     }
   }
 
@@ -213,8 +217,8 @@ function slipAmounts(row) {
     bpjs_tk: num(row.bpjs_tk),
     bpjs_kes: num(row.bpjs_kes),
     pph21: num(row.pph_21),
-    kasbon: num(row.loan_deduction),
-    potongan_lain: num(row.other_deductions),
+    kasbon: num(row.loan_deduction ?? row.loan_deduction_preview),
+    potongan_lain: num(row.other_deductions ?? row.deductions),
   };
 }
 
@@ -374,13 +378,12 @@ function addFieldOfficerCalculationSection(
   const gajiPerHari = num(row.upah_harian || 0);
   const totalGaji = gajiPerHari * hariKerja;
   const detailTotalPendapatan = fieldOfficerEarningsTotal(row, amounts);
-  const ketidakhadiranHari = Math.max(0, num(row.expected_work_days) - hariKerja);
-  const potonganAbsen = num(amounts.potongan_absen);
+  const fieldOfficerNet = detailTotalPendapatan;
 
   setCell(ws, 28, COL.A, 'Nama');
   setCell(ws, 28, COL.B, row.full_name || '');
   setCell(ws, 28, COL.C, 'Periode Gaji');
-  setCell(ws, 28, COL.D, gajiBulanLabel(period));
+  setCell(ws, 28, COL.D, periodeLabel(period));
 
   setCell(ws, 29, COL.A, 'Jabatan');
   setCell(ws, 29, COL.B, jabatanLabel(row) || '');
@@ -426,18 +429,9 @@ function addFieldOfficerCalculationSection(
   ws.getCell(41, COL.D).font = FONT_TOTAL;
   ws.getCell(41, COL.D).border = { top: BORDER_MEDIUM };
 
-  setCell(ws, 42, COL.A, 'KETIDAKHADIRAN', { font: FONT_TOTAL });
-  setCell(ws, 42, COL.B, ketidakhadiranHari, {
-    alignment: { horizontal: 'right', vertical: 'middle' },
-    font: FONT_TOTAL,
-  });
-  setAmountCell(ws, 42, COL.D, potonganAbsen);
-  ws.getCell(42, COL.D).font = FONT_TOTAL;
-  setThickBottomBorderRow(ws, 42);
-
   ws.mergeCells(43, COL.A, 43, COL.B);
   setCell(ws, 43, COL.A, 'Total Gaji yang diterima', { font: FONT_TOTAL });
-  setAmountCell(ws, 43, COL.D, netPay);
+  setAmountCell(ws, 43, COL.D, fieldOfficerNet);
   ws.getCell(43, COL.D).font = FONT_TOTAL;
 
   setLabelColon(ws, 45, COL.A, 'Jumlah Hari');
@@ -451,7 +445,7 @@ function addFieldOfficerCalculationSection(
 
   setCell(ws, 47, COL.A, 'Keterangan :');
   ws.mergeCells(48, COL.A, 49, COL.B);
-  setCell(ws, 48, COL.A, row.keterangan || '(start to fill keterangan, font 8, wrap text)', {
+  setCell(ws, 48, COL.A, row.keterangan || '', {
     font: FONT_KETERANGAN,
     alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
   });
@@ -463,7 +457,7 @@ function addFieldOfficerCalculationSection(
   });
   ws.mergeCells(49, COL.C, 50, COL.D);
   const fieldNetCell = ws.getCell(49, COL.C);
-  fieldNetCell.value = { formula: 'D41-D42', result: netPay };
+  fieldNetCell.value = { formula: 'D41', result: fieldOfficerNet };
   fieldNetCell.numFmt = NET_AMOUNT_NUMFMT;
   fieldNetCell.font = FONT_NET_AMOUNT;
   fieldNetCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -489,14 +483,20 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   const totalPendapatan = isFieldOfficerSlip
     ? fieldOfficerEarningsTotal(row, amounts)
     : sumAmountKeys(amounts, EARNINGS);
-  const totalPotongan = sumAmountKeys(amounts, DEDUCTIONS);
-  const netPay = num(row.final_salary) || Math.max(0, totalPendapatan - totalPotongan);
+  const totalPotongan = isFieldOfficerSlip
+    ? sumAmountKeys(amounts, DEDUCTIONS.filter((d) => d.key !== 'potongan_absen'))
+    : sumAmountKeys(amounts, DEDUCTIONS);
+  const netPay =
+    num(row.final_salary) ||
+    Math.max(0, totalPendapatan - totalPotongan);
   const bAmt = colLetter(COL.B);
   const dAmt = colLetter(COL.D);
   const totalRow = ROW.TABLE_TOTAL;
 
   mergeCellsLeft(ws, 1, 2, COL.A, 'Nama');
-  mergeCellsLeft(ws, 1, 2, COL.B, `${row.full_name || ''}`);
+  mergeCellsLeft(ws, 1, 2, COL.B, `${row.full_name || ''}`, {
+    alignment: { wrapText: true },
+  });
 
   ws.mergeCells(1, COL.C, 2, COL.D);
   const titleCell = ws.getCell(1, COL.C);
@@ -553,7 +553,10 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
       fillTableLine(ws, r, COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key]);
     }
     if (i < DEDUCTIONS.length) {
-      fillTableLine(ws, r, COL.C, COL.D, DEDUCTIONS[i].label, amounts[DEDUCTIONS[i].key]);
+      const deductionKey = DEDUCTIONS[i].key;
+      const deductionAmount =
+        isFieldOfficerSlip && deductionKey === 'potongan_absen' ? 0 : amounts[deductionKey];
+      fillTableLine(ws, r, COL.C, COL.D, DEDUCTIONS[i].label, deductionAmount);
     }
   }
 

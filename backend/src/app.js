@@ -65,7 +65,6 @@ function createApp() {
       ok: true,
       version: process.env.npm_package_version || '2.0.0',
       commit:
-        process.env.RAILWAY_GIT_COMMIT_SHA ||
         process.env.VERCEL_GIT_COMMIT_SHA ||
         process.env.GIT_COMMIT ||
         null,

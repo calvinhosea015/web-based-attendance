@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 
 const buildSha =
   process.env.VERCEL_GIT_COMMIT_SHA ||
-  process.env.RAILWAY_GIT_COMMIT_SHA ||
   process.env.GIT_COMMIT ||
   'dev';
 

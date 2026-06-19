@@ -10,7 +10,7 @@ function sign(raw, exp) {
     .digest('hex');
 }
 
-/** Stateless CSRF token — works across Railway replicas and when third-party cookies are blocked. */
+/** Stateless CSRF token — works when third-party cookies are blocked. */
 function createPair() {
   const raw = crypto.randomBytes(32).toString('hex');
   const exp = Date.now() + TTL_MS;

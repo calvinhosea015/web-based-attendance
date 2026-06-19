@@ -90,7 +90,7 @@ export default {
   deployUiBuild: 'UI',
   deployApiBuild: 'API',
   deployUiStaleHint:
-    'Fitur baru di halaman ini butuh deploy frontend (Vercel). Push ke Git hanya memperbarui Railway jika root servis = backend.',
+    'Fitur baru di halaman ini butuh deploy frontend (Vercel). Pembaruan backend memerlukan restart atau deploy di host API.',
   backToDashboard: 'Kembali ke dasbor',
   payrollPeriod: 'Periode gaji',
   payrollMonth: 'Bulan',

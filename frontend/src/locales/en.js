@@ -90,7 +90,7 @@ export default {
   deployUiBuild: 'UI',
   deployApiBuild: 'API',
   deployUiStaleHint:
-    'New UI features require a frontend deploy (Vercel). Pushing Git only updates Railway when the service root is backend.',
+    'New UI features require a frontend deploy (Vercel). Backend updates need a restart or deploy on the API host.',
   backToDashboard: 'Back to dashboard',
   payrollPeriod: 'Payroll period',
   payrollMonth: 'Month',
