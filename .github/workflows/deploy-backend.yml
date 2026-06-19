@@ -1,5 +1,6 @@
 # Deploy backend to your Windows PC when backend/ changes on main.
 # Frontend on Vercel already redeploys on its own.
+# Manual redeploy: push to main or run "Deploy backend" workflow (workflow_dispatch).
 #
 # Required GitHub repo secrets (Settings → Secrets and variables → Actions):
 #   DEPLOY_HOST       — SSH host (e.g. id6.tunnel.my.id)
