@@ -17,19 +17,15 @@ import {
   isFieldCheckoutFormatValid,
   parseFieldCheckoutDisplay,
   splitFieldCheckoutLines,
+  fieldDeliveryDisplayFields,
 } from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
 import { openLeaveDocument } from '../utils/openLeaveDocument.js';
-import { formatDateRange, formatDisplayDateTime } from '../utils/formatDate.js';
+import { formatDateRange, formatDisplayDate, formatDisplayDateTime } from '../utils/formatDate.js';
 import LeaveDocumentButton from '../components/LeaveDocumentButton.jsx';
-
-function formatApiError(err) {
-  if (!err.response && (err.message === 'Network Error' || err.code === 'ERR_NETWORK')) {
-    return i18n.t('apiUnreachable');
-  }
-  return translateApiMessage(err);
-}
+import EmployeeHistorySection from '../components/employee/EmployeeHistorySection.jsx';
+import { formatApiError } from '../utils/employeeFormat.js';
 
 function geoMessage(err) {
   const key = geoMessageKey(err);
@@ -80,6 +76,15 @@ export default function EmployeeDashboard() {
   const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
   const [fieldDeliveries, setFieldDeliveries] = useState([]);
   const [todayDeliveries, setTodayDeliveries] = useState({ entries: [], today_bonus_total: 0 });
+
+  const reloadHistory = async () => {
+    try {
+      const h = await api.get(paths.employeeAttendance);
+      setHistory(h.data);
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -1175,7 +1180,12 @@ export default function EmployeeDashboard() {
           {fieldDeliveries.length ? (
             <ul className="mt-4 space-y-4 text-sm">
               {fieldDeliveries.map((row) => {
-                const parsed = parseFieldCheckoutDisplay(row.checkout_code);
+                const parsed = fieldDeliveryDisplayFields(row);
+                const dateLabel = row.valid_on
+                  ? formatDisplayDate(row.valid_on)
+                  : row.check_out
+                    ? formatDisplayDateTime(row.check_out)
+                    : t('emDash');
                 return (
                   <li
                     key={row.id}
@@ -1186,12 +1196,19 @@ export default function EmployeeDashboard() {
                       {row.employee_code ? ` · ${row.employee_code}` : ''}
                     </div>
                     <div className="mt-1 text-apple-label">
-                      {t('checkOut')}:{' '}
-                      {row.check_out ? formatDisplayDateTime(row.check_out) : t('emDash')}
+                      {t('fieldDeliveryDate')}: {dateLabel}
+                      {row.check_out ? (
+                        <>
+                          {' '}
+                          · {t('checkOut')}: {formatDisplayDateTime(row.check_out)}
+                        </>
+                      ) : null}
                     </div>
-                    <p className="mt-2 font-mono text-xs text-apple-text break-all">
-                      {row.checkout_code}
-                    </p>
+                    {row.checkout_code ? (
+                      <p className="mt-2 font-mono text-xs text-apple-text break-all">
+                        {row.checkout_code}
+                      </p>
+                    ) : null}
                     {parsed ? (
                       <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
                         {Object.entries(parsed).map(([key, value]) => (
@@ -1204,6 +1221,21 @@ export default function EmployeeDashboard() {
                         ))}
                       </dl>
                     ) : null}
+                    {row.bonus_amount != null || row.omset_amount != null ? (
+                      <p className="mt-2 text-xs text-apple-label">
+                        {row.omset_amount != null ? (
+                          <>
+                            {t('fieldOmsetTotal')}: Rp {formatIdr(row.omset_amount)}
+                          </>
+                        ) : null}
+                        {row.bonus_amount != null ? (
+                          <>
+                            {row.omset_amount != null ? ' · ' : ''}
+                            {t('fieldOmsetBonusTotal')}: Rp {formatIdr(row.bonus_amount)}
+                          </>
+                        ) : null}
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}
@@ -1214,31 +1246,11 @@ export default function EmployeeDashboard() {
         </section>
       )}
 
-      <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
-        <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('history')}</h2>
-        {history.length ? (
-          <ul className="mt-3 space-y-3 text-sm">
-            {history.map((item) => (
-              <li key={item.id} className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-2">
-                <div className="font-medium text-apple-text">{item.office_name}</div>
-                <div className="text-apple-label">
-                  {t('status')}: {translateAttendanceStatus(item.attendance_status)}
-                </div>
-                <div className="text-apple-label">
-                  {t('checkIn')}: {item.check_in ? formatDisplayDateTime(item.check_in) : ''}
-                </div>
-                {!isUmum && (
-                  <div className="text-apple-label">
-                    {t('checkOut')}: {item.check_out ? formatDisplayDateTime(item.check_out) : t('notCheckedOut')}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-apple-label">{t('noHistory')}</p>
-        )}
-      </section>
+      <EmployeeHistorySection
+        history={history}
+        isUmum={isUmum}
+        onCorrectionSubmitted={reloadHistory}
+      />
     </div>
   );
 }

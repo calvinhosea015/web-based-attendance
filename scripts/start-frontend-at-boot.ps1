@@ -51,8 +51,8 @@ function Wait-FrontendUp([int]$MaxAttempts, [int]$SecondsBetween) {
 
 function Test-ApiHealthy {
     try {
-        $health = Invoke-WebRequest -Uri "http://127.0.0.1:5001/health" -UseBasicParsing -TimeoutSec 10
-        return ($health.Content -match '"ok"\s*:\s*true')
+        $health = Invoke-WebRequest -Uri "http://127.0.0.1:5001/health/ready" -UseBasicParsing -TimeoutSec 10
+        return ($health.StatusCode -eq 200 -and $health.Content -match '"ok"\s*:\s*true')
     } catch {
         return $false
     }

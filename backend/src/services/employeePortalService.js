@@ -210,18 +210,39 @@ class EmployeePortalService {
     }
     const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
     const safeDays = Math.min(365, Math.max(1, Number(days) || 60));
-    const rows = await this.attendanceRepository.listFieldOfficerDeliveriesByOffice(
-      userRow.office_id,
-      { limit: safeLimit, days: safeDays }
-    );
+    const rows = this.fieldDeliveryRepository
+      ? await this.fieldDeliveryRepository.listByOffice(userRow.office_id, {
+          limit: safeLimit,
+          days: safeDays,
+        })
+      : await this.attendanceRepository.listFieldOfficerDeliveriesByOffice(userRow.office_id, {
+          limit: safeLimit,
+          days: safeDays,
+        });
     return rows.map((row) => ({
       id: row.id,
       full_name: row.full_name,
       employee_code: row.employee_code,
       office_name: row.office_name,
-      check_in: row.check_in,
-      check_out: row.check_out,
+      valid_on: row.valid_on ?? null,
+      created_at: row.created_at ?? null,
+      check_out: row.check_out ?? null,
       checkout_code: row.checkout_code,
+      pabrik_code: row.pabrik_code ?? null,
+      nama_pabrik: row.nama_pabrik ?? null,
+      norek: row.norek ?? null,
+      nomor_tanda_terima: row.nomor_tanda_terima ?? null,
+      nomor_surat_jalan: row.nomor_surat_jalan ?? null,
+      nopol: row.nopol ?? null,
+      no_bs: row.no_bs ?? null,
+      kode_barang: row.kode_barang ?? null,
+      kotor: row.kotor ?? null,
+      berat_bersih: row.berat_bersih ?? null,
+      selisih: row.selisih ?? null,
+      tonase_per_item: row.tonase_per_item ?? null,
+      price_per_item: row.price_per_item ?? null,
+      omset_amount: row.omset_amount ?? null,
+      bonus_amount: row.bonus_amount ?? null,
     }));
   }
 }

@@ -61,18 +61,6 @@ class EnterpriseAdminService {
     return row;
   }
 
-  async decideCorrection(id, auth, { status }) {
-    if (!['approved', 'rejected'].includes(status)) {
-      throw new AppError('Invalid status.', 400, 'STATUS');
-    }
-    const row = await this.attendanceCorrectionRepository.setDecision(id, {
-      status,
-      decidedBy: auth.userId,
-    });
-    if (!row) throw new AppError('Request not found.', 404, 'NOT_FOUND');
-    return row;
-  }
-
   async updateEmployee(id, payload) {
     const has = (k) => Object.prototype.hasOwnProperty.call(payload, k);
     const patch = {};

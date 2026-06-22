@@ -102,6 +102,7 @@ const MESSAGE_CODE = {
   'Insufficient unpaid leave balance. Remaining:': 'LEAVE_BALANCE',
   'Insufficient paternity leave balance. Remaining:': 'LEAVE_BALANCE',
   'You already have a pending leave request.': 'LEAVE_PENDING',
+  'A pending correction already exists for this attendance record.': 'CORRECTION_PENDING',
   'Dates overlap with an existing leave request.': 'LEAVE_OVERLAP',
   'Leave days must be zero or greater.': 'LEAVE_SETTINGS',
   'Choose whether paternity leave is paid or unpaid when approving.': 'LEAVE_PAID_REQUIRED',

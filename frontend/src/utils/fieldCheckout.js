@@ -53,6 +53,28 @@ export function parseFieldCheckoutDisplay(code) {
   };
 }
 
+/** Structured API row or raw checkout code string. */
+export function fieldDeliveryDisplayFields(row) {
+  if (row?.pabrik_code) {
+    const pabrikLabel = row.nama_pabrik
+      ? `${row.pabrik_code} (${row.nama_pabrik})`
+      : row.pabrik_code;
+    return {
+      pabrik: pabrikLabel,
+      norek: row.norek,
+      nomor_tanda_terima: row.nomor_tanda_terima,
+      nomor_surat_jalan: row.nomor_surat_jalan,
+      nopol: row.nopol,
+      no_bs: row.no_bs,
+      kode_barang: row.kode_barang,
+      kotor: row.kotor,
+      berat_bersih: row.berat_bersih,
+      selisih: row.selisih,
+    };
+  }
+  return parseFieldCheckoutDisplay(row?.checkout_code);
+}
+
 /** Split textarea into individual valid-looking lines (one code per line). */
 export function splitFieldCheckoutLines(text) {
   return String(text ?? '')

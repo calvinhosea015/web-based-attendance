@@ -3,8 +3,25 @@ const config = require('./config/env');
 const { migrate } = require('./db/migrate');
 const { logger } = require('./utils/logger');
 
+async function migrateWithRetry() {
+  const maxAttempts = Number(process.env.DB_CONNECT_RETRIES || 12);
+  const delayMs = Number(process.env.DB_CONNECT_RETRY_MS || 15000);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await migrate();
+      return;
+    } catch (err) {
+      const msg = String(err.message || err);
+      const retryable = /timeout|ECONNREFUSED|ENOTFOUND|terminated|connect|EAI_AGAIN/i.test(msg);
+      if (!retryable || attempt === maxAttempts) throw err;
+      logger.warn(`Database not ready (attempt ${attempt}/${maxAttempts}): ${msg}`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 async function start() {
-  await migrate();
+  await migrateWithRetry();
   const app = createApp();
   app.listen(config.port, () => {
     logger.info(`Server running on port ${config.port}`);

@@ -466,6 +466,38 @@ class PayrollService {
     };
   }
 
+  /** All delivery lines from petugas lapangan (admin recap, no date limit). */
+  async listAllFieldDeliveries({ limit = 5000 } = {}) {
+    if (!this.fieldDeliveryRepository) return [];
+    const safeLimit = Math.min(10000, Math.max(1, Number(limit) || 5000));
+    const rows = await this.fieldDeliveryRepository.listAll({ limit: safeLimit });
+    return rows.map((row) => ({
+      id: row.id,
+      full_name: row.full_name,
+      employee_code: row.employee_code,
+      office_name: row.office_name,
+      valid_on: row.valid_on,
+      created_at: row.created_at,
+      check_out: row.check_out ?? null,
+      checkout_code: row.checkout_code,
+      pabrik_code: row.pabrik_code,
+      nama_pabrik: row.nama_pabrik ?? null,
+      norek: row.norek,
+      nomor_tanda_terima: row.nomor_tanda_terima,
+      nomor_surat_jalan: row.nomor_surat_jalan,
+      nopol: row.nopol,
+      no_bs: row.no_bs,
+      kode_barang: row.kode_barang,
+      kotor: row.kotor,
+      berat_bersih: row.berat_bersih,
+      selisih: row.selisih,
+      tonase_per_item: row.tonase_per_item,
+      price_per_item: row.price_per_item,
+      omset_amount: row.omset_amount,
+      bonus_amount: row.bonus_amount,
+    }));
+  }
+
   async previewLoanDeduction(employeeId, payrollPeriod) {
     const activeLoan = await this.loanRequestRepository.findActiveForEmployee(employeeId);
     if (!activeLoan) {

@@ -141,6 +141,7 @@ export const paths = {
   adminPabrik: (id) => `/v1/admin/pabriks/${id}`,
   adminPabrikItemRates: '/v1/admin/pabrik-item-rates',
   adminFieldTonaseBonusExport: '/v1/admin/field-tonase-bonus/export',
+  adminFieldDeliveries: '/v1/admin/field-deliveries',
   employeeFieldDeliveries: '/v1/employee/field-deliveries',
   adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
   adminLoanRequests: '/v1/admin/loan-requests',
@@ -156,6 +157,16 @@ export const paths = {
   adminNotifications: '/v1/admin/notifications',
   /** @param {string|number} id */
   adminNotificationRead: (id) => `/v1/admin/notifications/${id}/read`,
+  adminAttendanceCorrectionsPending: '/v1/admin/attendance-corrections/pending',
+  /** @param {string|number} id */
+  adminAttendanceCorrection: (id) => `/v1/admin/attendance-corrections/${id}`,
+  employeeAttendanceCorrections: '/v1/employee/me/attendance-corrections',
+  adminAnalyticsMonthly: '/v1/admin/analytics/attendance/monthly',
+  adminAnalyticsDepartments: '/v1/admin/analytics/attendance/departments',
+  adminAnalyticsOvertime: '/v1/admin/analytics/overtime/trends',
+  adminAnalyticsPayroll: '/v1/admin/analytics/payroll/trends',
+  adminAuditLogs: '/v1/admin/audit-logs',
+  adminActivityLogs: '/v1/admin/activity-logs',
   /** @param {string|number} requestId */
   leaveRequestAttachment: (requestId) => `/v1/leave-requests/${requestId}/attachment`,
   /** @param {string} filename */

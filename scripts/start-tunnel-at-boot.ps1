@@ -256,8 +256,15 @@ try {
     }
 
     Write-BootLog "Waiting for API on port 5001..."
-    if (-not (Wait-ApiHealthy -MaxAttempts 30 -SecondsBetween 10)) {
-        throw "API not healthy on port 5001; cannot start tunnel."
+    if (-not (Wait-ApiHealthy -MaxAttempts 36 -SecondsBetween 10)) {
+        $apiBoot = "D:\Calvin\web-based-attendance\scripts\start-backend-at-boot.ps1"
+        if (Test-Path $apiBoot) {
+            Write-BootLog "API still down; running start-backend-at-boot.ps1 once..."
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $apiBoot
+        }
+        if (-not (Wait-ApiHealthy -MaxAttempts 36 -SecondsBetween 10)) {
+            throw "API not healthy on port 5001; cannot start tunnel."
+        }
     }
 
     if ($useNamed) {

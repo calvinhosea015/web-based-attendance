@@ -14,7 +14,7 @@ const pool = new Pool({
   ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 30000),
 });
 
 pool.on('error', (err) => {

@@ -530,7 +530,7 @@ To keep the local stack running after a PC restart **without anyone logging in**
 .\scripts\install-tunnel-boot-task.ps1
 ```
 
-The API task waits ~60 seconds after boot, then starts the backend. The frontend task waits ~2 minutes. The tunnel task waits ~2.5 minutes, then starts cloudflared once the API is healthy. Allow **3–4 minutes** after reboot before the full stack is ready.
+The API task waits ~60 seconds after boot, then waits for network and retries Neon until the API is healthy (up to ~15 minutes). The tunnel task waits ~5.5 minutes, then starts cloudflared and syncs Vercel. Allow **6–8 minutes** after reboot before the full stack is ready for login.
 
 **Important (Vercel + quick tunnel):** Quick tunnel hostnames **change every restart**. Auto-sync is handled by:
 

@@ -8,13 +8,15 @@ import {
   payrollCycleBounds,
   payrollCycleLabel,
 } from '../utils/payrollPeriod.js';
+import { fieldDeliveryDisplayFields } from '../utils/fieldCheckout.js';
+import { formatDisplayDate } from '../utils/formatDate.js';
 
 function formatIdr(n) {
   return Number(n || 0).toLocaleString('id-ID');
 }
 
 /**
- * @param {{ period?: string, onPeriodChange?: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean }} props
+ * @param {{ period?: string, onPeriodChange?: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean, showDeliveryRecap?: boolean }} props
  */
 export default function FieldOperationsPanel({
   period: periodProp,
@@ -22,6 +24,7 @@ export default function FieldOperationsPanel({
   showOmset = true,
   showPabrik = true,
   showTonase = true,
+  showDeliveryRecap = false,
 }) {
   const showCatalog = showPabrik || showTonase;
   const showTabs = showCatalog && showOmset;
@@ -63,6 +66,8 @@ export default function FieldOperationsPanel({
   const [report, setReport] = useState(null);
   const [omsetLoading, setOmsetLoading] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [allDeliveries, setAllDeliveries] = useState([]);
+  const [recapLoading, setRecapLoading] = useState(false);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -127,6 +132,20 @@ export default function FieldOperationsPanel({
     }
   }, [omsetPeriod, showOmset, t]);
 
+  const loadAllDeliveries = useCallback(async () => {
+    if (!showDeliveryRecap) return;
+    setRecapLoading(true);
+    try {
+      const { data } = await api.get(paths.adminFieldDeliveries);
+      setAllDeliveries(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setAllDeliveries([]);
+      notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
+    } finally {
+      setRecapLoading(false);
+    }
+  }, [showDeliveryRecap, t]);
+
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
     if (hash === 'location-management' || hash === 'pabrik-catalog') {
@@ -145,6 +164,10 @@ export default function FieldOperationsPanel({
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    loadAllDeliveries();
+  }, [loadAllDeliveries]);
 
   useEffect(() => {
     const bounds = payrollCycleBounds(currentPayrollPeriodKey());
@@ -1191,6 +1214,92 @@ export default function FieldOperationsPanel({
               <p className="text-[15px] text-apple-label">{t('fieldOmsetEmpty')}</p>
             )}
           </Card>
+
+          {showDeliveryRecap && (
+            <Card
+              className="mt-6"
+              title={t('fieldDeliveryRecapTitle')}
+              description={t('fieldDeliveryRecapHint')}
+              action={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={recapLoading}
+                  onClick={() => {
+                    notify('');
+                    loadAllDeliveries();
+                  }}
+                >
+                  {recapLoading ? t('loading') : t('fieldOmsetRefresh')}
+                </Button>
+              }
+            >
+              {recapLoading && !allDeliveries.length ? (
+                <p className="text-[15px] text-apple-label">{t('loading')}</p>
+              ) : allDeliveries.length ? (
+                <>
+                  <p className="mb-4 text-[13px] text-apple-label">
+                    {t('fieldDeliveryRecapCount', { count: allDeliveries.length })}
+                  </p>
+                  <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-sm">
+                    {allDeliveries.map((row) => {
+                      const parsed = fieldDeliveryDisplayFields(row);
+                      return (
+                        <li
+                          key={row.id}
+                          className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
+                        >
+                          <div className="font-medium text-apple-text">
+                            {row.full_name}
+                            {row.employee_code ? ` · ${row.employee_code}` : ''}
+                            {row.office_name ? ` · ${row.office_name}` : ''}
+                          </div>
+                          <div className="mt-1 text-apple-label">
+                            {t('fieldDeliveryDate')}: {formatDisplayDate(row.valid_on)}
+                          </div>
+                          {row.checkout_code ? (
+                            <p className="mt-2 font-mono text-xs text-apple-text break-all">
+                              {row.checkout_code}
+                            </p>
+                          ) : null}
+                          {parsed ? (
+                            <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                              {Object.entries(parsed).map(([key, value]) => (
+                                <div key={key}>
+                                  <dt className="text-xs uppercase tracking-wide text-apple-label">
+                                    {t(`fieldDelivery_${key}`, key)}
+                                  </dt>
+                                  <dd className="font-medium text-apple-text">{value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          ) : null}
+                          {row.bonus_amount != null || row.omset_amount != null ? (
+                            <p className="mt-2 text-xs text-apple-label">
+                              {row.omset_amount != null ? (
+                                <>
+                                  {t('fieldOmsetTotal')}: Rp {formatIdr(row.omset_amount)}
+                                </>
+                              ) : null}
+                              {row.bonus_amount != null ? (
+                                <>
+                                  {row.omset_amount != null ? ' · ' : ''}
+                                  {t('fieldOmsetBonusTotal')}: Rp {formatIdr(row.bonus_amount)}
+                                </>
+                              ) : null}
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-[15px] text-apple-label">{t('fieldDeliveryEmpty')}</p>
+              )}
+            </Card>
+          )}
         </section>
       )}
     </div>

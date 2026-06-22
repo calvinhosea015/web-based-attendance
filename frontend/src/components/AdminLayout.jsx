@@ -32,6 +32,18 @@ const NAV = [
     match: (p) => p.startsWith('/admin/leave'),
     pendingKey: 'leave',
   },
+  {
+    to: '/admin/corrections',
+    labelKey: 'correctionAdminTitle',
+    match: (p) => p.startsWith('/admin/corrections'),
+    pendingKey: 'corrections',
+  },
+  {
+    to: '/admin/reports',
+    labelKey: 'reportsTitle',
+    match: (p) => p.startsWith('/admin/reports'),
+    pendingKey: null,
+  },
 ];
 
 const POLL_MS = 45000;
@@ -73,6 +85,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
   const { pathname } = useLocation();
   const [pendingLoans, setPendingLoans] = useState(0);
   const [pendingLeave, setPendingLeave] = useState(0);
+  const [pendingCorrections, setPendingCorrections] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -80,12 +93,14 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
 
   const refreshPending = useCallback(async () => {
     try {
-      const [loansRes, leaveRes] = await Promise.all([
+      const [loansRes, leaveRes, correctionsRes] = await Promise.all([
         api.get(paths.adminLoanRequestsPending),
         api.get(paths.adminLeaveRequestsPending),
+        api.get(paths.adminAttendanceCorrectionsPending),
       ]);
       setPendingLoans(Array.isArray(loansRes.data) ? loansRes.data.length : 0);
       setPendingLeave(Array.isArray(leaveRes.data) ? leaveRes.data.length : 0);
+      setPendingCorrections(Array.isArray(correctionsRes.data) ? correctionsRes.data.length : 0);
     } catch {
       /* ignore poll errors */
     }
@@ -136,7 +151,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
   }, [pathname]);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
-  const bellCount = unreadCount + pendingLoans + pendingLeave;
+  const bellCount = unreadCount + pendingLoans + pendingLeave + pendingCorrections;
 
   const handleLogout = () => {
     localStorage.clear();
@@ -162,7 +177,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
     else navigate('/admin');
   };
 
-  const pendingByKey = { loans: pendingLoans, leave: pendingLeave };
+  const pendingByKey = { loans: pendingLoans, leave: pendingLeave, corrections: pendingCorrections };
 
   const renderNavLink = ({ to, labelKey, match, pendingKey }, mobile = false) => {
     const active = match(pathname);

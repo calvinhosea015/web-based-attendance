@@ -29,6 +29,9 @@ if ((Test-Path $ProdRepo) -and ($RepoRoot -ne $ProdRepo)) {
     Copy-Item (Join-Path $RepoRoot "scripts\install-vercel-sync.ps1") $prodScripts -Force
     Copy-Item (Join-Path $RepoRoot "scripts\sync-vercel-at-boot.ps1") $prodScripts -Force
     Copy-Item (Join-Path $RepoRoot "scripts\install-vercel-sync-boot-task.ps1") $prodScripts -Force
+    Copy-Item (Join-Path $RepoRoot "scripts\backup-database.ps1") $prodScripts -Force
+    Copy-Item (Join-Path $RepoRoot "scripts\start-backup-at-boot.ps1") $prodScripts -Force
+    Copy-Item (Join-Path $RepoRoot "scripts\install-backup-task.ps1") $prodScripts -Force
     Write-Host "Synced boot scripts to $prodScripts"
 }
 

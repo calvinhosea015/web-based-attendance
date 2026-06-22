@@ -8,6 +8,8 @@ import AdminPayroll from './pages/AdminPayroll.jsx';
 import AdminFieldDashboard from './pages/AdminFieldDashboard.jsx';
 import AdminLoans from './pages/AdminLoans.jsx';
 import AdminLeave from './pages/AdminLeave.jsx';
+import AdminCorrections from './pages/AdminCorrections.jsx';
+import AdminReports from './pages/AdminReports.jsx';
 import EmployeeDashboard from './pages/EmployeeDashboard.jsx';
 import FinanceFieldOmset from './pages/FinanceFieldOmset.jsx';
 
@@ -79,6 +81,8 @@ export default function App() {
           <Route path="/admin/field" element={<AdminFieldDashboard />} />
           <Route path="/admin/loans" element={<AdminLoans />} />
           <Route path="/admin/leave" element={<AdminLeave />} />
+          <Route path="/admin/corrections" element={<AdminCorrections />} />
+          <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/employee" element={<EmployeeDashboard />} />
           <Route path="/finance/field-omset" element={<FinanceFieldOmset />} />
           <Route path="/user" element={<Navigate to="/employee" replace />} />

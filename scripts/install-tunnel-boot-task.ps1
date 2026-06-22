@@ -46,8 +46,8 @@ $Action = New-ScheduledTaskAction `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$BootScript`""
 
 $Trigger = New-ScheduledTaskTrigger -AtStartup
-# Start after API boot task (60s trigger + API startup).
-$Trigger.Delay = "PT150S"
+# Start after API boot: 60s task delay + 90s network wait + up to ~4 min API start.
+$Trigger.Delay = "PT330S"
 
 $Settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `

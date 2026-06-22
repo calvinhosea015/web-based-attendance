@@ -71,6 +71,20 @@ function createApp() {
     });
   });
 
+  app.get('/health/ready', async (req, res) => {
+    try {
+      const { pool } = require('./db/pool');
+      await pool.query('SELECT 1');
+      res.json({ ok: true, db: true });
+    } catch (err) {
+      res.status(503).json({
+        ok: false,
+        db: false,
+        message: err.message || 'Database unavailable',
+      });
+    }
+  });
+
   const spec = swaggerSpec();
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
 

@@ -234,6 +234,31 @@ const officeUpdateValidators = [...officeCreateValidators];
 
 const departmentCreateValidators = [body('name').trim().notEmpty()];
 
+const attendanceCorrectionSubmitValidators = [
+  body('attendance_id').isInt({ min: 1 }),
+  body('reason').trim().notEmpty().isLength({ max: 2000 }),
+  body('check_in')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!isParsableDateTime(value)) throw new Error('check_in invalid');
+      return true;
+    }),
+  body('check_out')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!isParsableDateTime(value)) throw new Error('check_out invalid');
+      return true;
+    }),
+  body().custom((_, { req }) => {
+    const hasCheckIn = Object.prototype.hasOwnProperty.call(req.body, 'check_in');
+    const hasCheckOut = Object.prototype.hasOwnProperty.call(req.body, 'check_out');
+    if (!hasCheckIn && !hasCheckOut) {
+      throw new Error('check_in or check_out is required');
+    }
+    return true;
+  }),
+];
+
 const employeeUpdateValidators = [
   body('photo_url').optional().isString().isLength({ max: 2048 }),
   body('contract_status').optional().isString().isLength({ max: 64 }),
@@ -300,6 +325,10 @@ const fieldDeliveryQueryValidators = [
   query('days').optional().isInt({ min: 1, max: 365 }),
 ];
 
+const adminFieldDeliveryQueryValidators = [
+  query('limit').optional().isInt({ min: 1, max: 10000 }),
+];
+
 const dateRangeQueryValidators = [
   query('from').matches(/^\d{4}-\d{2}-\d{2}$/),
   query('to').matches(/^\d{4}-\d{2}-\d{2}$/),
@@ -346,6 +375,7 @@ module.exports = {
   officeCreateValidators,
   officeUpdateValidators,
   departmentCreateValidators,
+  attendanceCorrectionSubmitValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
@@ -355,6 +385,7 @@ module.exports = {
   loanSubmitValidators,
   loanDecideValidators,
   fieldDeliveryQueryValidators,
+  adminFieldDeliveryQueryValidators,
   dateRangeQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,

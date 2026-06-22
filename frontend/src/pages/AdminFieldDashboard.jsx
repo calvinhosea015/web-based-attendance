@@ -19,7 +19,7 @@ export default function AdminFieldDashboard() {
       title={t('fieldOpsDashboardTitle')}
       subtitle={t('fieldOpsDashboardSubtitle')}
     >
-      <FieldOperationsPanel />
+      <FieldOperationsPanel showDeliveryRecap />
     </AdminLayout>
   );
 }

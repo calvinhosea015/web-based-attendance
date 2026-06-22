@@ -20,6 +20,7 @@ const {
   officeCreateValidators,
   officeUpdateValidators,
   departmentCreateValidators,
+  attendanceCorrectionSubmitValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
@@ -35,6 +36,7 @@ const {
   pabrikCreateValidators,
   pabrikUpdateValidators,
   fieldDeliveryQueryValidators,
+  adminFieldDeliveryQueryValidators,
   dateRangeQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,
@@ -58,6 +60,7 @@ function buildProtectedRoutes(deps) {
     pabrikItemRateController,
     pabrikController,
     leaveController,
+    attendanceCorrectionController,
   } = deps;
 
   r.use(authenticate);
@@ -176,7 +179,7 @@ function buildProtectedRoutes(deps) {
   r.get(
     '/admin/attendance-corrections/pending',
     requireRole('admin'),
-    adminEnterpriseController.listPendingCorrections
+    attendanceCorrectionController.listPending
   );
   r.put(
     '/admin/attendance-corrections/:id',
@@ -184,7 +187,7 @@ function buildProtectedRoutes(deps) {
     idParamValidator,
     body('status').isIn(['approved', 'rejected']),
     validateRequest,
-    adminEnterpriseController.decideCorrection
+    attendanceCorrectionController.decide
   );
   r.put(
     '/admin/employees/:id',
@@ -327,6 +330,13 @@ function buildProtectedRoutes(deps) {
     payrollController.getFieldOfficerOmsetReport
   );
   r.get(
+    '/admin/field-deliveries',
+    requireRole('admin'),
+    adminFieldDeliveryQueryValidators,
+    validateRequest,
+    payrollController.listAllFieldDeliveries
+  );
+  r.get(
     '/admin/field-tonase-bonus/export',
     requireRole('admin'),
     dateRangeQueryValidators,
@@ -392,6 +402,18 @@ function buildProtectedRoutes(deps) {
 
   r.get('/employee/me/summary', requireAttendanceRole, dashboardController.employeeSummary);
   r.get('/employee/me/attendance', requireAttendanceRole, dashboardController.employeeHistory);
+  r.get(
+    '/employee/me/attendance-corrections',
+    requireAttendanceRole,
+    attendanceCorrectionController.listMine
+  );
+  r.post(
+    '/employee/me/attendance-corrections',
+    requireAttendanceRole,
+    attendanceCorrectionSubmitValidators,
+    validateRequest,
+    attendanceCorrectionController.submitMine
+  );
   r.get('/employee/me/payroll', requireEmployeePayrollAccess, dashboardController.employeePayroll);
   r.get(
     '/employee/field-deliveries',

@@ -178,7 +178,11 @@ class AttendanceRepository {
 
   async listForEmployee(employeeId, limit = 60) {
     const r = await query(
-      `SELECT a.*, o.name AS office_name
+      `SELECT a.*, o.name AS office_name,
+        EXISTS (
+          SELECT 1 FROM attendance_correction_requests c
+          WHERE c.attendance_id = a.id AND c.approval_status = 'pending'
+        ) AS pending_correction
        FROM attendance a
        JOIN offices o ON o.id = a.office_id
        WHERE a.employee_id = $1

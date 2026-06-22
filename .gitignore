@@ -6,3 +6,6 @@ dist/
 *.log
 backend/attendance.db
 backend/uploads/
+backups/
+logs/
+tools/pgsql/

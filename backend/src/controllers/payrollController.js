@@ -51,6 +51,10 @@ function makePayrollController(payrollService) {
     getFieldOfficerOmsetReport: asyncHandler(async (req, res) => {
       res.json(await payrollService.getFieldOfficerOmsetReport(req.params.period));
     }),
+    listAllFieldDeliveries: asyncHandler(async (req, res) => {
+      const limit = req.query.limit != null ? Number(req.query.limit) : 5000;
+      res.json(await payrollService.listAllFieldDeliveries({ limit }));
+    }),
     exportFieldTonaseBonus: asyncHandler(async (req, res) => {
       const { buffer, filename } = await payrollService.exportFieldTonaseBonusReport(
         req.query.from,

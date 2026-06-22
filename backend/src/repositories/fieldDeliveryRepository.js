@@ -151,6 +151,99 @@ class FieldDeliveryRepository {
     );
     return Number(r.rows[0]?.total ?? 0);
   }
+
+  /**
+   * All delivery lines from petugas lapangan (admin recap).
+   */
+  async listAll({ limit = 5000 } = {}) {
+    const r = await query(
+      `SELECT
+        fde.id,
+        fde.valid_on,
+        fde.created_at,
+        fde.checkout_code,
+        fde.pabrik_code,
+        fde.norek,
+        fde.nomor_tanda_terima,
+        fde.nomor_surat_jalan,
+        fde.nopol,
+        fde.no_bs,
+        fde.kode_barang,
+        fde.kotor,
+        fde.berat_bersih,
+        fde.selisih,
+        fde.tonase_per_item,
+        fde.price_per_item,
+        fde.omset_amount,
+        fde.bonus_amount,
+        e.full_name,
+        e.employee_id AS employee_code,
+        COALESCE(p.nama_pabrik, '') AS nama_pabrik,
+        o.name AS office_name,
+        a.check_out
+       FROM field_delivery_entries fde
+       JOIN employees e ON e.id = fde.employee_id
+       JOIN users u ON u.employee_id = e.id AND u.role = 'field_officer'
+       LEFT JOIN pabriks p ON p.pabrik_code = fde.pabrik_code
+       LEFT JOIN offices o ON o.id = COALESCE(p.office_id, u.office_id)
+       LEFT JOIN attendance a ON a.id = fde.attendance_id
+       ORDER BY fde.valid_on DESC, fde.created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    return r.rows;
+  }
+
+  /**
+   * Delivery lines from petugas lapangan visible to staff at the given office.
+   */
+  async listByOffice(officeId, { limit = 100, days = 60 } = {}) {
+    const r = await query(
+      `SELECT
+        fde.id,
+        fde.valid_on,
+        fde.created_at,
+        fde.checkout_code,
+        fde.pabrik_code,
+        fde.norek,
+        fde.nomor_tanda_terima,
+        fde.nomor_surat_jalan,
+        fde.nopol,
+        fde.no_bs,
+        fde.kode_barang,
+        fde.kotor,
+        fde.berat_bersih,
+        fde.selisih,
+        fde.tonase_per_item,
+        fde.price_per_item,
+        fde.omset_amount,
+        fde.bonus_amount,
+        e.full_name,
+        e.employee_id AS employee_code,
+        COALESCE(p.nama_pabrik, '') AS nama_pabrik,
+        o.name AS office_name,
+        a.check_out
+       FROM field_delivery_entries fde
+       JOIN employees e ON e.id = fde.employee_id
+       JOIN users u ON u.employee_id = e.id AND u.role = 'field_officer'
+       LEFT JOIN pabriks p ON p.pabrik_code = fde.pabrik_code
+       LEFT JOIN offices o ON o.id = COALESCE(p.office_id, u.office_id)
+       LEFT JOIN attendance a ON a.id = fde.attendance_id
+       WHERE fde.valid_on >= (CURRENT_DATE - $3::int)
+         AND (
+           u.office_id = $1
+           OR EXISTS (
+             SELECT 1 FROM employee_pabriks ep
+             JOIN pabriks pb ON pb.id = ep.pabrik_id
+             WHERE ep.employee_id = fde.employee_id AND pb.office_id = $1
+           )
+         )
+       ORDER BY fde.valid_on DESC, fde.created_at DESC
+       LIMIT $2`,
+      [officeId, limit, days]
+    );
+    return r.rows;
+  }
 }
 
 module.exports = { FieldDeliveryRepository };

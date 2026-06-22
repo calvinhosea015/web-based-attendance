@@ -47,6 +47,8 @@ const { makePayrollController } = require('../../controllers/payrollController')
 const { makeLoanController } = require('../../controllers/loanController');
 const { makeLeaveController } = require('../../controllers/leaveController');
 const { makeFieldCheckoutCodeController } = require('../../controllers/fieldCheckoutCodeController');
+const { makeAttendanceCorrectionController } = require('../../controllers/attendanceCorrectionController');
+const { AttendanceCorrectionService } = require('../../services/attendanceCorrectionService');
 const { buildAuthRoutes } = require('./auth.routes');
 const { buildProtectedRoutes } = require('./protected.routes');
 
@@ -132,6 +134,11 @@ function buildV1Router() {
     overtimeRequestRepository,
     attendanceCorrectionRepository
   );
+  const attendanceCorrectionService = new AttendanceCorrectionService(
+    attendanceCorrectionRepository,
+    attendanceRepository,
+    attendanceService
+  );
   const analyticsService = new AnalyticsService(analyticsRepository);
   const loanService = new LoanService(
     loanRequestRepository,
@@ -158,6 +165,7 @@ function buildV1Router() {
   const fieldCheckoutCodeController = makeFieldCheckoutCodeController(fieldCheckoutCodeService);
   const pabrikItemRateController = makePabrikItemRateController(pabrikItemRateService);
   const pabrikController = makePabrikController(pabrikService);
+  const attendanceCorrectionController = makeAttendanceCorrectionController(attendanceCorrectionService);
 
   const v1 = Router();
   v1.use('/auth', buildAuthRoutes(authController));
@@ -176,6 +184,7 @@ function buildV1Router() {
       fieldCheckoutCodeController,
       pabrikItemRateController,
       pabrikController,
+      attendanceCorrectionController,
     })
   );
   return v1;

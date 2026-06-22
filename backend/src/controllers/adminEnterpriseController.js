@@ -38,13 +38,6 @@ function makeAdminEnterpriseController(enterpriseAdminService, auditLogRepositor
       const row = await enterpriseAdminService.decideOvertime(req.params.id, req.auth, req.body);
       res.json(row);
     }),
-    listPendingCorrections: asyncHandler(async (req, res) => {
-      res.json(await enterpriseAdminService.attendanceCorrectionRepository.listPending());
-    }),
-    decideCorrection: asyncHandler(async (req, res) => {
-      const row = await enterpriseAdminService.decideCorrection(req.params.id, req.auth, req.body);
-      res.json(row);
-    }),
     updateEmployee: asyncHandler(async (req, res) => {
       const row = await enterpriseAdminService.updateEmployee(req.params.id, req.body);
       if (!row) return res.status(404).json({ message: 'Employee not found' });
