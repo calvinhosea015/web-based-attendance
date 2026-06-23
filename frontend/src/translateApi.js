@@ -62,6 +62,7 @@ const MESSAGE_CODE = {
   'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or OFFICE_RADIUS_METERS.':
     'RADIUS',
   'No check-in found for today.': 'NO_OPEN',
+  'Check in before submitting delivery data.': 'CHECK_IN_REQUIRED',
   'Could not complete checkout.': 'CHECKOUT_CONFLICT',
   'Invalid checkout keyword.': 'INVALID_CHECKOUT_CODE',
   'Checkout keyword already recorded for today.': 'FIELD_CODE_ALREADY',

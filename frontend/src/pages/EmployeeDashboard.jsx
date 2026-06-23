@@ -448,7 +448,9 @@ export default function EmployeeDashboard() {
         : [];
   const canRemote = summary?.remote_work_allowed !== false;
   const canClockIn = assignedOffices.some((o) => o?.id);
-  const isFieldOfficer = summary?.field_officer_mode === true;
+  const isFieldOfficer =
+    summary?.field_officer_mode === true ||
+    (!summary && localStorage.getItem('role') === ROLE_FIELD_OFFICER);
   const isUmum = summary?.umum_mode === true;
   const isOnceDailyInOut = summary?.once_daily_in_out_mode === true;
   const isAccounting =
@@ -504,6 +506,114 @@ export default function EmployeeDashboard() {
     distancePreview != null && maxAllowedPreview != null && distancePreview <= maxAllowedPreview;
 
   const payrollOnly = isPayrollOnlyRole(localStorage.getItem('role'));
+
+  const payrollCard = (
+    <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
+      {payroll.length > 0 ? (
+        <ul className="space-y-3 text-sm">
+          {payroll.map((row) => {
+            const loanDeduction = Number(row.loan_deduction || 0);
+            const pph21 = Number(row.pph_21 || 0);
+            const otherDeductions = Number(row.other_deductions || 0);
+            const deductions = loanDeduction + pph21 + otherDeductions;
+            return (
+              <li
+                key={row.id}
+                className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-apple-text">
+                    {payrollCycleLabel(row.payroll_period)}
+                  </span>
+                  <span className="font-semibold text-brand-700">
+                    Rp {formatIdr(row.final_salary)}
+                  </span>
+                </div>
+                <dl className="mt-3 grid gap-1 text-apple-label sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-apple-label">
+                      {t('payrollDaysAttended')}
+                    </dt>
+                    <dd className="font-medium text-apple-text">{row.days_attended ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-apple-label">
+                      {t('payrollBasicSalary')}
+                    </dt>
+                    <dd className="font-medium text-apple-text">Rp {formatIdr(row.basic_salary)}</dd>
+                  </div>
+                  {(row.payroll_mode === 'monthly' ||
+                    row.payroll_mode === 'umum' ||
+                    row.payroll_mode === 'general_affairs' ||
+                    row.payroll_mode === 'accounting') &&
+                    Number(row.absence_deduction || 0) > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollAbsenceDeduction')}
+                      </dt>
+                      <dd className="font-medium text-rose-700">
+                        Rp {formatIdr(row.absence_deduction)}
+                      </dd>
+                    </div>
+                  )}
+                  {loanDeduction > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollLoanDeduction')}
+                      </dt>
+                      <dd className="font-medium text-rose-700">Rp {formatIdr(loanDeduction)}</dd>
+                    </div>
+                  )}
+                  {pph21 > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollPph21')}
+                      </dt>
+                      <dd className="font-medium text-rose-700">Rp {formatIdr(pph21)}</dd>
+                    </div>
+                  )}
+                  {otherDeductions > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollOtherDeductions')}
+                      </dt>
+                      <dd className="font-medium text-apple-text">Rp {formatIdr(otherDeductions)}</dd>
+                    </div>
+                  )}
+                  {Number(row.bonus_omset || 0) > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollBonusOmset')}
+                      </dt>
+                      <dd className="font-medium text-brand-700">Rp {formatIdr(row.bonus_omset)}</dd>
+                    </div>
+                  )}
+                  {deductions > 0 && loanDeduction > 0 && otherDeductions > 0 && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollDeductions')}
+                      </dt>
+                      <dd className="font-medium text-apple-text">Rp {formatIdr(deductions)}</dd>
+                    </div>
+                  )}
+                  {row.keterangan ? (
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollKeterangan')}
+                      </dt>
+                      <dd className="font-medium text-apple-text">{row.keterangan}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-sm text-apple-label">{t('payrollEmployeeEmpty')}</p>
+      )}
+    </Card>
+  );
 
   if (payrollOnly) {
     return (
@@ -602,6 +712,7 @@ export default function EmployeeDashboard() {
         </Alert>
       )}
 
+      {!isFieldOfficer && (
       <section className="grid gap-6 md:grid-cols-3">
         <div className={`${panelClass} p-6 md:col-span-2`}>
           <h2 className="text-[13px] font-medium text-apple-label">{t('todayStatus')}</h2>
@@ -670,17 +781,212 @@ export default function EmployeeDashboard() {
           <div className="apple-metric mt-2">{summary?.weekWorkHours ?? 0}</div>
         </div>
       </section>
+      )}
 
+      {isFieldOfficer ? (
+        <>
+          <Card title={t('fieldOfficerAssignedLocations')}>
+            {assignedOffices.length ? (
+              <ul className="space-y-2 text-sm text-apple-text">
+                {assignedOffices.map((o) => (
+                  <li
+                    key={o.id}
+                    className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-2.5"
+                  >
+                    <div className="font-medium">
+                      {o.name || t('officeIdFallback', { id: o.id })}
+                      {nearestOfficePreview?.office?.id === o.id && distancePreview != null ? (
+                        <span className="ml-1 text-xs font-normal text-apple-label">
+                          ({t('locationNearest')})
+                        </span>
+                      ) : null}
+                    </div>
+                    {o.link ? (
+                      <a
+                        className="mt-1 inline-block text-xs text-brand-600 hover:underline"
+                        href={o.link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t('mapLink')}
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-xs text-amber-700">{t('fieldOfficerPabrikNoLocation')}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-amber-800">{t('noOfficeAssigned')}</p>
+            )}
+            {assignedOffices.length > 1 ? (
+              <p className="mt-3 text-xs text-apple-label">{t('fieldOfficerMultiLocationHint')}</p>
+            ) : null}
+          </Card>
+
+          <Card title={t('currentLocation')}>
+            {assignedOffices.length > 0 ? (
+              <div className="text-sm text-apple-text">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-apple-label">{scheduleHint}</span>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                    disabled={geoPreviewLoading || clockPending}
+                    onClick={refreshGeoPreview}
+                  >
+                    {geoPreviewLoading ? t('locating') : t('locationRefresh')}
+                  </button>
+                </div>
+                {geoPreview ? (
+                  <div className="mt-3 space-y-1">
+                    <p>
+                      {t('latitude')}: {geoPreview.lat.toFixed(5)} · {t('longitude')}:{' '}
+                      {geoPreview.lng.toFixed(5)}
+                    </p>
+                    {geoPreview.accuracy_m != null && (
+                      <p>{t('locationReady', { accuracy: Math.round(geoPreview.accuracy_m) })}</p>
+                    )}
+                    {distancePreview != null && maxAllowedPreview != null ? (
+                      <p className={!withinAssignedRadius ? 'text-amber-800' : 'text-emerald-800'}>
+                        {assignedOffices.length > 1
+                          ? t('locationDistanceMulti', {
+                              distance: distancePreview,
+                              office:
+                                nearestOfficePreview?.office?.name ||
+                                t('officeIdFallback', { id: nearestOfficePreview?.office?.id }),
+                            })
+                          : t('locationDistance', { distance: distancePreview })}
+                      </p>
+                    ) : (
+                      <p className="text-amber-800">{t('locationDistanceUnknown')}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-amber-800">
+                    {geoPreviewLoading ? t('locating') : t('geoUnavailable')}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-apple-label">{t('locationHint')}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-amber-800">{t('noOfficeAssigned')}</p>
+            )}
+          </Card>
+
+          <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
+            <div className="mb-4">
+              <p className="text-[13px] font-medium text-apple-label">{t('todayStatus')}</p>
+              <p className="apple-metric mt-1">
+                {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
+              </p>
+              {summary?.has_checkout_code_today === false && (
+                <p className="mt-1 text-xs text-amber-700">{t('fieldCodeRequiredToday')}</p>
+              )}
+              {summary?.has_checkout_code_today === true && (
+                <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
+              )}
+              <div className="mt-2 space-y-1 text-sm text-apple-label">
+                <div>
+                  {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
+                </div>
+                <div>
+                  {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
+                </div>
+              </div>
+            </div>
+            {nextAction === 'check_out' && (
+              <Field label={t('fieldCheckoutCodeForOut')} hint={t('fieldCodeSubmitHint')}>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={checkoutCode}
+                  onChange={(e) => setCheckoutCode(e.target.value)}
+                  autoComplete="off"
+                  placeholder={t('fieldCheckoutCodePlaceholder')}
+                />
+              </Field>
+            )}
+            <Button
+              variant="success"
+              size="lg"
+              className="mt-4 w-full"
+              disabled={clockDisabled}
+              onClick={handleClock}
+            >
+              {clockPending ? t('locating') : primaryClockLabel}
+            </Button>
+
+            <Field
+              className="mt-6"
+              label={t('fieldCheckoutCode')}
+              hint={
+                nextAction === 'check_in' ? t('fieldCodeCheckInFirst') : t('fieldCodeSubmitHint')
+              }
+            >
+              <textarea
+                className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
+                value={fieldCodeDraft}
+                onChange={(e) => setFieldCodeDraft(e.target.value)}
+                autoComplete="off"
+                placeholder={t('fieldCheckoutCodePlaceholder')}
+                disabled={nextAction === 'check_in'}
+              />
+              <Button
+                type="button"
+                variant="primary"
+                className="mt-3 w-full sm:w-auto"
+                disabled={
+                  nextAction === 'check_in' ||
+                  fieldCodeSubmitting ||
+                  !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
+                    isFieldCheckoutFormatValid(line)
+                  ) ||
+                  !splitFieldCheckoutLines(fieldCodeDraft).length
+                }
+                onClick={handleSubmitFieldCode}
+              >
+                {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
+              </Button>
+              {todayDeliveries.entries.length > 0 && (
+                <div className="mt-4 rounded-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
+                  <p className="font-medium text-apple-text">
+                    {t('fieldDeliveryTodayTotal', {
+                      count: todayDeliveries.entries.length,
+                      bonus: formatIdr(todayDeliveries.today_bonus_total),
+                    })}
+                  </p>
+                  <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+                    {todayDeliveries.entries.map((entry) => (
+                      <li key={entry.id} className="border-t border-black/[0.04] pt-2 font-mono">
+                        <div className="break-all text-apple-text">{entry.checkout_code}</div>
+                        <div className="mt-0.5 text-apple-label">
+                          {t('fieldDeliveryLineBonus', {
+                            selisih: entry.selisih,
+                            bonus: formatIdr(entry.bonus_amount),
+                          })}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Field>
+          </section>
+
+          <EmployeeHistorySection
+            history={history}
+            isUmum={isUmum}
+            onCorrectionSubmitted={reloadHistory}
+          />
+        </>
+      ) : (
       <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
         <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('clockActions')}</h2>
         <div className="mt-4 space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-apple-label">
-              {isFieldOfficer
-                ? t('fieldOfficerAssignedLocations')
-                : assignedOffices.length > 1
-                  ? t('assignedOffices')
-                  : t('assignedOffice')}
+              {assignedOffices.length > 1 ? t('assignedOffices') : t('assignedOffice')}
             </label>
             {assignedOffices.length ? (
               <ul className="space-y-1.5 rounded-lg border border-black/[0.06] bg-apple-fill px-3 py-2 text-sm text-apple-text">
@@ -698,9 +1004,6 @@ export default function EmployeeDashboard() {
             ) : (
               <div className="text-sm text-amber-800">{t('noOfficeAssigned')}</div>
             )}
-            {isFieldOfficer && assignedOffices.length > 1 ? (
-              <p className="mt-1 text-xs text-apple-label">{t('fieldOfficerMultiLocationHint')}</p>
-            ) : null}
           </div>
           {assignedOffices.length > 0 && (
             <div className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-3 text-sm text-apple-text">
@@ -732,18 +1035,7 @@ export default function EmployeeDashboard() {
                         !withinAssignedRadius ? 'text-amber-800' : 'text-emerald-800'
                       }
                     >
-                      {isFieldOfficer && assignedOffices.length > 1
-                        ? t('locationDistanceMulti', {
-                            distance: distancePreview,
-                            office:
-                              nearestOfficePreview?.office?.name ||
-                              t('officeIdFallback', {
-                                id: nearestOfficePreview?.office?.id,
-                              }),
-                          })
-                        : t('locationDistance', {
-                            distance: distancePreview,
-                          })}
+                      {t('locationDistance', { distance: distancePreview })}
                     </p>
                   ) : (
                     <p className="text-amber-800">{t('locationDistanceUnknown')}</p>
@@ -765,73 +1057,6 @@ export default function EmployeeDashboard() {
           ) : nextAction === 'check_in' ? (
             <p className="text-xs text-apple-label">{t('remoteWorkDisabledByAdmin')}</p>
           ) : null}
-          {isFieldOfficer && (
-            <Field
-              label={t('fieldCheckoutCode')}
-              hint={t('fieldCodeSubmitHint')}
-            >
-              <textarea
-                className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
-                value={fieldCodeDraft}
-                onChange={(e) => setFieldCodeDraft(e.target.value)}
-                autoComplete="off"
-                placeholder={t('fieldCheckoutCodePlaceholder')}
-              />
-              <Button
-                type="button"
-                variant="primary"
-                className="mt-2 w-full sm:w-auto"
-                disabled={
-                  fieldCodeSubmitting ||
-                  !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
-                    isFieldCheckoutFormatValid(line)
-                  ) ||
-                  !splitFieldCheckoutLines(fieldCodeDraft).length
-                }
-                onClick={handleSubmitFieldCode}
-              >
-                {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
-              </Button>
-              {todayDeliveries.entries.length > 0 && (
-                <div className="mt-3 rounded-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
-                  <p className="font-medium text-apple-text">
-                    {t('fieldDeliveryTodayTotal', {
-                      count: todayDeliveries.entries.length,
-                      bonus: formatIdr(todayDeliveries.today_bonus_total),
-                    })}
-                  </p>
-                  <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                    {todayDeliveries.entries.map((entry) => (
-                      <li key={entry.id} className="border-t border-black/[0.04] pt-2 font-mono">
-                        <div className="break-all text-apple-text">{entry.checkout_code}</div>
-                        <div className="mt-0.5 text-apple-label">
-                          {t('fieldDeliveryLineBonus', {
-                            selisih: entry.selisih,
-                            bonus: formatIdr(entry.bonus_amount),
-                          })}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Field>
-          )}
-          {isFieldOfficer && nextAction === 'check_out' && (
-            <Field
-              label={t('fieldCheckoutCodeForOut')}
-              hint={t('fieldCodeSubmitHint')}
-            >
-              <input
-                type="text"
-                className={inputClass}
-                value={checkoutCode}
-                onChange={(e) => setCheckoutCode(e.target.value)}
-                autoComplete="off"
-                placeholder={t('fieldCheckoutCodePlaceholder')}
-              />
-            </Field>
-          )}
           <Button
             variant="success"
             size="lg"
@@ -843,104 +1068,9 @@ export default function EmployeeDashboard() {
           </Button>
         </div>
       </section>
+      )}
 
-      <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
-        {payroll.length > 0 ? (
-          <ul className="space-y-3 text-sm">
-            {payroll.map((row) => {
-              const loanDeduction = Number(row.loan_deduction || 0);
-              const pph21 = Number(row.pph_21 || 0);
-              const otherDeductions = Number(row.other_deductions || 0);
-              const deductions = loanDeduction + pph21 + otherDeductions;
-              return (
-                <li
-                  key={row.id}
-                  className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-apple-text">
-                      {payrollCycleLabel(row.payroll_period)}
-                    </span>
-                    <span className="font-semibold text-brand-700">
-                      Rp {formatIdr(row.final_salary)}
-                    </span>
-                  </div>
-                  <dl className="mt-3 grid gap-1 text-apple-label sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollDaysAttended')}
-                      </dt>
-                      <dd className="font-medium text-apple-text">{row.days_attended ?? 0}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollBasicSalary')}
-                      </dt>
-                      <dd className="font-medium text-apple-text">Rp {formatIdr(row.basic_salary)}</dd>
-                    </div>
-                    {(row.payroll_mode === 'monthly' ||
-                      row.payroll_mode === 'umum' ||
-                      row.payroll_mode === 'general_affairs' ||
-                      row.payroll_mode === 'accounting') &&
-                      Number(row.absence_deduction || 0) > 0 && (
-                      <div>
-                        <dt className="text-xs uppercase tracking-wide text-apple-label">
-                          {t('payrollAbsenceDeduction')}
-                        </dt>
-                        <dd className="font-medium text-rose-700">
-                          Rp {formatIdr(row.absence_deduction)}
-                        </dd>
-                      </div>
-                    )}
-                    {loanDeduction > 0 && (
-                      <div>
-                        <dt className="text-xs uppercase tracking-wide text-apple-label">
-                          {t('payrollLoanDeduction')}
-                        </dt>
-                        <dd className="font-medium text-rose-700">Rp {formatIdr(loanDeduction)}</dd>
-                      </div>
-                    )}
-                    {pph21 > 0 && (
-                      <div>
-                        <dt className="text-xs uppercase tracking-wide text-apple-label">
-                          {t('payrollPph21')}
-                        </dt>
-                        <dd className="font-medium text-rose-700">Rp {formatIdr(pph21)}</dd>
-                      </div>
-                    )}
-                    {otherDeductions > 0 && (
-                      <div>
-                        <dt className="text-xs uppercase tracking-wide text-apple-label">
-                          {t('payrollOtherDeductions')}
-                        </dt>
-                        <dd className="font-medium text-apple-text">Rp {formatIdr(otherDeductions)}</dd>
-                      </div>
-                    )}
-                    {deductions > 0 && loanDeduction > 0 && otherDeductions > 0 && (
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs uppercase tracking-wide text-apple-label">
-                          {t('payrollDeductions')}
-                        </dt>
-                        <dd className="font-medium text-apple-text">Rp {formatIdr(deductions)}</dd>
-                      </div>
-                    )}
-                    {row.keterangan ? (
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs uppercase tracking-wide text-apple-label">
-                          {t('payrollKeterangan')}
-                        </dt>
-                        <dd className="font-medium text-apple-text">{row.keterangan}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm text-apple-label">{t('payrollEmployeeEmpty')}</p>
-        )}
-      </Card>
+      {!isFieldOfficer && payrollCard}
 
       {isStaffKantor && (
         <Card title={t('leaveTitle')} description={t('leaveEmployeeHint')}>
@@ -1246,11 +1376,15 @@ export default function EmployeeDashboard() {
         </section>
       )}
 
+      {!isFieldOfficer && (
       <EmployeeHistorySection
         history={history}
         isUmum={isUmum}
         onCorrectionSubmitted={reloadHistory}
       />
+      )}
+
+      {isFieldOfficer && payrollCard}
     </div>
   );
 }

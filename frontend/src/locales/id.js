@@ -445,7 +445,7 @@ export default {
   fieldOfficerPabrikLocation: 'Lokasi: {{name}}',
   fieldOfficerPabrikNoLocation:
     'Belum ada lokasi — hubungkan pabrik ini di Manajemen lokasi terlebih dahulu.',
-  fieldOfficerAssignedLocations: 'Lokasi pabrik Anda',
+  fieldOfficerAssignedLocations: 'Lokasi pabrik anda',
   fieldOfficerMultiLocationHint:
     'Anda bisa absen masuk jika berada dalam radius lokasi yang terhubung ke pabrik yang ditugaskan.',
   locationNearest: 'terdekat',
@@ -476,6 +476,7 @@ export default {
     'kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih',
   fieldCodeSubmitHint:
     'Satu baris per kode, 9 field dipisah *. Norek = 5 digit. Bonus = tonase (pabrik+barang) × (kotor − berat bersih) × 2%. Bisa beberapa kode per hari.',
+  fieldCodeCheckInFirst: 'Absen masuk dulu, lalu kirim data pengiriman.',
   fieldCodeAcceptedBonus: 'Kode diterima. Total bonus hari ini: Rp {{bonus}}.',
   fieldCodesAccepted: '{{count}} kode diterima. Total bonus hari ini: Rp {{bonus}}.',
   fieldDeliveryTodayTotal: '{{count}} pengiriman hari ini · bonus Rp {{bonus}}',
@@ -646,6 +647,7 @@ export default {
     RADIUS_GENERIC:
       'Anda di luar radius kantor yang ditetapkan. Tunggu sinyal GPS lebih baik atau minta admin menyesuaikan pin peta atau radius kantor.',
     NO_OPEN: 'Tidak ada absen masuk hari ini.',
+    CHECK_IN_REQUIRED: 'Absen masuk dulu sebelum mengirim data pengiriman.',
     CHECKOUT_CONFLICT: 'Tidak bisa menyelesaikan absen keluar.',
     USER_NOT_FOUND: 'Pengguna tidak ditemukan.',
     PASSWORD_POLICY: 'Kata sandi tidak memenuhi kebijakan.',

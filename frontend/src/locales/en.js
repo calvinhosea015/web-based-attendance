@@ -471,6 +471,7 @@ export default {
     'kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih',
   fieldCodeSubmitHint:
     'One line per code, 9 *-separated fields. Norek = 5 digits. Bonus = tonase (factory+item) × (gross − net) × 2%. Multiple codes per day allowed.',
+  fieldCodeCheckInFirst: 'Check in first, then submit delivery data.',
   fieldCodeAcceptedBonus: 'Code accepted. Today\'s bonus total: Rp {{bonus}}.',
   fieldCodesAccepted: '{{count}} codes accepted. Today\'s bonus total: Rp {{bonus}}.',
   fieldDeliveryTodayTotal: '{{count}} deliveries today · bonus Rp {{bonus}}',
@@ -640,6 +641,7 @@ export default {
     RADIUS_GENERIC:
       'You are not within the allowed radius of your assigned office. Wait for a better GPS fix or ask an admin to adjust the office map pin or radius.',
     NO_OPEN: 'No check-in found for today.',
+    CHECK_IN_REQUIRED: 'Check in before submitting delivery data.',
     CHECKOUT_CONFLICT: 'Could not complete checkout.',
     USER_NOT_FOUND: 'User not found.',
     PASSWORD_POLICY: 'Password does not meet policy requirements.',

@@ -13,12 +13,30 @@ class FieldCheckoutCodeService {
     fieldDeliveryRepository,
     pabrikItemRateRepository,
     fieldCodeEntryRepository = null,
-    employeePabrikRepository = null
+    employeePabrikRepository = null,
+    attendanceRepository = null
   ) {
     this.fieldDeliveryRepository = fieldDeliveryRepository;
     this.pabrikItemRateRepository = pabrikItemRateRepository;
     this.fieldCodeEntryRepository = fieldCodeEntryRepository;
     this.employeePabrikRepository = employeePabrikRepository;
+    this.attendanceRepository = attendanceRepository;
+  }
+
+  async assertCheckedInToday(employeeId, validOn) {
+    if (!this.attendanceRepository) return;
+    const count = await this.attendanceRepository.countTodaySegments(employeeId, validOn);
+    if (count < 1) {
+      throw new AppError('Check in before submitting delivery data.', 400, 'CHECK_IN_REQUIRED');
+    }
+  }
+
+  async todayAttendanceId(employeeId, validOn) {
+    if (!this.attendanceRepository) return null;
+    const open = await this.attendanceRepository.findOpenToday(employeeId, validOn);
+    if (open) return open.id;
+    const any = await this.attendanceRepository.findAnyToday(employeeId, validOn);
+    return any?.id ?? null;
   }
 
   async assertPabrikAssigned(employeeId, pabrikCode) {
@@ -82,6 +100,8 @@ class FieldCheckoutCodeService {
     }
 
     const validOn = attendanceCalendarDayStr();
+    await this.assertCheckedInToday(auth.employeeId, validOn);
+    const attendanceId = await this.todayAttendanceId(auth.employeeId, validOn);
     const entries = [];
 
     for (const rawCode of codes) {
@@ -107,7 +127,7 @@ class FieldCheckoutCodeService {
         price_per_item,
         omset_amount,
         bonus_amount,
-        attendance_id: null,
+        attendance_id: attendanceId,
       });
       entries.push(saved);
     }
