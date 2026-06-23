@@ -785,194 +785,201 @@ export default function EmployeeDashboard() {
 
       {isFieldOfficer ? (
         <>
-          <Card title={t('fieldOfficerAssignedLocations')}>
-            {assignedOffices.length ? (
-              <ul className="space-y-2 text-sm text-apple-text">
-                {assignedOffices.map((o) => (
-                  <li
-                    key={o.id}
-                    className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-2.5"
-                  >
-                    <div className="font-medium">
-                      {o.name || t('officeIdFallback', { id: o.id })}
-                      {nearestOfficePreview?.office?.id === o.id && distancePreview != null ? (
-                        <span className="ml-1 text-xs font-normal text-apple-label">
-                          ({t('locationNearest')})
-                        </span>
-                      ) : null}
-                    </div>
-                    {o.link ? (
-                      <a
-                        className="mt-1 inline-block text-xs text-brand-600 hover:underline"
-                        href={o.link}
-                        target="_blank"
-                        rel="noreferrer"
+          <Card title={t('clockActions')}>
+            <div className="space-y-6">
+              <div>
+                <p className="text-[13px] font-medium text-apple-label">
+                  {t('fieldOfficerAssignedLocations')}
+                </p>
+                {assignedOffices.length ? (
+                  <ul className="mt-2 space-y-2 text-sm text-apple-text">
+                    {assignedOffices.map((o) => (
+                      <li
+                        key={o.id}
+                        className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-2.5"
                       >
-                        {t('mapLink')}
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-xs text-amber-700">{t('fieldOfficerPabrikNoLocation')}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-amber-800">{t('noOfficeAssigned')}</p>
-            )}
-            {assignedOffices.length > 1 ? (
-              <p className="mt-3 text-xs text-apple-label">{t('fieldOfficerMultiLocationHint')}</p>
-            ) : null}
-          </Card>
-
-          <Card title={t('currentLocation')}>
-            {assignedOffices.length > 0 ? (
-              <div className="text-sm text-apple-text">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-apple-label">{scheduleHint}</span>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
-                    disabled={geoPreviewLoading || clockPending}
-                    onClick={refreshGeoPreview}
-                  >
-                    {geoPreviewLoading ? t('locating') : t('locationRefresh')}
-                  </button>
-                </div>
-                {geoPreview ? (
-                  <div className="mt-3 space-y-1">
-                    <p>
-                      {t('latitude')}: {geoPreview.lat.toFixed(5)} · {t('longitude')}:{' '}
-                      {geoPreview.lng.toFixed(5)}
-                    </p>
-                    {geoPreview.accuracy_m != null && (
-                      <p>{t('locationReady', { accuracy: Math.round(geoPreview.accuracy_m) })}</p>
-                    )}
-                    {distancePreview != null && maxAllowedPreview != null ? (
-                      <p className={!withinAssignedRadius ? 'text-amber-800' : 'text-emerald-800'}>
-                        {assignedOffices.length > 1
-                          ? t('locationDistanceMulti', {
-                              distance: distancePreview,
-                              office:
-                                nearestOfficePreview?.office?.name ||
-                                t('officeIdFallback', { id: nearestOfficePreview?.office?.id }),
-                            })
-                          : t('locationDistance', { distance: distancePreview })}
-                      </p>
-                    ) : (
-                      <p className="text-amber-800">{t('locationDistanceUnknown')}</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-amber-800">
-                    {geoPreviewLoading ? t('locating') : t('geoUnavailable')}
-                  </p>
-                )}
-                <p className="mt-2 text-xs text-apple-label">{t('locationHint')}</p>
-              </div>
-            ) : (
-              <p className="text-sm text-amber-800">{t('noOfficeAssigned')}</p>
-            )}
-          </Card>
-
-          <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
-            <div className="mb-4">
-              <p className="text-[13px] font-medium text-apple-label">{t('todayStatus')}</p>
-              <p className="apple-metric mt-1">
-                {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
-              </p>
-              {summary?.has_checkout_code_today === false && (
-                <p className="mt-1 text-xs text-amber-700">{t('fieldCodeRequiredToday')}</p>
-              )}
-              {summary?.has_checkout_code_today === true && (
-                <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
-              )}
-              <div className="mt-2 space-y-1 text-sm text-apple-label">
-                <div>
-                  {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
-                </div>
-                <div>
-                  {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
-                </div>
-              </div>
-            </div>
-            {nextAction === 'check_out' && (
-              <Field label={t('fieldCheckoutCodeForOut')} hint={t('fieldCodeSubmitHint')}>
-                <input
-                  type="text"
-                  className={inputClass}
-                  value={checkoutCode}
-                  onChange={(e) => setCheckoutCode(e.target.value)}
-                  autoComplete="off"
-                  placeholder={t('fieldCheckoutCodePlaceholder')}
-                />
-              </Field>
-            )}
-            <Button
-              variant="success"
-              size="lg"
-              className="mt-4 w-full"
-              disabled={clockDisabled}
-              onClick={handleClock}
-            >
-              {clockPending ? t('locating') : primaryClockLabel}
-            </Button>
-
-            <Field
-              className="mt-6"
-              label={t('fieldCheckoutCode')}
-              hint={
-                nextAction === 'check_in' ? t('fieldCodeCheckInFirst') : t('fieldCodeSubmitHint')
-              }
-            >
-              <textarea
-                className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
-                value={fieldCodeDraft}
-                onChange={(e) => setFieldCodeDraft(e.target.value)}
-                autoComplete="off"
-                placeholder={t('fieldCheckoutCodePlaceholder')}
-                disabled={nextAction === 'check_in'}
-              />
-              <Button
-                type="button"
-                variant="primary"
-                className="mt-3 w-full sm:w-auto"
-                disabled={
-                  nextAction === 'check_in' ||
-                  fieldCodeSubmitting ||
-                  !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
-                    isFieldCheckoutFormatValid(line)
-                  ) ||
-                  !splitFieldCheckoutLines(fieldCodeDraft).length
-                }
-                onClick={handleSubmitFieldCode}
-              >
-                {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
-              </Button>
-              {todayDeliveries.entries.length > 0 && (
-                <div className="mt-4 rounded-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
-                  <p className="font-medium text-apple-text">
-                    {t('fieldDeliveryTodayTotal', {
-                      count: todayDeliveries.entries.length,
-                      bonus: formatIdr(todayDeliveries.today_bonus_total),
-                    })}
-                  </p>
-                  <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                    {todayDeliveries.entries.map((entry) => (
-                      <li key={entry.id} className="border-t border-black/[0.04] pt-2 font-mono">
-                        <div className="break-all text-apple-text">{entry.checkout_code}</div>
-                        <div className="mt-0.5 text-apple-label">
-                          {t('fieldDeliveryLineBonus', {
-                            selisih: entry.selisih,
-                            bonus: formatIdr(entry.bonus_amount),
-                          })}
+                        <div className="font-medium">
+                          {o.name || t('officeIdFallback', { id: o.id })}
+                          {nearestOfficePreview?.office?.id === o.id && distancePreview != null ? (
+                            <span className="ml-1 text-xs font-normal text-apple-label">
+                              ({t('locationNearest')})
+                            </span>
+                          ) : null}
                         </div>
+                        {o.link ? (
+                          <a
+                            className="mt-1 inline-block text-xs text-brand-600 hover:underline"
+                            href={o.link}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t('mapLink')}
+                          </a>
+                        ) : (
+                          <p className="mt-1 text-xs text-amber-700">{t('fieldOfficerPabrikNoLocation')}</p>
+                        )}
                       </li>
                     ))}
                   </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-800">{t('noOfficeAssigned')}</p>
+                )}
+                {assignedOffices.length > 1 ? (
+                  <p className="mt-3 text-xs text-apple-label">{t('fieldOfficerMultiLocationHint')}</p>
+                ) : null}
+              </div>
+
+              <div className="border-t border-black/[0.06] pt-6">
+                <p className="text-[13px] font-medium text-apple-label">{t('currentLocation')}</p>
+                {assignedOffices.length > 0 ? (
+                  <div className="mt-2 text-sm text-apple-text">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs text-apple-label">{scheduleHint}</span>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                        disabled={geoPreviewLoading || clockPending}
+                        onClick={refreshGeoPreview}
+                      >
+                        {geoPreviewLoading ? t('locating') : t('locationRefresh')}
+                      </button>
+                    </div>
+                    {geoPreview ? (
+                      <div className="mt-3 space-y-1">
+                        <p>
+                          {t('latitude')}: {geoPreview.lat.toFixed(5)} · {t('longitude')}:{' '}
+                          {geoPreview.lng.toFixed(5)}
+                        </p>
+                        {geoPreview.accuracy_m != null && (
+                          <p>{t('locationReady', { accuracy: Math.round(geoPreview.accuracy_m) })}</p>
+                        )}
+                        {distancePreview != null && maxAllowedPreview != null ? (
+                          <p className={!withinAssignedRadius ? 'text-amber-800' : 'text-emerald-800'}>
+                            {assignedOffices.length > 1
+                              ? t('locationDistanceMulti', {
+                                  distance: distancePreview,
+                                  office:
+                                    nearestOfficePreview?.office?.name ||
+                                    t('officeIdFallback', { id: nearestOfficePreview?.office?.id }),
+                                })
+                              : t('locationDistance', { distance: distancePreview })}
+                          </p>
+                        ) : (
+                          <p className="text-amber-800">{t('locationDistanceUnknown')}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-amber-800">
+                        {geoPreviewLoading ? t('locating') : t('geoUnavailable')}
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs text-apple-label">{t('locationHint')}</p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-800">{t('noOfficeAssigned')}</p>
+                )}
+              </div>
+
+              <div className="border-t border-black/[0.06] pt-6">
+                <p className="text-[13px] font-medium text-apple-label">{t('todayStatus')}</p>
+                <p className="apple-metric mt-1">
+                  {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
+                </p>
+                {summary?.has_checkout_code_today === false && (
+                  <p className="mt-1 text-xs text-amber-700">{t('fieldCodeRequiredToday')}</p>
+                )}
+                {summary?.has_checkout_code_today === true && (
+                  <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
+                )}
+                <div className="mt-2 space-y-1 text-sm text-apple-label">
+                  <div>
+                    {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
+                  </div>
+                  <div>
+                    {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
+                  </div>
                 </div>
-              )}
-            </Field>
-          </section>
+                {nextAction === 'check_out' && (
+                  <Field className="mt-4" label={t('fieldCheckoutCodeForOut')} hint={t('fieldCodeSubmitHint')}>
+                    <input
+                      type="text"
+                      className={inputClass}
+                      value={checkoutCode}
+                      onChange={(e) => setCheckoutCode(e.target.value)}
+                      autoComplete="off"
+                      placeholder={t('fieldCheckoutCodePlaceholder')}
+                    />
+                  </Field>
+                )}
+                <Button
+                  variant="success"
+                  size="lg"
+                  className="mt-4 w-full"
+                  disabled={clockDisabled}
+                  onClick={handleClock}
+                >
+                  {clockPending ? t('locating') : primaryClockLabel}
+                </Button>
+              </div>
+
+              <div className="border-t border-black/[0.06] pt-6">
+                <Field
+                  label={t('fieldCheckoutCode')}
+                  hint={
+                    nextAction === 'check_in' ? t('fieldCodeCheckInFirst') : t('fieldCodeSubmitHint')
+                  }
+                >
+                  <textarea
+                    className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
+                    value={fieldCodeDraft}
+                    onChange={(e) => setFieldCodeDraft(e.target.value)}
+                    autoComplete="off"
+                    placeholder={t('fieldCheckoutCodePlaceholder')}
+                    disabled={nextAction === 'check_in'}
+                  />
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="mt-3 w-full sm:w-auto"
+                    disabled={
+                      nextAction === 'check_in' ||
+                      fieldCodeSubmitting ||
+                      !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
+                        isFieldCheckoutFormatValid(line)
+                      ) ||
+                      !splitFieldCheckoutLines(fieldCodeDraft).length
+                    }
+                    onClick={handleSubmitFieldCode}
+                  >
+                    {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
+                  </Button>
+                  {todayDeliveries.entries.length > 0 && (
+                    <div className="mt-4 rounded-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
+                      <p className="font-medium text-apple-text">
+                        {t('fieldDeliveryTodayTotal', {
+                          count: todayDeliveries.entries.length,
+                          bonus: formatIdr(todayDeliveries.today_bonus_total),
+                        })}
+                      </p>
+                      <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+                        {todayDeliveries.entries.map((entry) => (
+                          <li key={entry.id} className="border-t border-black/[0.04] pt-2 font-mono">
+                            <div className="break-all text-apple-text">{entry.checkout_code}</div>
+                            <div className="mt-0.5 text-apple-label">
+                              {t('fieldDeliveryLineBonus', {
+                                selisih: entry.selisih,
+                                bonus: formatIdr(entry.bonus_amount),
+                              })}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </Field>
+              </div>
+            </div>
+          </Card>
 
           <EmployeeHistorySection
             history={history}
