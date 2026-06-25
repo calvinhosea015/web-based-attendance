@@ -31,3 +31,19 @@ describe('FieldCheckoutCodeService submit', () => {
     );
   });
 });
+
+describe('FieldCheckoutCodeService assertReadyForCheckout', () => {
+  it('lets a field officer check out with no delivery data (does not throw)', async () => {
+    let createEntryCalls = 0;
+    const service = new FieldCheckoutCodeService({
+      countForEmployeeOnDate: async () => 0,
+      createEntry: async () => {
+        createEntryCalls += 1;
+        return {};
+      },
+    });
+
+    await service.assertReadyForCheckout({ role: 'field_officer', employeeId: 1 }, undefined);
+    assert.equal(createEntryCalls, 0);
+  });
+});

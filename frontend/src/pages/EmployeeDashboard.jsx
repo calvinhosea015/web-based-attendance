@@ -300,22 +300,12 @@ export default function EmployeeDashboard() {
   };
 
   const handleCheckOut = async () => {
-    const isFieldOfficer = summary?.field_officer_mode === true;
-    if (isFieldOfficer && !checkoutCode.trim()) {
-      setMessage(t('checkoutCodeRequired'));
-      return;
-    }
-    if (isFieldOfficer && !isFieldCheckoutFormatValid(checkoutCode)) {
-      setMessage(t('checkoutCodeInvalidFormat'));
-      return;
-    }
     setMessage('');
     setClockPending(true);
     try {
       const loc = await captureLocation();
       if (!loc) return;
-      const body = isFieldOfficer ? { ...loc, checkout_code: checkoutCode.trim() } : loc;
-      await api.post(paths.checkOut, body);
+      await api.post(paths.checkOut, loc);
       setMessage(t('checkedOut'));
       setCheckoutCode('');
       await refreshEmployee();
@@ -468,11 +458,7 @@ export default function EmployeeDashboard() {
           ? `${formatTimePart(shift.start_time)} – ${formatTimePart(shift.end_time)}`
           : '07:15 – 16:00';
   const clockDisabled =
-    summary == null ||
-    !canClockIn ||
-    clockPending ||
-    nextAction === 'done' ||
-    (isFieldOfficer && nextAction === 'check_out' && !isFieldCheckoutFormatValid(checkoutCode));
+    summary == null || !canClockIn || clockPending || nextAction === 'done';
 
   const primaryClockLabel =
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
@@ -487,10 +473,6 @@ export default function EmployeeDashboard() {
 
   const baseRadius = summary?.check_in_radius_meters ?? 500;
   const gpsBufferCap = summary?.check_in_gps_buffer_cap_meters ?? 200;
-  const maxAllowedPreview =
-    assignedOffices.some((o) => o?.lat != null && o?.lng != null)
-      ? baseRadius + Math.min(geoPreview?.accuracy_m ?? 0, gpsBufferCap)
-      : null;
   let nearestOfficePreview = null;
   if (geoPreview) {
     for (const o of assignedOffices) {
@@ -501,6 +483,11 @@ export default function EmployeeDashboard() {
       }
     }
   }
+  const previewBaseRadius = nearestOfficePreview?.office?.radius_meters ?? baseRadius;
+  const maxAllowedPreview =
+    assignedOffices.some((o) => o?.lat != null && o?.lng != null)
+      ? previewBaseRadius + Math.min(geoPreview?.accuracy_m ?? 0, gpsBufferCap)
+      : null;
   const distancePreview = nearestOfficePreview?.distance ?? null;
   const withinAssignedRadius =
     distancePreview != null && maxAllowedPreview != null && distancePreview <= maxAllowedPreview;
@@ -899,18 +886,6 @@ export default function EmployeeDashboard() {
                     {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
                   </div>
                 </div>
-                {nextAction === 'check_out' && (
-                  <Field className="mt-4" label={t('fieldCheckoutCodeForOut')} hint={t('fieldCodeSubmitHint')}>
-                    <input
-                      type="text"
-                      className={inputClass}
-                      value={checkoutCode}
-                      onChange={(e) => setCheckoutCode(e.target.value)}
-                      autoComplete="off"
-                      placeholder={t('fieldCheckoutCodePlaceholder')}
-                    />
-                  </Field>
-                )}
                 <Button
                   variant="success"
                   size="lg"
@@ -1395,3 +1370,6 @@ export default function EmployeeDashboard() {
     </div>
   );
 }
+
+
+

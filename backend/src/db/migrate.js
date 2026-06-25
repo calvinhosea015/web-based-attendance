@@ -621,6 +621,10 @@ async function migratePabrikCatalog() {
   await query(
     `CREATE INDEX IF NOT EXISTS idx_pabriks_office ON pabriks(office_id) WHERE office_id IS NOT NULL`
   );
+  // Per-pabrik check-in radius (meters). NULL = use global OFFICE_RADIUS_METERS default.
+  await query(
+    `ALTER TABLE pabriks ADD COLUMN IF NOT EXISTS radius_meters INTEGER CHECK (radius_meters IS NULL OR radius_meters > 0)`
+  );
 
   for (const row of PABRIK_CATALOG) {
     await query(

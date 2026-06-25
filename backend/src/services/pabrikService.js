@@ -21,6 +21,17 @@ function normalizeOfficeId(value) {
   return officeId;
 }
 
+// Empty/null clears the override (falls back to the global default radius).
+function normalizeRadiusMeters(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const radius = Number(value);
+  if (!Number.isInteger(radius) || radius < 1 || radius > 100000) {
+    throw new AppError('Radius must be a whole number of meters between 1 and 100000.', 400, 'VALIDATION');
+  }
+  return radius;
+}
+
 class PabrikService {
   constructor(pabrikRepository, officeRepository = null) {
     this.pabrikRepository = pabrikRepository;
@@ -51,6 +62,7 @@ class PabrikService {
     const pabrik_code = normalizePabrikCode(payload.pabrik_code);
     const nama_pabrik = normalizeNamaPabrik(payload.nama_pabrik);
     const office_id = normalizeOfficeId(payload.office_id);
+    const radius_meters = normalizeRadiusMeters(payload.radius_meters);
     let google_maps_url = null;
     if (office_id != null) {
       await this.assertOfficeExists(office_id);
@@ -67,6 +79,7 @@ class PabrikService {
       nama_pabrik,
       google_maps_url,
       office_id: office_id ?? null,
+      radius_meters: radius_meters ?? null,
       sort_order,
     });
   }
@@ -79,6 +92,10 @@ class PabrikService {
     const updates = {};
     if (payload.nama_pabrik !== undefined) {
       updates.nama_pabrik = normalizeNamaPabrik(payload.nama_pabrik);
+    }
+    const radius_meters = normalizeRadiusMeters(payload.radius_meters);
+    if (radius_meters !== undefined) {
+      updates.radius_meters = radius_meters;
     }
     const office_id = normalizeOfficeId(payload.office_id);
     if (office_id !== undefined) {

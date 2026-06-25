@@ -522,7 +522,15 @@ To keep the local stack running after a PC restart **without anyone logging in**
 - For the frontend task: `cd frontend && npm install` once so `node_modules/vite` exists.
 - For the tunnel task: `cloudflared.exe` at `D:\Calvin\cloudflared\cloudflared.exe`. For a **stable** public URL, also run `setup-named-tunnel.ps1` with a hostname on your Cloudflare domain.
 
-**One-time install** (PowerShell **as Administrator**, from the repo root):
+**One-time install** — single command (self-elevates, registers all four tasks in boot order):
+
+```powershell
+.\scripts\install-all-boot-tasks.ps1
+```
+
+It targets the production checkout (`D:\Calvin\web-based-attendance` if present) and logs to `C:\Users\calvin\.pm2\logs\install-all-boot-tasks.log`. The database is **remote Neon Postgres** (see `backend/.env`), so there is **no local database task** — do not add Docker Postgres at boot, that would be a different, empty database.
+
+Or install each task individually (PowerShell **as Administrator**, from the repo root):
 
 ```powershell
 .\scripts\install-backend-boot-task.ps1

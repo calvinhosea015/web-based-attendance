@@ -88,6 +88,17 @@ const pabrikItemRateIdValidator = [param('id').isInt({ min: 1 })];
 
 const pabrikIdValidator = [param('id').isInt({ min: 1 })];
 
+const radiusMetersBodyValidator = body('radius_meters')
+  .optional({ nullable: true })
+  .custom((value) => {
+    if (value === null || value === '') return true;
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 1 || n > 100000) {
+      throw new Error('radius_meters must be a whole number of meters between 1 and 100000');
+    }
+    return true;
+  });
+
 const pabrikCreateValidators = [
   body('pabrik_code').trim().notEmpty().isString().isLength({ max: 32 }),
   body('nama_pabrik').trim().notEmpty().isString().isLength({ max: 255 }),
@@ -100,6 +111,7 @@ const pabrikCreateValidators = [
       if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office id');
       return true;
     }),
+  radiusMetersBodyValidator,
 ];
 
 const pabrikUpdateValidators = [
@@ -114,6 +126,7 @@ const pabrikUpdateValidators = [
       if (!Number.isFinite(n) || n < 1) throw new Error('Invalid office id');
       return true;
     }),
+  radiusMetersBodyValidator,
 ];
 
 function passwordPolicyValidator() {

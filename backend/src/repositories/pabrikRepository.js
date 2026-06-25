@@ -11,6 +11,7 @@ const PABRIK_SELECT = `
     WHEN p.office_id IS NOT NULL THEN o.link
     ELSE p.google_maps_url
   END AS google_maps_url,
+  p.radius_meters,
   p.sort_order,
   p.created_at,
   p.updated_at`;
@@ -72,23 +73,28 @@ class PabrikRepository {
     return Number(r.rows[0]?.n) || 1;
   }
 
-  async create({ pabrik_code, nama_pabrik, google_maps_url, office_id, sort_order }) {
+  async create({ pabrik_code, nama_pabrik, google_maps_url, office_id, radius_meters, sort_order }) {
     const r = await query(
-      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, office_id, sort_order)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, office_id, radius_meters, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [pabrik_code, nama_pabrik, google_maps_url, office_id ?? null, sort_order]
+      [pabrik_code, nama_pabrik, google_maps_url, office_id ?? null, radius_meters ?? null, sort_order]
     );
     return this.findById(r.rows[0].id);
   }
 
-  async updateById(id, { nama_pabrik, google_maps_url, office_id }) {
+  async updateById(id, { nama_pabrik, google_maps_url, office_id, radius_meters }) {
     const sets = [];
     const params = [id];
     let idx = 2;
     if (nama_pabrik !== undefined) {
       sets.push(`nama_pabrik = $${idx}`);
       params.push(nama_pabrik);
+      idx += 1;
+    }
+    if (radius_meters !== undefined) {
+      sets.push(`radius_meters = $${idx}`);
+      params.push(radius_meters);
       idx += 1;
     }
     if (office_id !== undefined) {

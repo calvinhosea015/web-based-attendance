@@ -11,12 +11,15 @@ class EmployeePabrikRepository {
   }
 
   async listOfficesByEmployee(employeeId) {
+    // When several assigned pabriks share an office, use the largest configured radius
+    // among them (MAX ignores NULLs, so NULL falls back to the global default downstream).
     const r = await query(
-      `SELECT DISTINCT o.id, o.name, o.lat, o.lng, o.link
+      `SELECT o.id, o.name, o.lat, o.lng, o.link, MAX(p.radius_meters) AS radius_meters
        FROM employee_pabriks ep
        JOIN pabriks p ON p.id = ep.pabrik_id
        JOIN offices o ON o.id = p.office_id
        WHERE ep.employee_id = $1 AND p.office_id IS NOT NULL
+       GROUP BY o.id
        ORDER BY o.name ASC`,
       [employeeId]
     );

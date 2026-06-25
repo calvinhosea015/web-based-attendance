@@ -181,47 +181,36 @@ class FieldCheckoutCodeService {
     return { valid_on: validOn, entries, today_bonus_total, today_omset_total };
   }
 
+  // Field officers may check out without any delivery data. A checkout code is only
+  // recorded as a delivery when one is actually supplied (kept for backward compatibility).
   async assertReadyForCheckout(auth, checkoutCodeRaw) {
-    if (!isFieldOfficer(auth.role) || !auth.employeeId) return;
+    if (!isFieldOfficer(auth.role) || !auth.employeeId || !checkoutCodeRaw) return;
 
     const validOn = attendanceCalendarDayStr();
-    const count = await this.fieldDeliveryRepository.countForEmployeeOnDate(
-      auth.employeeId,
-      validOn
-    );
-
-    if (checkoutCodeRaw) {
-      const parsed = validateFieldCheckoutCode(checkoutCodeRaw);
-      await this.assertPabrikAssigned(auth.employeeId, parsed.pabrik_code);
-      const { tonase_per_item, price_per_item, omset_amount, bonus_amount } =
-        await this.resolveLineBonus(parsed);
-      await this.fieldDeliveryRepository.createEntry({
-        employee_id: auth.employeeId,
-        valid_on: validOn,
-        checkout_code: parsed.raw,
-        pabrik_code: parsed.pabrik_code,
-        norek: parsed.norek,
-        nomor_tanda_terima: parsed.nomor_tanda_terima,
-        nomor_surat_jalan: parsed.nomor_surat_jalan,
-        nopol: parsed.nopol,
-        no_bs: parsed.no_bs,
-        kode_barang: parsed.kode_barang,
-        kotor: parsed.kotor,
-        berat_bersih: parsed.berat_bersih,
-        selisih: parsed.selisih,
-        tonase_per_item,
-        price_per_item,
-        omset_amount,
-        bonus_amount,
-        attendance_id: null,
-      });
-    } else if (count < 1) {
-      throw new AppError(
-        'Enter at least one delivery code (9 fields separated by *) before you can check out.',
-        400,
-        'FIELD_CODE_REQUIRED'
-      );
-    }
+    const parsed = validateFieldCheckoutCode(checkoutCodeRaw);
+    await this.assertPabrikAssigned(auth.employeeId, parsed.pabrik_code);
+    const { tonase_per_item, price_per_item, omset_amount, bonus_amount } =
+      await this.resolveLineBonus(parsed);
+    await this.fieldDeliveryRepository.createEntry({
+      employee_id: auth.employeeId,
+      valid_on: validOn,
+      checkout_code: parsed.raw,
+      pabrik_code: parsed.pabrik_code,
+      norek: parsed.norek,
+      nomor_tanda_terima: parsed.nomor_tanda_terima,
+      nomor_surat_jalan: parsed.nomor_surat_jalan,
+      nopol: parsed.nopol,
+      no_bs: parsed.no_bs,
+      kode_barang: parsed.kode_barang,
+      kotor: parsed.kotor,
+      berat_bersih: parsed.berat_bersih,
+      selisih: parsed.selisih,
+      tonase_per_item,
+      price_per_item,
+      omset_amount,
+      bonus_amount,
+      attendance_id: null,
+    });
   }
 
   async linkCheckout(auth, attendanceId) {

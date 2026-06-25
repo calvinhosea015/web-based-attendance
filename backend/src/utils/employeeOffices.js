@@ -18,6 +18,7 @@ function mapOfficeRow(row) {
     lat: row.lat != null ? Number(row.lat) : null,
     lng: row.lng != null ? Number(row.lng) : null,
     link: row.link ?? null,
+    radius_meters: row.radius_meters != null ? Number(row.radius_meters) : null,
   };
 }
 

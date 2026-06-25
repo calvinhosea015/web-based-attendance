@@ -45,7 +45,10 @@ export default function FieldOperationsPanel({
     pabrik_code: '',
     nama_pabrik: '',
     office_id: '',
+    radius_meters: '',
   });
+  const [radiusDraft, setRadiusDraft] = useState({});
+  const [radiusSavingId, setRadiusSavingId] = useState(null);
   const [itemAddDraft, setItemAddDraft] = useState({});
   const [priceDraft, setPriceDraft] = useState({});
   const [priceSavingId, setPriceSavingId] = useState(null);
@@ -230,12 +233,14 @@ export default function FieldOperationsPanel({
         pabrik_code: newFactoryForm.pabrik_code.trim(),
         nama_pabrik: newFactoryForm.nama_pabrik.trim(),
         office_id: Number(newFactoryForm.office_id),
+        radius_meters: newFactoryForm.radius_meters.trim() || null,
       });
       const defaultOffice = offices.find((o) => o.link);
       setNewFactoryForm({
         pabrik_code: '',
         nama_pabrik: '',
         office_id: defaultOffice ? String(defaultOffice.id) : '',
+        radius_meters: '',
       });
       setShowAddFactoryForm(false);
       await loadPabriks();
@@ -303,6 +308,32 @@ export default function FieldOperationsPanel({
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
       setPabrikOfficeLinkSavingId(null);
+    }
+  };
+
+  const handleSaveRadius = async (pabrik, rawValue) => {
+    const trimmed = String(rawValue ?? '').trim();
+    const current = pabrik.radius_meters != null ? String(pabrik.radius_meters) : '';
+    if (trimmed === current) return;
+    if (trimmed !== '' && (!Number.isInteger(Number(trimmed)) || Number(trimmed) < 1)) {
+      notify(t('pabrikRadiusInvalid'), 'error');
+      setRadiusDraft((d) => ({ ...d, [pabrik.id]: current }));
+      return;
+    }
+    setRadiusSavingId(pabrik.id);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.put(paths.adminPabrik(pabrik.id), {
+        radius_meters: trimmed === '' ? null : Number(trimmed),
+      });
+      await loadPabriks();
+      notify(t('pabrikRadiusUpdated'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+      setRadiusDraft((d) => ({ ...d, [pabrik.id]: current }));
+    } finally {
+      setRadiusSavingId(null);
     }
   };
 
@@ -687,7 +718,7 @@ export default function FieldOperationsPanel({
                     {t('pabrikLocationManageLink')}
                   </a>
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_auto]">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_auto]">
                   <Field label={t('pabrikItemPabrikCode')}>
                     <input
                       className={inputClass}
@@ -726,6 +757,20 @@ export default function FieldOperationsPanel({
                         </option>
                       ))}
                     </select>
+                  </Field>
+                  <Field label={t('pabrikRadius')} hint={t('pabrikRadiusHint')}>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      className={inputClass}
+                      value={newFactoryForm.radius_meters}
+                      onChange={(e) =>
+                        setNewFactoryForm((f) => ({ ...f, radius_meters: e.target.value }))
+                      }
+                      placeholder={t('pabrikRadiusDefault')}
+                    />
                   </Field>
                   <div className="flex items-end gap-2">
                     <Button
@@ -802,6 +847,7 @@ export default function FieldOperationsPanel({
                           <th>{t('pabrikItemPabrikCode')}</th>
                           <th>{t('pabrikNama')}</th>
                           <th>{t('pabrikLocation')}</th>
+                          <th>{t('pabrikRadius')}</th>
                           <th className="text-center">{t('pabrikCatalogItemsCol')}</th>
                           <th className="text-right">{t('pabrikCatalogActions')}</th>
                         </tr>
@@ -860,6 +906,25 @@ export default function FieldOperationsPanel({
                                     ))}
                                   </select>
                                 </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    inputMode="numeric"
+                                    className="w-24 rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
+                                    value={
+                                      radiusDraft[pabrik.id] ??
+                                      (pabrik.radius_meters != null ? String(pabrik.radius_meters) : '')
+                                    }
+                                    disabled={radiusSavingId === pabrik.id}
+                                    placeholder={t('pabrikRadiusDefault')}
+                                    onChange={(e) =>
+                                      setRadiusDraft((d) => ({ ...d, [pabrik.id]: e.target.value }))
+                                    }
+                                    onBlur={(e) => handleSaveRadius(pabrik, e.target.value)}
+                                  />
+                                </td>
                                 <td className="text-center">
                                   <Badge variant="neutral">
                                     {pabrik.items?.length ?? 0}
@@ -897,7 +962,7 @@ export default function FieldOperationsPanel({
                               </tr>
                               {isExpanded && (
                                 <tr className="bg-apple-highlight/60">
-                                  <td colSpan={6} className="!px-4 !py-5">
+                                  <td colSpan={7} className="!px-4 !py-5">
                                     <div className="apple-expand-panel">
                                       <p className="mb-2 text-[15px] font-medium text-apple-text">
                                         {t('pabrikCatalogManageItems', {

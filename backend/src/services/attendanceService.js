@@ -306,7 +306,7 @@ class AttendanceService {
       const match = findCheckInOffice(lat, lng, accuracyMeters, officesWithCoords, config);
       if (!match) {
         const nearest = nearestAssignedOffice(lat, lng, officesWithCoords);
-        const allowed = Math.round(allowedRadiusMeters(accuracyMeters, config));
+        const allowed = Math.round(allowedRadiusMeters(accuracyMeters, config, nearest?.office));
         throw new AppError(
           fieldOfficer
             ? 'You are not within the allowed radius of any of your assigned work locations. Wait for a better GPS fix or move closer to an assigned site.'
@@ -417,11 +417,11 @@ class AttendanceService {
       checkout_code: checkoutCodeRaw,
     } = body;
     const fieldOfficer = isFieldOfficer(auth.role);
-    if (fieldOfficer && this.fieldCheckoutCodeService) {
+    // Field officers check out without entering anything; delivery data (data pengiriman)
+    // is submitted separately via the field-code endpoint. An optional checkout_code is
+    // still recorded if one happens to be sent.
+    if (fieldOfficer && checkoutCodeRaw && this.fieldCheckoutCodeService) {
       await this.fieldCheckoutCodeService.assertReadyForCheckout(auth, checkoutCodeRaw);
-    } else if (fieldOfficer) {
-      const { validateFieldCheckoutCode } = require('../utils/fieldCheckoutPayload');
-      validateFieldCheckoutCode(checkoutCodeRaw);
     }
     const clientTimestampMs = resolveClientTimestampMs(clientTimestampMsRaw);
     const geo = validateClockGeoOrThrow(
@@ -445,7 +445,10 @@ class AttendanceService {
     let status;
     let checkoutCode = null;
     if (fieldOfficer) {
-      checkoutCode = String(checkoutCodeRaw).trim();
+      checkoutCode =
+        checkoutCodeRaw != null && String(checkoutCodeRaw).trim() !== ''
+          ? String(checkoutCodeRaw).trim()
+          : null;
       const rawHours = (new Date(nowIso).getTime() - new Date(checkInIso).getTime()) / 3600000;
       workHours = Number(Math.max(0, rawHours).toFixed(2));
       overtimeHours = 0;
