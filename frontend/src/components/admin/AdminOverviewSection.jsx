@@ -20,32 +20,18 @@ export default function AdminOverviewSection({ overview, chartData }) {
   return (
     <>
       {overview && (
-        <section className="bento-grid">
+        <section className="space-y-6">
           <StatCard
             label={t('totalEmployees')}
             value={overview.totalEmployees}
             tone="blue"
             featured
-            className="bento-featured"
           />
-          <StatCard
-            label={t('presentToday')}
-            value={overview.presentToday}
-            tone="emerald"
-            className="bento-compact"
-          />
-          <StatCard
-            label={t('lateToday')}
-            value={overview.lateToday}
-            tone="amber"
-            className="bento-compact"
-          />
-          <StatCard
-            label={t('absentToday')}
-            value={overview.absentToday}
-            tone="rose"
-            className="bento-wide"
-          />
+          <div className="grid gap-6 sm:grid-cols-3">
+            <StatCard label={t('presentToday')} value={overview.presentToday} tone="emerald" />
+            <StatCard label={t('lateToday')} value={overview.lateToday} tone="amber" />
+            <StatCard label={t('absentToday')} value={overview.absentToday} tone="rose" />
+          </div>
         </section>
       )}
 

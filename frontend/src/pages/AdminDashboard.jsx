@@ -446,8 +446,7 @@ export default function AdminDashboard() {
 
       <AdminOverviewSection overview={overview} chartData={chartData} />
 
-      <section className="apple-section-grid">
-        <PageSection title={t('manageUsers')}>
+      <PageSection title={t('manageUsers')}>
           <form className="space-y-3" onSubmit={handleAddUser}>
             <input
               className={inputClass}
@@ -966,8 +965,7 @@ export default function AdminDashboard() {
               </li>
             ))}
           </ul>
-        </PageSection>
-      </section>
+      </PageSection>
 
       <PageSection title={t('attendance')}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
