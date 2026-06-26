@@ -34,7 +34,7 @@ export function parseFieldCheckoutDisplay(code) {
   const kotorN = Number(kotor);
   const bersihN = Number(beratBersih);
   const selisih =
-    Number.isFinite(kotorN) && Number.isFinite(bersihN) ? Math.max(0, kotorN - bersihN) : '';
+    Number.isFinite(kotorN) && Number.isFinite(bersihN) ? Math.abs(kotorN - bersihN) : '';
   return {
     pabrik,
     norek,

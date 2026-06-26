@@ -1,7 +1,22 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { FieldCheckoutCodeService } = require('../src/services/fieldCheckoutCodeService');
+const { validateFieldCheckoutCode } = require('../src/utils/fieldCheckoutPayload');
 const { AppError } = require('../src/utils/errors');
+
+describe('validateFieldCheckoutCode selisih', () => {
+  it('accepts berat bersih greater than kotor (selisih is the absolute difference)', () => {
+    const parsed = validateFieldCheckoutCode('2*02020*1999*06326*L 8393 UP*0*SB*0*2510');
+    assert.equal(parsed.kotor, 0);
+    assert.equal(parsed.berat_bersih, 2510);
+    assert.equal(parsed.selisih, 2510);
+  });
+
+  it('keeps the normal case unchanged (kotor >= berat bersih)', () => {
+    const parsed = validateFieldCheckoutCode('1*12345*1*1*NOPOL*0*ITEM*100*90');
+    assert.equal(parsed.selisih, 10);
+  });
+});
 
 describe('FieldCheckoutCodeService submit', () => {
   it('rejects delivery data when employee has not checked in today', async () => {

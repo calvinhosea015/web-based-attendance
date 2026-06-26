@@ -116,9 +116,6 @@ function validateFieldCheckoutCode(raw) {
 
   const kotor = parseNonNegativeNumber(kotorRaw, SEGMENT_LABELS[7]);
   const berat_bersih = parseNonNegativeNumber(beratBersihRaw, SEGMENT_LABELS[8]);
-  if (berat_bersih > kotor) {
-    throw new AppError('Invalid checkout field: berat bersih cannot exceed kotor.', 400, 'INVALID_CHECKOUT_CODE');
-  }
 
   return {
     raw: code,
@@ -138,7 +135,9 @@ function validateFieldCheckoutCode(raw) {
     kotor,
     berat_bersih,
     berat: berat_bersih,
-    selisih: kotor - berat_bersih,
+    // ponytail: selisih is the weight difference magnitude; abs() lets kotor/berat
+    // arrive in either order without producing a negative omset/bonus.
+    selisih: Math.abs(kotor - berat_bersih),
   };
 }
 
