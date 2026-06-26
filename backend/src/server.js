@@ -2,6 +2,7 @@ const { createApp } = require('./app');
 const config = require('./config/env');
 const { migrate } = require('./db/migrate');
 const { logger } = require('./utils/logger');
+const { startAutoCheckoutScheduler } = require('./jobs/autoCheckout');
 
 async function migrateWithRetry() {
   const maxAttempts = Number(process.env.DB_CONNECT_RETRIES || 12);
@@ -26,6 +27,7 @@ async function start() {
   app.listen(config.port, () => {
     logger.info(`Server running on port ${config.port}`);
   });
+  startAutoCheckoutScheduler();
 }
 
 start().catch((err) => {

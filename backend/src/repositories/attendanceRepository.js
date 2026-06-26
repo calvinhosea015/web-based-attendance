@@ -120,6 +120,28 @@ class AttendanceRepository {
     return r.rows[0] || null;
   }
 
+  /**
+   * Auto "absen keluar" at 00:00: close every still-open session at the given instant.
+   * No GPS is recorded and overtime is not granted (forgetting to clock out must not
+   * earn lembur). Only rows with check_out IS NULL are touched, so this is idempotent
+   * across restarts or multiple API instances.
+   */
+  async autoCheckoutOpenSessions(checkoutAtIso) {
+    const r = await query(
+      `UPDATE attendance SET
+        check_out = $1,
+        work_hours = ROUND(GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - check_in)) / 3600.0)::numeric, 2),
+        overtime_hours = 0,
+        overtime_minutes = 0,
+        validation_flags = COALESCE(validation_flags, '{}'::jsonb)
+          || jsonb_build_object('auto_checkout', true, 'auto_checkout_at', $1::text)
+      WHERE check_out IS NULL
+      RETURNING id, employee_id, check_in, check_out`,
+      [checkoutAtIso]
+    );
+    return r.rows;
+  }
+
   async findById(id) {
     const r = await query(`SELECT * FROM attendance WHERE id = $1`, [id]);
     return r.rows[0] || null;
