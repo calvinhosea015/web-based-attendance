@@ -52,6 +52,8 @@ export default function FieldOperationsPanel({
   const [itemAddDraft, setItemAddDraft] = useState({});
   const [priceDraft, setPriceDraft] = useState({});
   const [priceSavingId, setPriceSavingId] = useState(null);
+  const [tonaseDraft, setTonaseDraft] = useState({});
+  const [tonaseSavingId, setTonaseSavingId] = useState(null);
   const [factorySaving, setFactorySaving] = useState(false);
   const [itemSavingCode, setItemSavingCode] = useState(null);
   const [factoryDeletingId, setFactoryDeletingId] = useState(null);
@@ -112,9 +114,18 @@ export default function FieldOperationsPanel({
           ])
         )
       );
+      setTonaseDraft(
+        Object.fromEntries(
+          items.map((item) => [
+            item.id,
+            Number(item.tonase_per_item) > 0 ? String(item.tonase_per_item) : '',
+          ])
+        )
+      );
     } catch (err) {
       setPabriks([]);
       setPriceDraft({});
+      setTonaseDraft({});
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
       setPabrikLoading(false);
@@ -334,6 +345,42 @@ export default function FieldOperationsPanel({
       setRadiusDraft((d) => ({ ...d, [pabrik.id]: current }));
     } finally {
       setRadiusSavingId(null);
+    }
+  };
+
+  const handleSaveInlineTonase = async (row) => {
+    const draft = tonaseDraft[row.id] ?? '';
+    const tonase = Number(draft) || 0;
+    const current = Number(row.tonase_per_item) || 0;
+    if (tonase === current) return;
+    if (tonase <= 0 && Number(row.price_per_item) <= 0) {
+      notify(t('pabrikItemRateRequired'), 'error');
+      setTonaseDraft((d) => ({
+        ...d,
+        [row.id]: current > 0 ? String(current) : '',
+      }));
+      return;
+    }
+    setTonaseSavingId(row.id);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.put(`${paths.adminPabrikItemRates}/${row.id}`, {
+        pabrik_code: row.pabrik_code,
+        kode_barang: row.kode_barang,
+        tonase_per_item: tonase,
+        price_per_item: row.price_per_item,
+      });
+      await loadPabriks();
+      notify(t('pabrikRateSaved'), 'success');
+    } catch (err) {
+      setTonaseDraft((d) => ({
+        ...d,
+        [row.id]: current > 0 ? String(current) : '',
+      }));
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setTonaseSavingId(null);
     }
   };
 
@@ -1034,10 +1081,39 @@ export default function FieldOperationsPanel({
                                                   <td className="font-medium text-apple-text">
                                                     {item.kode_barang}
                                                   </td>
-                                                  <td className="text-right tabular-nums text-apple-label">
-                                                    {Number(item.tonase_per_item) > 0
-                                                      ? item.tonase_per_item
-                                                      : '—'}
+                                                  <td className="text-right">
+                                                    <input
+                                                      type="number"
+                                                      min="0"
+                                                      step="any"
+                                                      className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
+                                                      value={tonaseDraft[item.id] ?? ''}
+                                                      placeholder="0"
+                                                      disabled={tonaseSavingId === item.id}
+                                                      onChange={(e) =>
+                                                        setTonaseDraft((d) => ({
+                                                          ...d,
+                                                          [item.id]: e.target.value,
+                                                        }))
+                                                      }
+                                                      onBlur={() => handleSaveInlineTonase(rateRow)}
+                                                      onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                          e.preventDefault();
+                                                          e.currentTarget.blur();
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                          const current =
+                                                            Number(item.tonase_per_item) || 0;
+                                                          setTonaseDraft((d) => ({
+                                                            ...d,
+                                                            [item.id]:
+                                                              current > 0 ? String(current) : '',
+                                                          }));
+                                                          e.currentTarget.blur();
+                                                        }
+                                                      }}
+                                                    />
                                                   </td>
                                                   <td className="text-right">
                                                     <input
