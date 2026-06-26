@@ -557,8 +557,8 @@ async function migrateFieldCheckoutTables() {
   );
   await query(
     `UPDATE field_delivery_entries
-     SET omset_amount = ROUND((tonase_per_item * selisih)::numeric, 2)
-     WHERE omset_amount = 0 AND tonase_per_item > 0 AND selisih > 0`
+     SET omset_amount = ROUND((tonase_per_item * berat_bersih)::numeric, 2)
+     WHERE omset_amount = 0 AND tonase_per_item > 0 AND berat_bersih > 0`
   );
   await query(
     `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS omset_total NUMERIC(14,2) NOT NULL DEFAULT 0`

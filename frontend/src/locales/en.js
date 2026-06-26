@@ -156,7 +156,7 @@ export default {
   payrollBonusOmset: 'Bonus',
   payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (omset × 2%).',
   payrollBonusFieldOfficerHint:
-    'From delivery codes: omset = price × selisih when price is set, else tonase × selisih; bonus = omset × 2%. Can override manually.',
+    'From delivery codes: omset = price per item × berat bersih (falls back to tonase when no price); bonus = omset × 2%. Can override manually.',
   fieldOpsDashboardTitle: 'Field operations',
   fieldOpsDashboardSubtitle:
     'Field officer omset and factory catalog — use the tabs to switch.',
@@ -164,7 +164,7 @@ export default {
   fieldOpsTabCatalog: 'Factories, items & tonase bonus',
   pabrikCatalogTitle: 'Factories, items & tonase bonus',
   pabrikCatalogHint:
-    'Manage factories, locations, and item codes. Expand a factory to add items and edit price per item (saved on blur or Enter). Omset = price × selisih when set, else tonase × selisih. Bonus = omset × 2%.',
+    'Manage factories, locations, and item codes. Expand a factory to add items and edit price per item (saved on blur or Enter). Omset = price per item × berat bersih (falls back to tonase when no price). Bonus = omset × 2%.',
   pabrikCatalogStatFactories: 'Factories',
   pabrikCatalogStatItems: 'Item codes',
   pabrikCatalogStatPriced: 'With price set',
@@ -223,7 +223,7 @@ export default {
   pabrikItemSaveTonase: 'Save tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
-    'Expand a factory above to edit price per item. Omset = price × selisih when price is set, else tonase × selisih. Bonus = omset × 2%.',
+    'Expand a factory above to edit price per item. Omset = price per item × berat bersih (falls back to tonase when no price). Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Download tonase bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',
@@ -251,8 +251,8 @@ export default {
   pabrikRateDeleted: 'Rate deleted.',
   fieldOmsetReportTitle: 'Field officer omset',
   fieldOmsetReportSubtitle:
-    'Omset from delivery codes submitted by petugas lapangan (tonase × selisih). Bonus on payroll is 2% of omset.',
-  fieldOmsetFromCodesHint: 'Sum of tonase × selisih per delivery line',
+    'Omset from delivery codes submitted by petugas lapangan (price per item × berat bersih). Bonus on payroll is 2% of omset.',
+  fieldOmsetFromCodesHint: 'Sum of price per item × berat bersih per delivery line',
   fieldOmsetBonusHint: '{{count}} delivery lines · bonus = omset × 2%',
   fieldOmsetBonusTotal: 'Bonus (2%)',
   fieldOmsetTotal: 'Omset',
@@ -480,7 +480,7 @@ export default {
   fieldCodeAcceptedBonus: 'Code accepted. Today\'s bonus total: Rp {{bonus}}.',
   fieldCodesAccepted: '{{count}} codes accepted. Today\'s bonus total: Rp {{bonus}}.',
   fieldDeliveryTodayTotal: '{{count}} deliveries today · bonus Rp {{bonus}}',
-  fieldDeliveryLineBonus: 'Selisih {{selisih}} kg · bonus Rp {{bonus}}',
+  fieldDeliveryLineBonus: 'Berat bersih {{berat}} kg · bonus Rp {{bonus}}',
   checkoutCodeInvalidFormat:
     'Invalid format. One line per code, 9 *-separated fields (factory code, 5-digit norek, …, gross, net weight).',
   submitFieldCode: 'Submit delivery data',

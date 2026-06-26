@@ -156,7 +156,7 @@ export default {
   payrollBonusOmset: 'Bonus',
   payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (omset × 2%).',
   payrollBonusFieldOfficerHint:
-    'Dari kode pengiriman: omset = harga × selisih jika harga diisi, jika tidak tonase × selisih; bonus = omset × 2%. Bisa di-override manual.',
+    'Dari kode pengiriman: omset = harga per item × berat bersih (pakai tonase bila harga kosong); bonus = omset × 2%. Bisa di-override manual.',
   fieldOpsDashboardTitle: 'Operasi lapangan',
   fieldOpsDashboardSubtitle:
     'Omset petugas lapangan dan katalog pabrik — gunakan tab untuk berpindah.',
@@ -164,7 +164,7 @@ export default {
   fieldOpsTabCatalog: 'Pabrik, barang & tonase bonus',
   pabrikCatalogTitle: 'Pabrik, barang & tonase bonus',
   pabrikCatalogHint:
-    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga × selisih jika diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
+    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga per item × berat bersih (pakai tonase bila harga kosong). Bonus = omset × 2%.',
   pabrikCatalogStatFactories: 'Pabrik',
   pabrikCatalogStatItems: 'Kode barang',
   pabrikCatalogStatPriced: 'Sudah ada harga',
@@ -224,7 +224,7 @@ export default {
   pabrikItemSaveTonase: 'Simpan tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
-    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga × selisih jika diisi, jika tidak tonase × selisih. Bonus = omset × 2%.',
+    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga per item × berat bersih (pakai tonase bila harga kosong). Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Unduh laporan tonase bonus',
   pabrikTonaseExportHint:
     'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
@@ -252,8 +252,8 @@ export default {
   pabrikRateDeleted: 'Tarif dihapus.',
   fieldOmsetReportTitle: 'Omset petugas lapangan',
   fieldOmsetReportSubtitle:
-    'Omset dari kode pengiriman petugas lapangan (tonase × selisih). Bonus di gaji = 2% dari omset.',
-  fieldOmsetFromCodesHint: 'Jumlah tonase × selisih per baris kode',
+    'Omset dari kode pengiriman petugas lapangan (harga per item × berat bersih). Bonus di gaji = 2% dari omset.',
+  fieldOmsetFromCodesHint: 'Jumlah harga per item × berat bersih per baris kode',
   fieldOmsetBonusHint: '{{count}} baris kode · bonus = omset × 2%',
   fieldOmsetBonusTotal: 'Bonus (2%)',
   fieldOmsetTotal: 'Omset',
@@ -485,7 +485,7 @@ export default {
   fieldCodeAcceptedBonus: 'Kode diterima. Total bonus hari ini: Rp {{bonus}}.',
   fieldCodesAccepted: '{{count}} kode diterima. Total bonus hari ini: Rp {{bonus}}.',
   fieldDeliveryTodayTotal: '{{count}} pengiriman hari ini · bonus Rp {{bonus}}',
-  fieldDeliveryLineBonus: 'Selisih {{selisih}} kg · bonus Rp {{bonus}}',
+  fieldDeliveryLineBonus: 'Berat bersih {{berat}} kg · bonus Rp {{bonus}}',
   checkoutCodeInvalidFormat:
     'Format tidak valid. Satu baris per kode, 9 field dipisah * (kode pabrik, norek 5 digit, …, kotor, berat bersih).',
   submitFieldCode: 'Kirim data pengiriman',

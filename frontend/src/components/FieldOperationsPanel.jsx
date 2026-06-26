@@ -1329,7 +1329,7 @@ export default function FieldOperationsPanel({
                                         </span>
                                       </div>
                                       <div className="mt-1 text-apple-muted">
-                                          {t('fieldDelivery_selisih')}: {d.selisih} kg ·{' '}
+                                          {t('fieldDelivery_berat_bersih')}: {d.berat_bersih} kg ·{' '}
                                           {t('pabrikItemTonase')}: {d.tonase_per_item}
                                           {Number(d.price_per_item) > 0
                                             ? ` · ${t('pabrikItemPrice')}: Rp ${formatIdr(d.price_per_item)}`

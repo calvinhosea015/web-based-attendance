@@ -938,7 +938,7 @@ export default function EmployeeDashboard() {
                             <div className="break-all text-apple-text">{entry.checkout_code}</div>
                             <div className="mt-0.5 text-apple-label">
                               {t('fieldDeliveryLineBonus', {
-                                selisih: entry.selisih,
+                                berat: entry.berat_bersih,
                                 bonus: formatIdr(entry.bonus_amount),
                               })}
                             </div>

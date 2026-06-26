@@ -2,7 +2,21 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { FieldCheckoutCodeService } = require('../src/services/fieldCheckoutCodeService');
 const { validateFieldCheckoutCode } = require('../src/utils/fieldCheckoutPayload');
+const { computeLineOmset, computeLineBonus } = require('../src/utils/fieldOfficerBonus');
 const { AppError } = require('../src/utils/errors');
+
+describe('field officer omset = berat bersih × harga per item', () => {
+  it('uses price per item × berat bersih when a price is set', () => {
+    // tonase 5 should be ignored when price 1000 is present.
+    assert.equal(computeLineOmset(5, 90, 1000), 90000);
+    assert.equal(computeLineBonus(5, 90, 1000), 1800); // 2% of 90000
+  });
+
+  it('falls back to tonase per item × berat bersih when no price', () => {
+    assert.equal(computeLineOmset(5, 90, 0), 450);
+    assert.equal(computeLineBonus(5, 90, 0), 9); // 2% of 450
+  });
+});
 
 describe('validateFieldCheckoutCode selisih', () => {
   it('accepts berat bersih greater than kotor (selisih is the absolute difference)', () => {

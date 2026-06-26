@@ -81,8 +81,8 @@ class FieldCheckoutCodeService {
         'PABRIK_ITEM_NOT_FOUND'
       );
     }
-    const omset_amount = computeLineOmset(tonase, parsed.selisih, price_per_item);
-    const bonus_amount = computeLineBonus(tonase, parsed.selisih, price_per_item);
+    const omset_amount = computeLineOmset(tonase, parsed.berat_bersih, price_per_item);
+    const bonus_amount = computeLineBonus(tonase, parsed.berat_bersih, price_per_item);
     return { tonase_per_item: tonase, price_per_item, omset_amount, bonus_amount, rate };
   }
 
