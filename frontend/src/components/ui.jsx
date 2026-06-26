@@ -110,6 +110,42 @@ export function Alert({ tone = 'info', children, onDismiss }) {
   );
 }
 
+export function Spinner({ label, className = '' }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`flex items-center gap-2.5 text-[15px] text-apple-label ${className}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span
+        className="h-4 w-4 animate-spin rounded-full border-2 border-black/[0.08] border-t-brand-600"
+        aria-hidden
+      />
+      <span>{label || t('loading')}</span>
+    </div>
+  );
+}
+
+export function EmptyState({ icon, title, children, action, className = '' }) {
+  return (
+    <div
+      className={`flex flex-col items-center justify-center gap-2 rounded-apple-lg bg-apple-fill/40 px-6 py-12 text-center ring-1 ring-black/[0.03] ${className}`}
+    >
+      {icon && (
+        <span className="text-2xl opacity-50" aria-hidden>
+          {icon}
+        </span>
+      )}
+      {title && <p className="text-[15px] font-medium text-apple-text">{title}</p>}
+      {children && (
+        <p className="max-w-sm text-[13px] leading-relaxed text-apple-label">{children}</p>
+      )}
+      {action && <div className="mt-2">{action}</div>}
+    </div>
+  );
+}
+
 export function Badge({ variant = 'neutral', children }) {
   const variants = {
     neutral: 'bg-apple-fill text-apple-text ring-1 ring-black/[0.04]',

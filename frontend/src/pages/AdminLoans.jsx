@@ -115,53 +115,53 @@ export default function AdminLoans() {
 
         <Card title={t('loanRequestsList')} description={t('loanAdminHint')}>
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
-            <table className="min-w-full text-left text-sm">
+            <table className="apple-table">
               <thead>
-                <tr className="border-b border-apple-border bg-apple-fill text-xs font-semibold text-apple-text">
-                  <th className="px-4 py-3">{t('employee')}</th>
-                  <th className="px-4 py-3 text-right">{t('loanAmount')}</th>
-                  <th className="px-4 py-3 text-right">{t('loanMonthlyDeduction')}</th>
-                  <th className="px-4 py-3 text-right">{t('loanEstMonths')}</th>
-                  <th className="px-4 py-3">{t('status')}</th>
-                  <th className="px-4 py-3">{t('loanSubmittedAt')}</th>
-                  <th className="px-4 py-3 text-right">{t('loanActions')}</th>
+                <tr className="apple-table-head">
+                  <th>{t('employee')}</th>
+                  <th className="text-right">{t('loanAmount')}</th>
+                  <th className="text-right">{t('loanMonthlyDeduction')}</th>
+                  <th className="text-right">{t('loanEstMonths')}</th>
+                  <th>{t('status')}</th>
+                  <th>{t('loanSubmittedAt')}</th>
+                  <th className="text-right">{t('loanActions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.04]">
+              <tbody>
                 {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-apple-label">
+                  <tr className="apple-table-row">
+                    <td colSpan={7} className="!py-12 text-center text-apple-label">
                       {loading ? t('loading') : t('loanNoRequests')}
                     </td>
                   </tr>
                 )}
                 {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-apple-highlight">
-                    <td className="px-4 py-3">
+                  <tr key={row.id} className="apple-table-row">
+                    <td>
                       <div className="font-medium text-apple-text">{row.full_name}</div>
-                      <div className="text-xs text-apple-label">{row.employee_code}</div>
+                      <div className="text-[12px] text-apple-label">{row.employee_code}</div>
                       {row.notes && (
-                        <p className="mt-1 text-xs text-apple-label">{row.notes}</p>
+                        <p className="mt-1 text-[12px] text-apple-label">{row.notes}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium">
+                    <td className="text-right tabular-nums font-medium">
                       Rp {formatIdr(row.loan_amount)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
+                    <td className="text-right tabular-nums">
                       Rp {formatIdr(row.monthly_deduction)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-apple-label">
+                    <td className="text-right tabular-nums text-apple-label">
                       {estimateMonths(row.loan_amount, row.monthly_deduction)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       <Badge variant={statusBadgeVariant(row.approval_status)}>
                         {t(`loanStatus_${row.approval_status}`)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-xs text-apple-label">
+                    <td className="text-[12px] text-apple-label">
                       {formatDisplayDateTime(row.created_at)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       {row.approval_status === 'pending' ? (
                         <div className="flex justify-end gap-1.5">
                           <Button
@@ -182,7 +182,7 @@ export default function AdminLoans() {
                           </Button>
                         </div>
                       ) : (
-                        <span className="block text-right text-xs text-apple-muted">
+                        <span className="block text-right text-[12px] text-apple-muted">
                           {row.decided_at
                             ? formatDisplayDateTime(row.decided_at)
                             : t('emDash')}

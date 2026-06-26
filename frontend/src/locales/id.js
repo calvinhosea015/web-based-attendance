@@ -566,6 +566,7 @@ export default {
   reportsYear: 'Tahun',
   reportsMonth: 'Bulan',
   reportsRefresh: 'Muat ulang',
+  reportsNoData: 'Belum ada data untuk periode ini.',
   officeIdFallback: 'Kantor #{{id}}',
   emDash: '—',
   validationFailed: 'Validasi gagal',

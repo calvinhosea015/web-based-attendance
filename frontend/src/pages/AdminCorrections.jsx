@@ -2,16 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
-import { Alert, Badge, Button, Card } from '../components/ui.jsx';
+import { Alert, Badge, Button, Card, EmptyState, Spinner } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
-
-function statusBadgeVariant(status) {
-  if (status === 'approved') return 'success';
-  if (status === 'rejected') return 'muted';
-  return 'neutral';
-}
 
 export default function AdminCorrections() {
   const { t } = useTranslation();
@@ -81,9 +75,9 @@ export default function AdminCorrections() {
 
         <Card title={t('correctionPendingTitle')} description={t('correctionPendingHint')}>
           {loading ? (
-            <p className="text-sm text-apple-label">{t('loading')}</p>
+            <Spinner />
           ) : rows.length === 0 ? (
-            <p className="text-sm text-apple-label">{t('correctionNoPending')}</p>
+            <EmptyState title={t('correctionNoPending')} />
           ) : (
             <ul className="divide-y divide-black/[0.04]">
               {rows.map((row) => {
@@ -120,8 +114,9 @@ export default function AdminCorrections() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant={statusBadgeVariant('pending')}>{t('leaveStatus_pending')}</Badge>
+                      <Badge variant="neutral">{t('leaveStatus_pending')}</Badge>
                       <Button
+                        variant="success"
                         size="sm"
                         disabled={decidingId === row.id}
                         onClick={() => handleDecide(row.id, 'approved')}
@@ -129,7 +124,7 @@ export default function AdminCorrections() {
                         {t('leaveApprove')}
                       </Button>
                       <Button
-                        variant="secondary"
+                        variant="danger"
                         size="sm"
                         disabled={decidingId === row.id}
                         onClick={() => handleDecide(row.id, 'rejected')}

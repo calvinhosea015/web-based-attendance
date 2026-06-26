@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Field, inputClass } from '../ui.jsx';
+import { Alert, Badge, Button, Card, EmptyState, Field, inputClass } from '../ui.jsx';
 import { api, paths, ensureCsrf } from '../../api/client.js';
 import { translateApiMessage, translateAttendanceStatus } from '../../translateApi.js';
 import { formatDisplayDateTime } from '../../utils/formatDate.js';
@@ -8,12 +8,6 @@ import {
   fromDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../../utils/employeeFormat.js';
-
-function statusBadgeClass(status) {
-  if (status === 'approved') return 'text-emerald-700';
-  if (status === 'rejected') return 'text-rose-700';
-  return 'text-amber-700';
-}
 
 export default function EmployeeHistorySection({ history, isUmum, onCorrectionSubmitted }) {
   const { t } = useTranslation();
@@ -57,17 +51,16 @@ export default function EmployeeHistorySection({ history, isUmum, onCorrectionSu
   };
 
   return (
-    <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
-      <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('history')}</h2>
+    <Card title={t('history')}>
       {message && (
-        <Alert tone={message.includes(t('correctionSubmitted')) ? 'success' : 'error'} className="mt-3">
+        <Alert tone={message.includes(t('correctionSubmitted')) ? 'success' : 'error'}>
           {message}
         </Alert>
       )}
       {history.length ? (
-        <ul className="mt-3 space-y-3 text-sm">
+        <ul className={`space-y-3 text-[15px] ${message ? 'mt-4' : ''}`}>
           {history.map((item) => (
-            <li key={item.id} className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-2">
+            <li key={item.id} className="rounded-apple-lg border border-black/[0.04] bg-apple-fill/80 px-4 py-3">
               <div className="font-medium text-apple-text">{item.office_name}</div>
               <div className="text-apple-label">
                 {t('status')}: {translateAttendanceStatus(item.attendance_status)}
@@ -81,9 +74,9 @@ export default function EmployeeHistorySection({ history, isUmum, onCorrectionSu
                 </div>
               )}
               {item.pending_correction === true || item.pending_correction === 't' ? (
-                <p className={`mt-2 text-xs font-medium ${statusBadgeClass('pending')}`}>
-                  {t('correctionPending')}
-                </p>
+                <div className="mt-2">
+                  <Badge variant="warning">{t('correctionPending')}</Badge>
+                </div>
               ) : (
                 <Button
                   variant="ghost"
@@ -95,7 +88,7 @@ export default function EmployeeHistorySection({ history, isUmum, onCorrectionSu
                 </Button>
               )}
               {expandedId === item.id && (
-                <div className="mt-3 space-y-3 rounded-lg border border-black/[0.06] bg-white p-3">
+                <div className="mt-3 space-y-3 rounded-apple-lg border border-black/[0.06] bg-white p-4">
                   <Field label={t('correctionReason')}>
                     <textarea
                       className={`${inputClass} min-h-[72px]`}
@@ -134,8 +127,8 @@ export default function EmployeeHistorySection({ history, isUmum, onCorrectionSu
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-apple-label">{t('noHistory')}</p>
+        <EmptyState title={t('noHistory')} />
       )}
-    </section>
+    </Card>
   );
 }

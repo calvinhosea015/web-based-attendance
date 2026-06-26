@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Badge, Button, Card, Field, PageHero, inputClass, panelClass } from '../components/ui.jsx';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  PageHero,
+  inputClass,
+  panelClass,
+  selectClass,
+} from '../components/ui.jsx';
 import LoanProgress from '../components/LoanProgress.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
@@ -514,7 +525,7 @@ export default function EmployeeDashboard() {
             return (
               <li
                 key={row.id}
-                className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 shadow-sm"
+                className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold text-apple-text">
@@ -615,9 +626,7 @@ export default function EmployeeDashboard() {
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
-              {translateRole(localStorage.getItem('role'))}
-            </p>
+            <span className="apple-eyebrow">{translateRole(localStorage.getItem('role'))}</span>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-apple-text">
               {t('payrollEmployeeTitle')}
             </h1>
@@ -645,7 +654,7 @@ export default function EmployeeDashboard() {
               {payroll.map((row) => (
                 <li
                   key={row.id}
-                  className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 shadow-sm"
+                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-semibold text-apple-text">
@@ -779,7 +788,7 @@ export default function EmployeeDashboard() {
                     {assignedOffices.map((o) => (
                       <li
                         key={o.id}
-                        className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-2.5"
+                        className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-2.5"
                       >
                         <div className="font-medium">
                           {o.name || t('officeIdFallback', { id: o.id })}
@@ -818,14 +827,14 @@ export default function EmployeeDashboard() {
                   <div className="mt-2 text-sm text-apple-text">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs text-apple-label">{scheduleHint}</span>
-                      <button
-                        type="button"
-                        className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         disabled={geoPreviewLoading || clockPending}
                         onClick={refreshGeoPreview}
                       >
                         {geoPreviewLoading ? t('locating') : t('locationRefresh')}
-                      </button>
+                      </Button>
                     </div>
                     {geoPreview ? (
                       <div className="mt-3 space-y-1">
@@ -925,7 +934,7 @@ export default function EmployeeDashboard() {
                     {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
                   </Button>
                   {todayDeliveries.entries.length > 0 && (
-                    <div className="mt-4 rounded-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
+                    <div className="mt-4 rounded-apple-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
                       <p className="font-medium text-apple-text">
                         {t('fieldDeliveryTodayTotal', {
                           count: todayDeliveries.entries.length,
@@ -959,15 +968,14 @@ export default function EmployeeDashboard() {
           />
         </>
       ) : (
-      <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
-        <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('clockActions')}</h2>
-        <div className="mt-4 space-y-3">
+      <Card title={t('clockActions')}>
+        <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-apple-label">
               {assignedOffices.length > 1 ? t('assignedOffices') : t('assignedOffice')}
             </label>
             {assignedOffices.length ? (
-              <ul className="space-y-1.5 rounded-lg border border-black/[0.06] bg-apple-fill px-3 py-2 text-sm text-apple-text">
+              <ul className="space-y-1.5 rounded-apple-lg border border-black/[0.06] bg-apple-fill px-3 py-2 text-sm text-apple-text">
                 {assignedOffices.map((o) => (
                   <li key={o.id}>
                     {o.name || t('officeIdFallback', { id: o.id })}
@@ -984,19 +992,19 @@ export default function EmployeeDashboard() {
             )}
           </div>
           {assignedOffices.length > 0 && (
-            <div className="rounded-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-3 text-sm text-apple-text">
+            <div className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/80 px-3 py-3 text-sm text-apple-text">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-medium uppercase tracking-wide text-apple-label">
                   {t('currentLocation')}
                 </span>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   disabled={geoPreviewLoading || clockPending}
                   onClick={refreshGeoPreview}
                 >
                   {geoPreviewLoading ? t('locating') : t('locationRefresh')}
-                </button>
+                </Button>
               </div>
               {geoPreview ? (
                 <div className="mt-2 space-y-1">
@@ -1045,7 +1053,7 @@ export default function EmployeeDashboard() {
             {clockPending ? t('locating') : primaryClockLabel}
           </Button>
         </div>
-      </section>
+      </Card>
       )}
 
       {!isFieldOfficer && payrollCard}
@@ -1057,7 +1065,7 @@ export default function EmployeeDashboard() {
               {leaveBalances.map((b) => (
                 <div
                   key={b.leave_type}
-                  className="rounded-xl border border-black/[0.06] bg-apple-fill/60 px-4 py-3 text-sm"
+                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/60 px-4 py-3 text-sm"
                 >
                   <p className="text-xs font-medium uppercase tracking-wide text-apple-label">
                     {t(`leaveType_${b.leave_type}`)}
@@ -1073,7 +1081,7 @@ export default function EmployeeDashboard() {
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLeaveSubmit}>
             <Field label={t('leaveType')}>
               <select
-                className={inputClass}
+                className={selectClass}
                 value={leaveForm.leave_type}
                 onChange={(e) => {
                   setLeaveForm((f) => ({ ...f, leave_type: e.target.value }));
@@ -1142,7 +1150,7 @@ export default function EmployeeDashboard() {
               {leaveRequests.map((req) => (
                 <li
                   key={req.id}
-                  className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm shadow-sm"
+                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -1238,7 +1246,7 @@ export default function EmployeeDashboard() {
             {loans.map((loan) => (
               <li
                 key={loan.id}
-                className="rounded-xl border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm shadow-sm"
+                className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -1282,11 +1290,9 @@ export default function EmployeeDashboard() {
       </Card>
 
       {isStaffKantor && (
-        <section className="rounded-apple-xl border border-black/[0.06] bg-white p-6 shadow-apple">
-          <h2 className="text-[22px] font-semibold tracking-tightest text-apple-text">{t('fieldDeliveryTitle')}</h2>
-          <p className="mt-1 text-sm text-apple-label">{t('fieldDeliveryHint')}</p>
+        <Card title={t('fieldDeliveryTitle')} description={t('fieldDeliveryHint')}>
           {fieldDeliveries.length ? (
-            <ul className="mt-4 space-y-4 text-sm">
+            <ul className="space-y-4 text-sm">
               {fieldDeliveries.map((row) => {
                 const parsed = fieldDeliveryDisplayFields(row);
                 const dateLabel = row.valid_on
@@ -1297,7 +1303,7 @@ export default function EmployeeDashboard() {
                 return (
                   <li
                     key={row.id}
-                    className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
+                    className="rounded-apple-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
                   >
                     <div className="font-medium text-apple-text">
                       {row.full_name}
@@ -1349,9 +1355,9 @@ export default function EmployeeDashboard() {
               })}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-apple-label">{t('fieldDeliveryEmpty')}</p>
+            <EmptyState title={t('fieldDeliveryEmpty')} />
           )}
-        </section>
+        </Card>
       )}
 
       {!isFieldOfficer && (

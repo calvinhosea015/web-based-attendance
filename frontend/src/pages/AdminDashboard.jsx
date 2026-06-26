@@ -9,6 +9,7 @@ import {
   PasswordInput,
   PageSection,
   inputClass,
+  inputClassCompact,
   selectClass,
 } from '../components/ui.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
@@ -89,6 +90,11 @@ export default function AdminDashboard() {
     basic_salary: '',
   });
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState('info');
+  const notify = (text, tone = 'info') => {
+    setMessage(text);
+    setMessageTone(tone);
+  };
   const [changingPasswordFor, setChangingPasswordFor] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [editingUser, setEditingUser] = useState(null);
@@ -147,24 +153,24 @@ export default function AdminDashboard() {
       .map((id) => Number(id))
       .filter((n) => Number.isFinite(n) && n >= 1);
     if (usesMultipleOfficesRole(newUser.role) && fieldPabrikIds.length < 1) {
-      setMessage(t('fieldOfficerPabriksRequired'));
+      notify(t('fieldOfficerPabriksRequired'), 'error');
       return;
     }
     if (isAttendanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role) && !officeOk) {
-      setMessage(t('officeRequiredEmployee'));
+      notify(t('officeRequiredEmployee'), 'error');
       return;
     }
     if (isHeadOfFinanceRole(newUser.role) && !newUser.full_name?.trim()) {
-      setMessage(t('fullNameRequired'));
+      notify(t('fullNameRequired'), 'error');
       return;
     }
     if (requiresFullName(newUser.role) && !newUser.full_name?.trim()) {
-      setMessage(t('fullNameRequired'));
+      notify(t('fullNameRequired'), 'error');
       return;
     }
     if (isAccountingRole(newUser.role)) {
       if (!newUser.custom_work_start || !newUser.custom_work_end) {
-        setMessage(t('accountingWorkStart') + ' / ' + t('accountingWorkEnd'));
+        notify(t('accountingWorkStart') + ' / ' + t('accountingWorkEnd'), 'error');
         return;
       }
     }
@@ -196,7 +202,7 @@ export default function AdminDashboard() {
       }
       const res = await api.post(paths.users, payload);
       const ec = res.data?.employee_code;
-      setMessage(ec ? `${t('userAdded')} — ${t('employeeCode')}: ${ec}` : t('userAdded'));
+      notify(ec ? `${t('userAdded')} — ${t('employeeCode')}: ${ec}` : t('userAdded'), 'success');
       refresh();
       setNewUser({
         username: '',
@@ -214,18 +220,18 @@ export default function AdminDashboard() {
         basic_salary: '',
       });
     } catch (err) {
-      setMessage(formatUserApiError(err));
+      notify(formatUserApiError(err), 'error');
     }
   };
 
   const handleDeleteUser = async (id) => {
     try {
       await api.delete(`${paths.users}/${id}`);
-      setMessage(t('userDeleted'));
+      notify(t('userDeleted'), 'success');
       setEditingUser((cur) => (cur && Number(cur.id) === Number(id) ? null : cur));
       refresh();
     } catch (err) {
-      setMessage(formatUserApiError(err));
+      notify(formatUserApiError(err), 'error');
     }
   };
 
@@ -263,7 +269,7 @@ export default function AdminDashboard() {
       if (isHeadOfFinanceRole(editingUser.role)) {
         const fn = editingUser.full_name.trim();
         if (!fn) {
-          setMessage(t('fullNameRequired'));
+          notify(t('fullNameRequired'), 'error');
           return;
         }
         body.full_name = fn;
@@ -273,7 +279,7 @@ export default function AdminDashboard() {
       } else if (isAttendanceRole(editingUser.role)) {
         const fn = editingUser.full_name.trim();
         if (requiresFullName(editingUser.role) && !fn) {
-          setMessage(t('fullNameRequired'));
+          notify(t('fullNameRequired'), 'error');
           return;
         }
         if (usesMultipleOfficesRole(editingUser.role)) {
@@ -281,12 +287,12 @@ export default function AdminDashboard() {
             .map((id) => Number(id))
             .filter((n) => Number.isFinite(n) && n >= 1);
           if (pabrikIds.length < 1) {
-            setMessage(t('fieldOfficerPabriksRequired'));
+            notify(t('fieldOfficerPabriksRequired'), 'error');
             return;
           }
           body.pabrik_ids = pabrikIds;
         } else if (!editingUser.office_id) {
-          setMessage(t('officeRequiredEmployee'));
+          notify(t('officeRequiredEmployee'), 'error');
           return;
         } else {
           body.office_id = Number(editingUser.office_id);
@@ -307,11 +313,11 @@ export default function AdminDashboard() {
         body.office_id = Number(editingUser.office_id);
       }
       await api.put(`${paths.users}/${editingUser.id}`, body);
-      setMessage(t('userUpdated'));
+      notify(t('userUpdated'), 'success');
       setEditingUser(null);
       refresh();
     } catch (err) {
-      setMessage(formatUserApiError(err));
+      notify(formatUserApiError(err), 'error');
     }
   };
 
@@ -319,11 +325,11 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       await api.put(`${paths.users}/${changingPasswordFor}/password`, { password: newPassword });
-      setMessage(t('passwordChanged'));
+      notify(t('passwordChanged'), 'success');
       setChangingPasswordFor(null);
       setNewPassword('');
     } catch (err) {
-      setMessage(translateApiMessage(err));
+      notify(translateApiMessage(err), 'error');
     }
   };
 
@@ -355,7 +361,7 @@ export default function AdminDashboard() {
       link.remove();
     } catch (err) {
       console.error(err);
-      setMessage(translateApiMessage(err));
+      notify(translateApiMessage(err), 'error');
     }
   };
 
@@ -405,12 +411,12 @@ export default function AdminDashboard() {
           : null,
       };
       await api.patch(paths.attendanceRecord(rowId), body);
-      setMessage(t('attendanceTimesUpdated'));
+      notify(t('attendanceTimesUpdated'), 'success');
       setEditingAttendanceId(null);
       setAttendanceEditDraft({ check_in: '', check_out: '' });
       refresh();
     } catch (err) {
-      setMessage(translateApiMessage(err));
+      notify(translateApiMessage(err), 'error');
     } finally {
       setAttendanceSavingId(null);
     }
@@ -432,7 +438,11 @@ export default function AdminDashboard() {
       }
     >
       <div className="space-y-8">
-      {message && <Alert tone="info">{message}</Alert>}
+      {message && (
+        <Alert tone={messageTone} onDismiss={() => notify('')}>
+          {message}
+        </Alert>
+      )}
 
       <AdminOverviewSection overview={overview} chartData={chartData} />
 
@@ -477,7 +487,7 @@ export default function AdminDashboard() {
             </select>
             {requiresFullName(newUser.role) && (
               <input
-                className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                className={inputClass}
                 placeholder={t('fullName')}
                 value={newUser.full_name}
                 onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
@@ -504,7 +514,7 @@ export default function AdminDashboard() {
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                  className={inputClass}
                   placeholder={t('umumBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
@@ -517,7 +527,7 @@ export default function AdminDashboard() {
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                  className={inputClass}
                   placeholder={t('headOfFinanceBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
@@ -534,7 +544,7 @@ export default function AdminDashboard() {
                     </span>
                     <input
                       type="time"
-                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                      className={inputClass}
                       value={newUser.custom_work_start}
                       onChange={(e) =>
                         setNewUser({ ...newUser, custom_work_start: e.target.value })
@@ -548,7 +558,7 @@ export default function AdminDashboard() {
                     </span>
                     <input
                       type="time"
-                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                      className={inputClass}
                       value={newUser.custom_work_end}
                       onChange={(e) => setNewUser({ ...newUser, custom_work_end: e.target.value })}
                       required
@@ -558,7 +568,7 @@ export default function AdminDashboard() {
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                  className={inputClass}
                   placeholder={t('accountingBasicSalary')}
                   value={newUser.basic_salary}
                   onChange={(e) => setNewUser({ ...newUser, basic_salary: e.target.value })}
@@ -571,7 +581,7 @@ export default function AdminDashboard() {
                   <span className="mb-1 block text-xs font-medium text-apple-label">{t('startDate')}</span>
                   <input
                     type="date"
-                    className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                    className={inputClass}
                     value={newUser.join_date}
                     onChange={(e) => setNewUser({ ...newUser, join_date: e.target.value })}
                   />
@@ -580,7 +590,7 @@ export default function AdminDashboard() {
                   <span className="mb-1 block text-xs font-medium text-apple-label">{t('birthday')}</span>
                   <input
                     type="date"
-                    className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                    className={inputClass}
                     value={newUser.birthday}
                     onChange={(e) => setNewUser({ ...newUser, birthday: e.target.value })}
                   />
@@ -637,7 +647,7 @@ export default function AdminDashboard() {
             )}
             {!isHeadOfFinanceRole(newUser.role) && !usesMultipleOfficesRole(newUser.role) && (
                 <select
-                  className="w-full rounded-apple border border-apple-border bg-apple-fill px-3.5 py-2.5 text-[15px] text-apple-text"
+                  className={inputClass}
                   value={newUser.office_id}
                   onChange={(e) => setNewUser({ ...newUser, office_id: e.target.value })}
                 >
@@ -672,44 +682,36 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
-                    onClick={() => openEditUser(user)}
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => openEditUser(user)}>
                     {t('editUser')}
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setEditingUser(null);
                       setChangingPasswordFor(user.id);
                     }}
                   >
                     {t('changePassword')}
-                  </button>
+                  </Button>
                   {user.role !== 'admin' && (
-                    <button
-                      type="button"
-                      className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700"
-                      onClick={() => handleDeleteUser(user.id)}
-                    >
+                    <Button variant="danger" size="sm" onClick={() => handleDeleteUser(user.id)}>
                       {t('delete')}
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {editingUser != null && Number(editingUser.id) === Number(user.id) && (
                   <form className="mt-2 w-full space-y-2 rounded-lg border border-black/[0.06] bg-white p-3" onSubmit={handleSaveUser}>
                     <input
-                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                      className={inputClassCompact}
                       placeholder={t('username')}
                       value={editingUser.username}
                       onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
                       required
                     />
                     <select
-                      className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                      className={inputClassCompact}
                       value={editingUser.role}
                       onChange={(e) => {
                         const role = e.target.value;
@@ -738,7 +740,7 @@ export default function AdminDashboard() {
                     {!isHeadOfFinanceRole(editingUser.role) &&
                       (usesMultipleOfficesRole(editingUser.role) ? null : (
                         <select
-                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                          className={inputClassCompact}
                           value={editingUser.office_id}
                           onChange={(e) =>
                             setEditingUser({ ...editingUser, office_id: e.target.value })
@@ -755,7 +757,7 @@ export default function AdminDashboard() {
                         </select>
                       ))}
                     {usesMultipleOfficesRole(editingUser.role) && (
-                      <div className="rounded-md border border-black/[0.06] bg-apple-fill p-2">
+                      <div className="rounded-apple-lg border border-black/[0.06] bg-apple-fill p-2">
                         <p className="mb-1 text-[10px] font-medium uppercase text-apple-label">
                           {t('fieldOfficerPabriksLabel')}
                         </p>
@@ -826,7 +828,7 @@ export default function AdminDashboard() {
                         <input
                           type="number"
                           min="0"
-                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                          className={inputClassCompact}
                           placeholder={t('umumBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
@@ -841,7 +843,7 @@ export default function AdminDashboard() {
                         <input
                           type="number"
                           min="0"
-                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                          className={inputClassCompact}
                           placeholder={t('headOfFinanceBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
@@ -860,7 +862,7 @@ export default function AdminDashboard() {
                             </span>
                             <input
                               type="time"
-                              className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                              className={inputClassCompact}
                               value={editingUser.custom_work_start}
                               onChange={(e) =>
                                 setEditingUser({ ...editingUser, custom_work_start: e.target.value })
@@ -874,7 +876,7 @@ export default function AdminDashboard() {
                             </span>
                             <input
                               type="time"
-                              className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                              className={inputClassCompact}
                               value={editingUser.custom_work_end}
                               onChange={(e) =>
                                 setEditingUser({ ...editingUser, custom_work_end: e.target.value })
@@ -886,7 +888,7 @@ export default function AdminDashboard() {
                         <input
                           type="number"
                           min="0"
-                          className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                          className={inputClassCompact}
                           placeholder={t('accountingBasicSalary')}
                           value={editingUser.basic_salary}
                           onChange={(e) =>
@@ -897,7 +899,7 @@ export default function AdminDashboard() {
                     )}
                     {requiresFullName(editingUser.role) && (
                       <input
-                        className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                        className={inputClassCompact}
                         placeholder={t('fullName')}
                         value={editingUser.full_name}
                         onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
@@ -910,7 +912,7 @@ export default function AdminDashboard() {
                           <span className="mb-0.5 block font-medium text-apple-label">{t('startDate')}</span>
                           <input
                             type="date"
-                            className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                            className={inputClassCompact}
                             value={editingUser.join_date}
                             onChange={(e) => setEditingUser({ ...editingUser, join_date: e.target.value })}
                           />
@@ -919,7 +921,7 @@ export default function AdminDashboard() {
                           <span className="mb-0.5 block font-medium text-apple-label">{t('birthday')}</span>
                           <input
                             type="date"
-                            className="w-full rounded-apple border border-apple-border bg-apple-fill px-2.5 py-2 text-[13px] text-apple-text"
+                            className={inputClassCompact}
                             value={editingUser.birthday}
                             onChange={(e) => setEditingUser({ ...editingUser, birthday: e.target.value })}
                           />
@@ -927,42 +929,38 @@ export default function AdminDashboard() {
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      <button type="submit" className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white">
+                      <Button type="submit" variant="primary" size="sm">
                         {t('saveUser')}
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-black/[0.06] px-3 py-1 text-xs"
-                        onClick={() => setEditingUser(null)}
-                      >
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setEditingUser(null)}>
                         {t('cancel')}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 )}
                 {changingPasswordFor != null && Number(changingPasswordFor) === Number(user.id) && (
-                  <form className="mt-2 flex w-full flex-col gap-2 sm:flex-row" onSubmit={handleChangePassword}>
+                  <form className="mt-2 flex w-full flex-col gap-2 sm:flex-row sm:items-center" onSubmit={handleChangePassword}>
                     <PasswordInput
                       className="flex-1 min-w-0"
-                      inputClassName="w-full rounded-md border border-black/[0.06] px-2 py-1 text-xs"
+                      inputClassName={inputClassCompact}
                       placeholder={t('newPassword')}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
                     />
-                    <button type="submit" className="rounded-full bg-brand-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-500">
+                    <Button type="submit" variant="primary" size="sm">
                       {t('change')}
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md border border-black/[0.06] px-3 py-1 text-xs"
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => {
                         setChangingPasswordFor(null);
                         setNewPassword('');
                       }}
                     >
                       {t('cancel')}
-                    </button>
+                    </Button>
                   </form>
                 )}
               </li>
@@ -990,7 +988,7 @@ export default function AdminDashboard() {
                   const res = await api.get(paths.userAttendance(v), { params: { limit: 200 } });
                   setPerUserAttendance(res.data);
                 } catch (err) {
-                  setMessage(translateApiMessage(err));
+                  notify(translateApiMessage(err), 'error');
                   setPerUserAttendance(null);
                 } finally {
                   setPerUserLoading(false);
@@ -1043,7 +1041,7 @@ export default function AdminDashboard() {
                             <span className="mb-0.5 font-medium">{t('checkIn')}</span>
                             <input
                               type="datetime-local"
-                              className="rounded-apple border border-apple-border bg-apple-fill px-2 py-1.5 text-[13px] text-apple-text"
+                              className={inputClassCompact}
                               value={attendanceEditDraft.check_in}
                               onChange={(e) =>
                                 setAttendanceEditDraft((d) => ({ ...d, check_in: e.target.value }))
@@ -1055,7 +1053,7 @@ export default function AdminDashboard() {
                             <span className="mb-0.5 font-medium">{t('checkOut')}</span>
                             <input
                               type="datetime-local"
-                              className="rounded-apple border border-apple-border bg-apple-fill px-2 py-1.5 text-[13px] text-apple-text"
+                              className={inputClassCompact}
                               value={attendanceEditDraft.check_out}
                               onChange={(e) =>
                                 setAttendanceEditDraft((d) => ({ ...d, check_out: e.target.value }))
@@ -1095,13 +1093,9 @@ export default function AdminDashboard() {
                       <td>{row.check_in ? formatDisplayDateTime(row.check_in) : ''}</td>
                       <td>{row.check_out ? formatDisplayDateTime(row.check_out) : t('notCheckedOut')}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="rounded-md border border-black/[0.06] bg-white px-2 py-1 text-xs font-medium"
-                          onClick={() => openEditAttendance(row)}
-                        >
+                        <Button variant="secondary" size="sm" onClick={() => openEditAttendance(row)}>
                           {t('editAttendance')}
-                        </button>
+                        </Button>
                       </td>
                     </>
                   )}

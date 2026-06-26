@@ -1,10 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 export function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
   const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
+  // Reduced-motion users skip the entrance animation and see content immediately.
+  const [visible, setVisible] = useState(() => prefersReducedMotion());
 
   useEffect(() => {
+    if (prefersReducedMotion()) return;
     const el = ref.current;
     if (!el) return;
     const observer = new IntersectionObserver(

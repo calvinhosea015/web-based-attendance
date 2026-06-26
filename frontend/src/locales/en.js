@@ -561,6 +561,7 @@ export default {
   reportsYear: 'Year',
   reportsMonth: 'Month',
   reportsRefresh: 'Refresh',
+  reportsNoData: 'No data for this period yet.',
   officeIdFallback: 'Office #{{id}}',
   emDash: '—',
   validationFailed: 'Validation failed',

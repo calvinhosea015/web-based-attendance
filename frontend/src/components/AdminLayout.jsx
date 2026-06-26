@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from './ui.jsx';
+import { Button, PageHero } from './ui.jsx';
 import { Reveal } from './Reveal.jsx';
 import { api, paths } from '../api/client.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
@@ -187,7 +187,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
         key={to}
         to={to}
         onClick={() => mobile && setMenuOpen(false)}
-        className={`rounded-full px-4 py-2.5 text-[14px] font-medium transition-all duration-premium ease-premium ${
+        className={`rounded-full px-4 py-2.5 font-medium transition-all duration-premium ease-premium ${
           active
             ? 'bg-brand-600 text-white shadow-apple'
             : 'text-apple-label hover:bg-apple-highlight hover:text-apple-text'
@@ -386,18 +386,14 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
         <Reveal>
-          <div className="mb-12 flex flex-wrap items-end justify-between gap-8">
-            <div className="max-w-3xl">
-              <span className="apple-eyebrow">{t('adminOnly')}</span>
-              <h1 className="mt-4 font-display text-[36px] font-semibold tracking-tightest text-apple-text sm:text-[48px] sm:leading-[1.05]">
-                {title}
-              </h1>
-              {subtitle && (
-                <p className="mt-4 text-[17px] leading-relaxed text-apple-label">{subtitle}</p>
-              )}
-            </div>
-            {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-          </div>
+          <PageHero
+            eyebrow={t('adminOnly')}
+            title={title}
+            subtitle={subtitle}
+            action={
+              actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>
+            }
+          />
         </Reveal>
         <div className="space-y-10">{children}</div>
       </div>

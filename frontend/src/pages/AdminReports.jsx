@@ -13,7 +13,17 @@ import {
   YAxis,
 } from 'recharts';
 import AdminLayout from '../components/AdminLayout.jsx';
-import { Alert, Card, FilterChip } from '../components/ui.jsx';
+import {
+  Alert,
+  Button,
+  Card,
+  CompactField,
+  EmptyState,
+  FilterChip,
+  Spinner,
+  inputClassCompact,
+} from '../components/ui.jsx';
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from '../theme.js';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
@@ -110,92 +120,102 @@ export default function AdminReports() {
           ))}
         </div>
 
-        {loading && <p className="text-sm text-apple-label">{t('loading')}</p>}
+        {loading && <Spinner />}
 
         {tab === 'analytics' && !loading && (
           <div className="space-y-6">
             <Card title={t('reportsMonthlyAttendance')}>
-              <div className="mb-4 flex flex-wrap gap-3">
-                <label className="text-sm text-apple-label">
-                  {t('reportsYear')}
+              <div className="mb-5 flex flex-wrap items-end gap-3">
+                <CompactField label={t('reportsYear')} className="w-28">
                   <input
                     type="number"
-                    className="ml-2 rounded-lg border border-black/10 px-2 py-1"
+                    className={inputClassCompact}
                     value={year}
                     onChange={(e) => setYear(Number(e.target.value))}
                   />
-                </label>
-                <label className="text-sm text-apple-label">
-                  {t('reportsMonth')}
+                </CompactField>
+                <CompactField label={t('reportsMonth')} className="w-28">
                   <input
                     type="number"
                     min={1}
                     max={12}
-                    className="ml-2 rounded-lg border border-black/10 px-2 py-1"
+                    className={inputClassCompact}
                     value={month}
                     onChange={(e) => setMonth(Number(e.target.value))}
                   />
-                </label>
-                <button
-                  type="button"
-                  className="text-sm font-medium text-brand-600"
-                  onClick={loadAnalytics}
-                >
+                </CompactField>
+                <Button variant="secondary" size="sm" onClick={loadAnalytics}>
                   {t('reportsRefresh')}
-                </button>
+                </Button>
               </div>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyChart}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="status" tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#007aff" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {monthlyChart.length === 0 ? (
+                <EmptyState title={t('reportsNoData')} />
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyChart}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                      <XAxis dataKey="status" tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                      <Bar dataKey="count" fill={CHART_COLORS.brand} radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </Card>
 
             <Card title={t('reportsDepartmentAttendance')}>
-              <ul className="divide-y divide-black/[0.04] text-sm">
-                {departments.map((row) => (
-                  <li key={row.department} className="flex justify-between py-2">
-                    <span>{row.department}</span>
-                    <span className="text-apple-label">
-                      {row.attendance_rows} · {Number(row.total_work_hours).toFixed(1)}h
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {departments.length === 0 ? (
+                <EmptyState title={t('reportsNoData')} />
+              ) : (
+                <ul className="divide-y divide-black/[0.04] text-[15px]">
+                  {departments.map((row) => (
+                    <li key={row.department} className="flex justify-between gap-4 py-2.5">
+                      <span className="text-apple-text">{row.department}</span>
+                      <span className="text-apple-label tabular-nums">
+                        {row.attendance_rows} · {Number(row.total_work_hours).toFixed(1)}h
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
 
             <div className="grid gap-6 lg:grid-cols-2">
               <Card title={t('reportsOvertimeTrends')}>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={overtime}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="overtime_hours" stroke="#ff9500" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                {overtime.length === 0 ? (
+                  <EmptyState title={t('reportsNoData')} />
+                ) : (
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={overtime}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                        <Line type="monotone" dataKey="overtime_hours" stroke={CHART_COLORS.warning} strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </Card>
               <Card title={t('reportsPayrollTrends')}>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={payrollTrends}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="payroll_period" tick={{ fontSize: 11 }} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="total_final" fill="#34c759" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {payrollTrends.length === 0 ? (
+                  <EmptyState title={t('reportsNoData')} />
+                ) : (
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={payrollTrends}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                        <XAxis dataKey="payroll_period" tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                        <Bar dataKey="total_final" fill={CHART_COLORS.positive} radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </Card>
             </div>
           </div>
@@ -203,37 +223,45 @@ export default function AdminReports() {
 
         {tab === 'audit' && !loading && (
           <Card title={t('reportsAuditLogs')}>
-            <ul className="divide-y divide-black/[0.04] text-sm">
-              {auditLogs.map((row) => (
-                <li key={row.id} className="py-3">
-                  <div className="font-medium text-apple-text">
-                    {row.action}
-                    {row.resource_type ? ` · ${row.resource_type}` : ''}
-                  </div>
-                  <div className="text-xs text-apple-label">
-                    {formatDisplayDateTime(row.created_at)}
-                    {row.ip_address ? ` · ${row.ip_address}` : ''}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {auditLogs.length === 0 ? (
+              <EmptyState title={t('reportsNoData')} />
+            ) : (
+              <ul className="divide-y divide-black/[0.04] text-[15px]">
+                {auditLogs.map((row) => (
+                  <li key={row.id} className="py-3">
+                    <div className="font-medium text-apple-text">
+                      {row.action}
+                      {row.resource_type ? ` · ${row.resource_type}` : ''}
+                    </div>
+                    <div className="text-[12px] text-apple-muted">
+                      {formatDisplayDateTime(row.created_at)}
+                      {row.ip_address ? ` · ${row.ip_address}` : ''}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         )}
 
         {tab === 'activity' && !loading && (
           <Card title={t('reportsActivityLogs')}>
-            <ul className="divide-y divide-black/[0.04] text-sm">
-              {activityLogs.map((row) => (
-                <li key={row.id} className="flex justify-between gap-4 py-2">
-                  <span className="font-mono text-xs">
-                    {row.method} {row.path}
-                  </span>
-                  <span className="text-apple-label">
-                    {row.status_code} · {row.duration_ms}ms
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {activityLogs.length === 0 ? (
+              <EmptyState title={t('reportsNoData')} />
+            ) : (
+              <ul className="divide-y divide-black/[0.04] text-[15px]">
+                {activityLogs.map((row) => (
+                  <li key={row.id} className="flex justify-between gap-4 py-2.5">
+                    <span className="font-mono text-[12px]">
+                      {row.method} {row.path}
+                    </span>
+                    <span className="text-apple-label tabular-nums">
+                      {row.status_code} · {row.duration_ms}ms
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         )}
       </div>

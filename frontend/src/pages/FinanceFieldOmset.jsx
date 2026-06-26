@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../components/ui.jsx';
+import { Button, PageHero } from '../components/ui.jsx';
+import { Reveal } from '../components/Reveal.jsx';
 import FieldOperationsPanel from '../components/FieldOperationsPanel.jsx';
 import { ROLE_ADMIN, canViewFieldOmsetReport } from '../roles.js';
 import { currentPayrollPeriodKey } from '../utils/payrollPeriod.js';
@@ -45,21 +46,23 @@ export default function FinanceFieldOmset() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Link to="/employee" className="text-sm font-medium text-brand-600 hover:text-brand-700">
-            ← {t('payrollEmployeeTitle')}
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-apple-text">
-            {t('fieldOmsetReportTitle')}
-          </h1>
-          <p className="mt-1 text-sm text-apple-label">{t('fieldOmsetReportSubtitle')}</p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
-          {t('logout')}
-        </Button>
-      </div>
+    <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
+      <Reveal>
+        <Link to="/employee" className="apple-link text-[15px]">
+          ← {t('payrollEmployeeTitle')}
+        </Link>
+        <PageHero
+          eyebrow={t('fieldOpsTabOmset')}
+          title={t('fieldOmsetReportTitle')}
+          subtitle={t('fieldOmsetReportSubtitle')}
+          className="!mb-10 !mt-4"
+          action={
+            <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
+              {t('logout')}
+            </Button>
+          }
+        />
+      </Reveal>
       <FieldOperationsPanel
         period={period}
         onPeriodChange={onPeriodChange}

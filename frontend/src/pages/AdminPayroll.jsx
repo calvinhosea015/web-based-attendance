@@ -480,33 +480,33 @@ export default function AdminPayroll() {
 
           <Card className="flex flex-col" title={t('payrollEmployeeTable')}>
             <div className="-mx-5 -mb-4 max-h-[min(65vh,calc(100vh-16rem))] overflow-auto sm:-mx-6">
-              <table className="min-w-full text-left text-sm">
+              <table className="apple-table">
                 <thead className="sticky top-0 z-10">
-                  <tr className="border-b border-black/[0.06] bg-apple-fill text-xs font-medium uppercase tracking-wide text-apple-label shadow-[0_1px_0_0_rgb(226,232,240)]">
-                    <th className="px-4 py-3">{t('employee')}</th>
-                    <th className="px-4 py-3 text-right">{t('payrollDaysAttended')}</th>
-                    <th className="px-4 py-3 text-right">{t('payrollUpahHarian')}</th>
-                    <th className="px-4 py-3 text-right">{t('payrollBasicSalary')}</th>
-                    <th className="px-4 py-3 text-right">{t('payrollLoanDeduction')}</th>
-                    <th className="px-4 py-3 text-right">{t('payrollFinal')}</th>
-                    <th className="px-4 py-3 text-right">{t('status')}</th>
+                  <tr className="apple-table-head !bg-apple-fill">
+                    <th>{t('employee')}</th>
+                    <th className="text-right">{t('payrollDaysAttended')}</th>
+                    <th className="text-right">{t('payrollUpahHarian')}</th>
+                    <th className="text-right">{t('payrollBasicSalary')}</th>
+                    <th className="text-right">{t('payrollLoanDeduction')}</th>
+                    <th className="text-right">{t('payrollFinal')}</th>
+                    <th className="text-right">{t('status')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-black/[0.04]">
+                <tbody>
                   {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-apple-label">
+                    <tr className="apple-table-row">
+                      <td colSpan={7} className="!py-12 text-center text-apple-label">
                         {loading ? t('loading') : t('payrollNoRows')}
                       </td>
                     </tr>
                   )}
                   {rows.map((row) => (
-                    <tr key={row.employee_id} className="transition hover:bg-apple-fill/80">
-                      <td className="px-4 py-3">
+                    <tr key={row.employee_id} className="apple-table-row">
+                      <td>
                         <div className="font-medium text-apple-text">{row.full_name}</div>
-                        <div className="text-xs text-apple-label">{row.employee_code}</div>
+                        <div className="text-[12px] text-apple-label">{row.employee_code}</div>
                         {row.has_active_loan && (
-                          <div className="mt-1 text-xs text-amber-700">
+                          <div className="mt-1 text-[12px] text-amber-700">
                             {t('payrollActiveLoanHint', {
                               monthly: formatIdr(row.loan_monthly_deduction),
                               remaining: formatIdr(row.loan_remaining_balance),
@@ -520,7 +520,7 @@ export default function AdminPayroll() {
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
+                      <td className="text-right tabular-nums">
                         {row.payroll_mode === 'monthly' ||
                         isMonthlyPayrollMode(row.payroll_mode) ||
                         row.payroll_mode === 'accounting' ? (
@@ -541,7 +541,7 @@ export default function AdminPayroll() {
                           row.days_attended ?? 0
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-apple-label">
+                      <td className="text-right tabular-nums text-apple-label">
                         {row.payroll_mode === 'manual' ? (
                           <div className="text-xs text-apple-muted">{t('payrollManualMode')}</div>
                         ) : row.payroll_mode === 'monthly' ||
@@ -555,7 +555,7 @@ export default function AdminPayroll() {
                           formatIdr(resolveUpahHarianDisplay(row, settings))
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="text-right">
                         <div className="tabular-nums font-medium text-apple-text">
                           {formatIdr(row.basic_salary)}
                         </div>
@@ -570,7 +570,7 @@ export default function AdminPayroll() {
                               : `${row.days_attended ?? 0} × ${formatIdr(resolveUpahHarianDisplay(row, settings))}`}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-rose-600">
+                      <td className="text-right tabular-nums text-rose-600">
                         <div>{formatIdr(row.loan_deduction)}</div>
                         {row.has_active_loan &&
                           Number(row.loan_deduction || 0) === 0 &&
@@ -582,10 +582,10 @@ export default function AdminPayroll() {
                             </div>
                           )}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-brand-600">
+                      <td className="text-right tabular-nums font-semibold text-brand-600">
                         {formatIdr(row.final_salary)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         <div className="flex justify-end gap-1.5">
                           <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
                             {t('editUser')}
@@ -704,7 +704,7 @@ export default function AdminPayroll() {
                     }
                   />
                 </CompactField>
-                <div className="rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5">
+                <div className="rounded-apple-lg border border-brand-100 bg-brand-50/60 px-2.5 py-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
                     {t('payrollMonthlyNetBasic')}
                   </p>
@@ -741,7 +741,7 @@ export default function AdminPayroll() {
                     }
                   />
                 </CompactField>
-                <div className="rounded-md border border-black/[0.06] bg-apple-fill px-2 py-1.5 text-xs text-apple-label">
+                <div className="rounded-apple-lg border border-black/[0.06] bg-apple-fill px-2.5 py-2 text-[12px] text-apple-label">
                   <p>
                     {t('payrollDaysAttended')}: {editForm.days_attended ?? 0}
                   </p>
@@ -838,7 +838,7 @@ export default function AdminPayroll() {
               <label className="flex cursor-pointer items-center gap-1.5 text-xs text-apple-text">
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  className="h-4 w-4"
                   checked={editForm.transport_eligible}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, transport_eligible: e.target.checked }))
@@ -849,7 +849,7 @@ export default function AdminPayroll() {
               <label className="flex cursor-pointer items-center gap-1.5 text-xs text-apple-text">
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  className="h-4 w-4"
                   checked={editForm.diligence_eligible}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, diligence_eligible: e.target.checked }))

@@ -209,40 +209,40 @@ export default function AdminLeave() {
 
         <Card title={t('leaveRequestsList')} description={t('leaveAdminHint')}>
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
-            <table className="min-w-full text-left text-sm">
+            <table className="apple-table">
               <thead>
-                <tr className="border-b border-apple-border bg-apple-fill text-xs font-semibold text-apple-text">
-                  <th className="px-4 py-3">{t('employee')}</th>
-                  <th className="px-4 py-3">{t('leaveType')}</th>
-                  <th className="px-4 py-3">{t('leaveDates')}</th>
-                  <th className="px-4 py-3 text-right">{t('leaveDays')}</th>
-                  <th className="px-4 py-3">{t('leavePayStatus')}</th>
-                  <th className="px-4 py-3">{t('status')}</th>
-                  <th className="px-4 py-3">{t('leaveSubmittedAt')}</th>
-                  <th className="px-4 py-3 text-right">{t('leaveActions')}</th>
+                <tr className="apple-table-head">
+                  <th>{t('employee')}</th>
+                  <th>{t('leaveType')}</th>
+                  <th>{t('leaveDates')}</th>
+                  <th className="text-right">{t('leaveDays')}</th>
+                  <th>{t('leavePayStatus')}</th>
+                  <th>{t('status')}</th>
+                  <th>{t('leaveSubmittedAt')}</th>
+                  <th className="text-right">{t('leaveActions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.04]">
+              <tbody>
                 {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-apple-label">
+                  <tr className="apple-table-row">
+                    <td colSpan={8} className="!py-12 text-center text-apple-label">
                       {loading ? t('loading') : t('leaveNoRequests')}
                     </td>
                   </tr>
                 )}
                 {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-apple-highlight">
-                    <td className="px-4 py-3">
+                  <tr key={row.id} className="apple-table-row">
+                    <td>
                       <div className="font-medium text-apple-text">{row.full_name}</div>
-                      <div className="text-xs text-apple-label">{row.employee_code}</div>
-                      {row.reason && <p className="mt-1 text-xs text-apple-label">{row.reason}</p>}
+                      <div className="text-[12px] text-apple-label">{row.employee_code}</div>
+                      {row.reason && <p className="mt-1 text-[12px] text-apple-label">{row.reason}</p>}
                     </td>
-                    <td className="px-4 py-3">{t(`leaveType_${row.leave_type}`)}</td>
-                    <td className="px-4 py-3 text-xs text-apple-label whitespace-nowrap">
+                    <td>{t(`leaveType_${row.leave_type}`)}</td>
+                    <td className="text-[12px] text-apple-label whitespace-nowrap">
                       {formatDateRange(row.start_date, row.end_date)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{row.days_count}</td>
-                    <td className="px-4 py-3 text-xs text-apple-label">
+                    <td className="text-right tabular-nums">{row.days_count}</td>
+                    <td className="text-[12px] text-apple-label">
                       {row.approval_status === 'approved' ? (
                         row.is_paid ? t('leavePaid') : t('leaveUnpaid')
                       ) : row.leave_type === 'paternity' && row.approval_status === 'pending' ? (
@@ -255,15 +255,15 @@ export default function AdminLeave() {
                         t('emDash')
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       <Badge variant={statusBadgeVariant(row.approval_status)}>
                         {t(`leaveStatus_${row.approval_status}`)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-xs text-apple-label">
+                    <td className="text-[12px] text-apple-label">
                       {formatDisplayDateTime(row.created_at)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       <div className="flex flex-col items-end gap-1.5">
                         {row.attachment_path && (
                           <LeaveDocumentButton
@@ -312,7 +312,7 @@ export default function AdminLeave() {
                             </Button>
                           </div>
                         ) : (
-                          <span className="text-xs text-apple-muted">
+                          <span className="text-[12px] text-apple-muted">
                             {row.approved_at
                               ? formatDisplayDateTime(row.approved_at)
                               : t('emDash')}

@@ -10,10 +10,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Button, PageSection, StatCard } from '../ui.jsx';
+import { Button, EmptyState, ListGroup, ListRow, PageSection, StatCard } from '../ui.jsx';
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from '../../theme.js';
 
 export default function AdminOverviewSection({ overview, chartData }) {
   const { t } = useTranslation();
+  const hasChartData = Array.isArray(chartData) && chartData.length > 0;
 
   return (
     <>
@@ -48,24 +50,22 @@ export default function AdminOverviewSection({ overview, chartData }) {
       )}
 
       <PageSection title={t('attendanceCharts')} bodyClassName="!pt-4">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#86868b' }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#86868b' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 12,
-                  border: '1px solid rgba(0,0,0,0.06)',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-                }}
-              />
-              <Bar dataKey="present" name={t('presentLike')} fill="#34c759" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="late" name={t('late')} fill="#ff9500" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {hasChartData ? (
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                <Bar dataKey="present" name={t('presentLike')} fill={CHART_COLORS.positive} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="late" name={t('late')} fill={CHART_COLORS.warning} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <EmptyState title={t('payrollSummaryEmpty')} />
+        )}
       </PageSection>
 
       <PageSection
@@ -79,18 +79,18 @@ export default function AdminOverviewSection({ overview, chartData }) {
         }
       >
         {overview?.payrollSummary?.length > 0 ? (
-          <ul className="divide-y divide-black/[0.04] overflow-hidden rounded-apple-lg border border-black/[0.06]">
+          <ListGroup>
             {overview.payrollSummary.map((p) => (
-              <li key={p.payroll_period} className="flex justify-between gap-4 px-4 py-3.5 text-[15px] sm:px-5">
+              <ListRow key={p.payroll_period} className="justify-between">
                 <span className="font-medium text-apple-text">{p.payroll_period}</span>
                 <span className="text-apple-label tabular-nums">
-                  {t('rows')}: {p.rows} · {t('total')}: {Number(p.total_final).toLocaleString()}
+                  {t('rows')}: {p.rows} · {t('total')}: {Number(p.total_final).toLocaleString('id-ID')}
                 </span>
-              </li>
+              </ListRow>
             ))}
-          </ul>
+          </ListGroup>
         ) : (
-          <p className="text-[15px] text-apple-label">{t('payrollSummaryEmpty')}</p>
+          <EmptyState title={t('payrollSummaryEmpty')} />
         )}
       </PageSection>
     </>

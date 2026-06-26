@@ -21,6 +21,31 @@
   :focus-visible {
     outline: none;
   }
+
+  /* Consistent, accessible native checkboxes/radios across the whole app. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: #0071e3;
+    cursor: pointer;
+  }
+
+  input[type='checkbox']:focus-visible,
+  input[type='radio']:focus-visible {
+    outline: 2px solid rgba(0, 113, 227, 0.45);
+    outline-offset: 2px;
+  }
+
+  /* Honour users who ask for less motion — keep the UI usable, drop the animation. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer components {

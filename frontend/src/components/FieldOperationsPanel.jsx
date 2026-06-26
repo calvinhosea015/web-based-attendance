@@ -600,7 +600,7 @@ export default function FieldOperationsPanel({
                           <div className="font-medium text-apple-text">{office.name}</div>
                           {office.link ? (
                             <a
-                              className="text-xs text-brand-600 hover:underline"
+                              className="apple-link text-[12px]"
                               href={office.link}
                               target="_blank"
                               rel="noreferrer"
@@ -645,7 +645,7 @@ export default function FieldOperationsPanel({
                       </div>
                       {editingOffice != null && Number(editingOffice.id) === Number(office.id) ? (
                         <form
-                          className="space-y-2 rounded-lg border border-black/[0.06] bg-apple-highlight/40 p-3"
+                          className="space-y-2 rounded-apple-lg border border-black/[0.06] bg-apple-highlight/40 p-3"
                           onSubmit={handleSaveOffice}
                         >
                           <Field label={t('officeName')}>
@@ -921,7 +921,7 @@ export default function FieldOperationsPanel({
                                     }
                                   >
                                     <span
-                                      className={`inline-block text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                      className={`inline-block text-xs transition-transform duration-premium ease-premium ${isExpanded ? 'rotate-90' : ''}`}
                                     >
                                       ▶
                                     </span>
@@ -933,7 +933,7 @@ export default function FieldOperationsPanel({
                                 <td className="text-apple-text">{pabrik.nama_pabrik}</td>
                                 <td>
                                   <select
-                                    className="min-w-[10rem] rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
+                                    className="min-w-[10rem] rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
                                     value={pabrik.office_id ?? ''}
                                     disabled={pabrikOfficeLinkSavingId === pabrik.id}
                                     onChange={(e) =>
@@ -959,7 +959,7 @@ export default function FieldOperationsPanel({
                                     min="1"
                                     step="1"
                                     inputMode="numeric"
-                                    className="w-24 rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
+                                    className="w-24 rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
                                     value={
                                       radiusDraft[pabrik.id] ??
                                       (pabrik.radius_meters != null ? String(pabrik.radius_meters) : '')
@@ -1086,7 +1086,7 @@ export default function FieldOperationsPanel({
                                                       type="number"
                                                       min="0"
                                                       step="any"
-                                                      className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
+                                                      className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
                                                       value={tonaseDraft[item.id] ?? ''}
                                                       placeholder="0"
                                                       disabled={tonaseSavingId === item.id}
@@ -1120,7 +1120,7 @@ export default function FieldOperationsPanel({
                                                       type="number"
                                                       min="0"
                                                       step="1"
-                                                      className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/35 disabled:opacity-60"
+                                                      className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
                                                       value={priceDraft[item.id] ?? ''}
                                                       placeholder="0"
                                                       disabled={priceSavingId === item.id}
@@ -1389,7 +1389,7 @@ export default function FieldOperationsPanel({
                       return (
                         <li
                           key={row.id}
-                          className="rounded-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
+                          className="rounded-apple-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
                         >
                           <div className="font-medium text-apple-text">
                             {row.full_name}
