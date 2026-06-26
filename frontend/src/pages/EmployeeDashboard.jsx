@@ -47,6 +47,7 @@ export default function EmployeeDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState('error');
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
   const [remoteWork, setRemoteWork] = useState(false);
@@ -77,6 +78,11 @@ export default function EmployeeDashboard() {
   const [fieldDeliveries, setFieldDeliveries] = useState([]);
   const [todayDeliveries, setTodayDeliveries] = useState({ entries: [], today_bonus_total: 0 });
 
+  const notify = (text, tone = 'error') => {
+    setMessageTone(tone);
+    setMessage(text);
+  };
+
   const reloadHistory = async () => {
     try {
       const h = await api.get(paths.employeeAttendance);
@@ -105,7 +111,7 @@ export default function EmployeeDashboard() {
       try {
         await ensureCsrf();
       } catch (e) {
-        setMessage(formatApiError(e));
+        notify(formatApiError(e));
         return;
       }
       try {
@@ -147,6 +153,7 @@ export default function EmployeeDashboard() {
         setLeaveRequests(lr.data || []);
       } catch (e) {
         console.error(e);
+        setMessageTone('error');
         setMessage((prev) => (prev ? `${prev} ${i18n.t('dashboardLoadFailed')}` : formatApiError(e)));
         if (e.response?.status === 401) navigate('/login');
       }
@@ -216,7 +223,7 @@ export default function EmployeeDashboard() {
       await loadTodayDeliveries(role);
     } catch (e) {
       console.error(e);
-      setMessage(formatApiError(e));
+      notify(formatApiError(e));
     }
   };
 
@@ -226,12 +233,12 @@ export default function EmployeeDashboard() {
     try {
       pos = await readPosition();
     } catch (geoErr) {
-      setMessage(geoMessage(geoErr));
+      notify(geoMessage(geoErr));
       return null;
     }
     const { latitude, longitude, accuracy } = pos.coords;
     if (latitude == null || longitude == null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      setMessage(i18n.t('geoUnavailable'));
+      notify(i18n.t('geoUnavailable'));
       return null;
     }
     const client_ts_ms =
@@ -246,7 +253,7 @@ export default function EmployeeDashboard() {
 
   const handleCheckIn = async () => {
     if (!summary?.assigned_office?.id) {
-      setMessage(t('noOfficeAssigned'));
+      notify(t('noOfficeAssigned'));
       return;
     }
     setMessage('');
@@ -258,11 +265,11 @@ export default function EmployeeDashboard() {
         ...loc,
         remote_work: summary?.remote_work_allowed !== false && remoteWork,
       });
-      setMessage(t('checkedIn'));
+      notify(t('checkedIn'), 'success');
       setCheckoutCode('');
       await refreshEmployee();
     } catch (err) {
-      setMessage(formatApiError(err));
+      notify(formatApiError(err));
     } finally {
       setClockPending(false);
     }
@@ -271,12 +278,12 @@ export default function EmployeeDashboard() {
   const handleSubmitFieldCode = async () => {
     const lines = splitFieldCheckoutLines(fieldCodeDraft);
     if (!lines.length) {
-      setMessage(t('checkoutCodeRequired'));
+      notify(t('checkoutCodeRequired'));
       return;
     }
     const invalid = lines.find((line) => !isFieldCheckoutFormatValid(line));
     if (invalid) {
-      setMessage(t('checkoutCodeInvalidFormat'));
+      notify(t('checkoutCodeInvalidFormat'));
       return;
     }
     setMessage('');
@@ -285,15 +292,16 @@ export default function EmployeeDashboard() {
       await ensureCsrf();
       const { data } = await api.post(paths.employeeFieldCode, { code: fieldCodeDraft.trim() });
       const count = data?.count ?? lines.length;
-      setMessage(
+      notify(
         count > 1
           ? t('fieldCodesAccepted', { count, bonus: formatIdr(data?.today_bonus_total) })
-          : t('fieldCodeAcceptedBonus', { bonus: formatIdr(data?.today_bonus_total) })
+          : t('fieldCodeAcceptedBonus', { bonus: formatIdr(data?.today_bonus_total) }),
+        'success'
       );
       setFieldCodeDraft('');
       await refreshEmployee();
     } catch (err) {
-      setMessage(formatApiError(err));
+      notify(formatApiError(err));
     } finally {
       setFieldCodeSubmitting(false);
     }
@@ -306,11 +314,11 @@ export default function EmployeeDashboard() {
       const loc = await captureLocation();
       if (!loc) return;
       await api.post(paths.checkOut, loc);
-      setMessage(t('checkedOut'));
+      notify(t('checkedOut'), 'success');
       setCheckoutCode('');
       await refreshEmployee();
     } catch (err) {
-      setMessage(formatApiError(err));
+      notify(formatApiError(err));
     } finally {
       setClockPending(false);
     }
@@ -343,10 +351,10 @@ export default function EmployeeDashboard() {
         notes: loanForm.notes || undefined,
       });
       setLoanForm({ loan_amount: '', monthly_deduction: '', notes: '' });
-      setMessage(t('loanSubmitted'));
+      notify(t('loanSubmitted'), 'success');
       await refreshLoans();
     } catch (err) {
-      setMessage(formatApiError(err));
+      notify(formatApiError(err));
     } finally {
       setLoanSubmitting(false);
     }
@@ -374,7 +382,7 @@ export default function EmployeeDashboard() {
   const handleLeaveSubmit = async (e) => {
     e.preventDefault();
     if (leaveNeedsDocument && !leaveDocument) {
-      setMessage(t('leaveDocumentRequired'));
+      notify(t('leaveDocumentRequired'));
       return;
     }
     setLeaveSubmitting(true);
@@ -390,10 +398,10 @@ export default function EmployeeDashboard() {
       await api.post(paths.employeeLeaveRequests, form);
       setLeaveForm({ leave_type: 'medical', start_date: '', end_date: '', reason: '' });
       setLeaveDocument(null);
-      setMessage(t('leaveSubmitted'));
+      notify(t('leaveSubmitted'), 'success');
       await refreshLeave();
     } catch (err) {
-      setMessage(formatApiError(err));
+      notify(formatApiError(err));
     } finally {
       setLeaveSubmitting(false);
     }
@@ -408,7 +416,7 @@ export default function EmployeeDashboard() {
         downloadLabel: t('download'),
       });
     } catch (err) {
-      setMessage(err.message ? err.message : formatApiError(err));
+      notify(err.message ? err.message : formatApiError(err));
     }
   };
 
@@ -685,19 +693,7 @@ export default function EmployeeDashboard() {
         }
       />
 
-      {message && (
-        <Alert
-          tone={
-            message.includes(t('checkedIn')) ||
-            message.includes(t('checkedOut')) ||
-            message.includes(t('fieldCodeAccepted'))
-              ? 'success'
-              : 'error'
-          }
-        >
-          {message}
-        </Alert>
-      )}
+      {message && <Alert tone={messageTone}>{message}</Alert>}
 
       {!isFieldOfficer && (
       <section className="grid gap-6 md:grid-cols-3">
