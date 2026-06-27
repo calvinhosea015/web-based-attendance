@@ -223,6 +223,17 @@ class FieldCheckoutCodeService {
     return { message: 'Delivery entry updated.', code: 'DELIVERY_UPDATED', entry };
   }
 
+  async deleteDeliveryAsAdmin(auth, id) {
+    if (auth.role !== 'admin') {
+      throw new AppError('Only admins can delete delivery entries.', 403, 'NOT_ADMIN');
+    }
+    const deleted = await this.fieldDeliveryRepository.deleteEntry(id);
+    if (!deleted) {
+      throw new AppError('Delivery entry not found.', 404, 'DELIVERY_NOT_FOUND');
+    }
+    return { message: 'Delivery entry deleted.', code: 'DELIVERY_DELETED', id: deleted.id };
+  }
+
   async listMyDeliveriesToday(auth) {
     if (!isFieldOfficer(auth.role) || !auth.employeeId) {
       throw new AppError('Only field officers can view delivery entries.', 403, 'NOT_FIELD_OFFICER');

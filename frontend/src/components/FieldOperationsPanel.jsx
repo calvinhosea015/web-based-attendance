@@ -76,6 +76,7 @@ export default function FieldOperationsPanel({
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [savingDelivery, setSavingDelivery] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -200,6 +201,24 @@ export default function FieldOperationsPanel({
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
       setSavingDelivery(false);
+    }
+  };
+
+  const deleteDelivery = async (id) => {
+    // ponytail: native confirm is enough here; no custom modal asked for.
+    if (!window.confirm(t('fieldDeliveryDeleteConfirm'))) return;
+    setDeletingId(id);
+    notify('');
+    try {
+      await ensureCsrf();
+      await api.delete(paths.adminFieldDeliveryUpdate(id));
+      setAllDeliveries((prev) => prev.filter((r) => r.id !== id));
+      if (editingId === id) cancelEditDelivery();
+      notify(t('fieldDeliveryDeleteSaved'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -1529,7 +1548,7 @@ export default function FieldOperationsPanel({
                                   ) : null}
                                 </p>
                               ) : null}
-                              <div className="mt-3">
+                              <div className="mt-3 flex gap-2">
                                 <Button
                                   type="button"
                                   variant="secondary"
@@ -1537,6 +1556,15 @@ export default function FieldOperationsPanel({
                                   onClick={() => startEditDelivery(row)}
                                 >
                                   {t('fieldDeliveryEdit')}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="danger"
+                                  size="sm"
+                                  disabled={deletingId === row.id}
+                                  onClick={() => deleteDelivery(row.id)}
+                                >
+                                  {deletingId === row.id ? t('loading') : t('fieldDeliveryDelete')}
                                 </Button>
                               </div>
                             </>

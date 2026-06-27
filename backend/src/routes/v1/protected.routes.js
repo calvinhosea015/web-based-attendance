@@ -344,6 +344,13 @@ function buildProtectedRoutes(deps) {
     validateRequest,
     fieldCheckoutCodeController.adminUpdateDelivery
   );
+  r.delete(
+    '/admin/field-deliveries/:id',
+    requireRole('admin'),
+    idParamValidator,
+    validateRequest,
+    fieldCheckoutCodeController.adminDeleteDelivery
+  );
   r.get(
     '/admin/field-tonase-bonus/export',
     requireRole('admin'),

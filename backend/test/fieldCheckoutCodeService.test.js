@@ -119,6 +119,37 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
   });
 });
 
+describe('FieldCheckoutCodeService deleteDeliveryAsAdmin', () => {
+  it('deletes an existing entry', async () => {
+    let deletedId = null;
+    const service = new FieldCheckoutCodeService({
+      deleteEntry: async (id) => {
+        deletedId = id;
+        return { id };
+      },
+    });
+    const res = await service.deleteDeliveryAsAdmin({ role: 'admin' }, 7);
+    assert.equal(deletedId, 7);
+    assert.equal(res.code, 'DELIVERY_DELETED');
+  });
+
+  it('404s when the entry does not exist', async () => {
+    const service = new FieldCheckoutCodeService({ deleteEntry: async () => null });
+    await assert.rejects(
+      () => service.deleteDeliveryAsAdmin({ role: 'admin' }, 99),
+      (err) => err instanceof AppError && err.statusCode === 404
+    );
+  });
+
+  it('rejects non-admin callers', async () => {
+    const service = new FieldCheckoutCodeService({ deleteEntry: async () => ({ id: 1 }) });
+    await assert.rejects(
+      () => service.deleteDeliveryAsAdmin({ role: 'field_officer' }, 1),
+      (err) => err instanceof AppError && err.statusCode === 403
+    );
+  });
+});
+
 describe('FieldCheckoutCodeService assertReadyForCheckout', () => {
   it('lets a field officer check out with no delivery data (does not throw)', async () => {
     let createEntryCalls = 0;

@@ -13,6 +13,10 @@ function makeFieldCheckoutCodeController(fieldCheckoutCodeService) {
       const id = Number(req.params.id);
       res.json(await fieldCheckoutCodeService.updateDeliveryAsAdmin(req.auth, id, req.body));
     }),
+    adminDeleteDelivery: asyncHandler(async (req, res) => {
+      const id = Number(req.params.id);
+      res.json(await fieldCheckoutCodeService.deleteDeliveryAsAdmin(req.auth, id));
+    }),
   };
 }
 

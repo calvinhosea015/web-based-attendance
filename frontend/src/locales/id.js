@@ -516,6 +516,9 @@ export default {
   fieldDelivery_selisih: 'Selisih',
   fieldDelivery_nomor_surat_jalan: 'Nomor surat jalan',
   fieldDeliveryEdit: 'Ubah',
+  fieldDeliveryDelete: 'Hapus',
+  fieldDeliveryDeleteConfirm: 'Hapus data pengiriman ini? Tindakan ini tidak bisa dibatalkan.',
+  fieldDeliveryDeleteSaved: 'Data pengiriman dihapus.',
   fieldDeliveryEditSaved: 'Data pengiriman diperbarui.',
   fieldDeliveryEditRecalcHint:
     'Omset dan bonus dihitung ulang otomatis dari berat bersih dan tarif item pabrik.',

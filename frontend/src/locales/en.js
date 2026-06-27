@@ -512,6 +512,9 @@ export default {
   fieldDelivery_nomor_surat_jalan: 'Delivery note no.',
   fieldDelivery_nopol: 'Plate (nopol)',
   fieldDeliveryEdit: 'Edit',
+  fieldDeliveryDelete: 'Delete',
+  fieldDeliveryDeleteConfirm: 'Delete this delivery entry? This cannot be undone.',
+  fieldDeliveryDeleteSaved: 'Delivery entry deleted.',
   fieldDeliveryEditSaved: 'Delivery entry updated.',
   fieldDeliveryEditRecalcHint:
     'Omset and bonus are recalculated automatically from net weight and the factory item rate.',
