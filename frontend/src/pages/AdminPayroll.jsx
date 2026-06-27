@@ -343,21 +343,13 @@ export default function AdminPayroll() {
       title={t('payrollTitle')}
       subtitle={deploySubtitle}
       actions={
-        <>
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/admin/field')}
-          >
-            {t('fieldOpsDashboardTitle')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={handleExportAllSlips}
-            disabled={exportingSlips || rows.length === 0}
-          >
-            {exportingSlips ? t('loading') : t('payrollExportAllSlips')}
-          </Button>
-        </>
+        <Button
+          variant="secondary"
+          onClick={handleExportAllSlips}
+          disabled={exportingSlips || rows.length === 0}
+        >
+          {exportingSlips ? t('loading') : t('payrollExportAllSlips')}
+        </Button>
       }
     >
       <div className="space-y-6">

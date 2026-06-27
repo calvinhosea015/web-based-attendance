@@ -269,7 +269,7 @@ export default {
   fieldOmsetShowLines: 'Details',
   fieldOmsetHideLines: 'Hide',
   fieldOmsetLineAmounts: 'Omset Rp {{omset}} · bonus Rp {{bonus}}',
-  payrollFinal: 'Final pay',
+  payrollFinal: 'Total employee salary',
   payrollDeductions: 'Deductions',
   payrollEditRow: 'Edit payroll row',
   payrollKeterangan: 'Notes (keterangan)',
