@@ -332,7 +332,7 @@ function buildProtectedRoutes(deps) {
   );
   r.get(
     '/admin/field-deliveries',
-    requireRole('admin'),
+    requireRole('admin', 'head_of_finance'),
     adminFieldDeliveryQueryValidators,
     validateRequest,
     payrollController.listAllFieldDeliveries

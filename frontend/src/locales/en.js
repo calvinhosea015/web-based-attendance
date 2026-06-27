@@ -225,7 +225,7 @@ export default {
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
     'Expand a factory above to edit price per item. Omset = price per item × berat bersih (falls back to tonase when no price). Bonus = omset × 2%.',
-  pabrikTonaseExportTitle: 'Download tonase bonus report',
+  pabrikTonaseExportTitle: 'Download omset bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',
   pabrikTonaseDateFrom: 'From date',
@@ -257,9 +257,6 @@ export default {
   fieldOmsetBonusHint: '{{count}} delivery lines · bonus = omset × 2%',
   fieldOmsetBonusTotal: 'Bonus (2%)',
   fieldOmsetTotal: 'Omset',
-  fieldOmsetByEmployee: 'Per field officer',
-  fieldOmsetByEmployeeHint:
-    '{{count}} field officers in this period. Expand details to see each delivery line.',
   fieldOmsetEmpty: 'No delivery codes in this payroll period.',
   fieldOmsetNoOfficers: 'No active field officers found.',
   fieldOmsetOfficerCountHint: 'Across {{count}} field officers',
@@ -492,7 +489,7 @@ export default {
     'Delivery data submitted by field officers at your office (last 60 days).',
   fieldDeliveryDate: 'Date',
   fieldDeliveryEmpty: 'No delivery data recorded yet.',
-  fieldDeliveryRecapTitle: 'All delivery recap',
+  fieldDeliveryRecapTitle: 'Delivery recap',
   fieldDeliveryRecapHint:
     'Full delivery data from all petugas lapangan — not limited to the selected payroll period.',
   fieldDeliveryRecapCount: '{{count}} delivery lines loaded',

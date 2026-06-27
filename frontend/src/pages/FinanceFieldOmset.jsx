@@ -69,6 +69,7 @@ export default function FinanceFieldOmset() {
         showPabrik={false}
         showTonase={false}
         showOmset
+        showDeliveryRecap
       />
     </div>
   );

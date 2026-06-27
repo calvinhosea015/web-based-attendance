@@ -160,10 +160,6 @@ export default function AdminDashboard() {
       notify(t('officeRequiredEmployee'), 'error');
       return;
     }
-    if (isHeadOfFinanceRole(newUser.role) && !newUser.full_name?.trim()) {
-      notify(t('fullNameRequired'), 'error');
-      return;
-    }
     if (requiresFullName(newUser.role) && !newUser.full_name?.trim()) {
       notify(t('fullNameRequired'), 'error');
       return;

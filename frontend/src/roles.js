@@ -54,9 +54,9 @@ export function canViewFieldOmsetReport(role) {
   return role === ROLE_ADMIN || isHeadOfFinanceRole(role);
 }
 
-/** Pegawai, petugas lapangan, and accounting require full name. */
+/** Attendance roles + head of finance require a display name (matches backend). */
 export function requiresFullName(role) {
-  return isAttendanceRole(role);
+  return isAttendanceRole(role) || isHeadOfFinanceRole(role);
 }
 
 /** Monthly payroll UI modes (includes legacy general_affairs rows). */

@@ -16,7 +16,7 @@ function formatIdr(n) {
 }
 
 /**
- * @param {{ period?: string, onPeriodChange?: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean, showDeliveryRecap?: boolean }} props
+ * @param {{ period?: string, onPeriodChange?: (p: string) => void, showOmset?: boolean, showPabrik?: boolean, showTonase?: boolean, showDeliveryRecap?: boolean, recapEditable?: boolean }} props
  */
 export default function FieldOperationsPanel({
   period: periodProp,
@@ -25,6 +25,7 @@ export default function FieldOperationsPanel({
   showPabrik = true,
   showTonase = true,
   showDeliveryRecap = false,
+  recapEditable = false,
 }) {
   const showCatalog = showPabrik || showTonase;
   const showTabs = showCatalog && showOmset;
@@ -1307,14 +1308,6 @@ export default function FieldOperationsPanel({
                   <p className="text-[15px] text-apple-label">{t('fieldOmsetNoOfficers')}</p>
                 ) : (
                   <div className="space-y-5">
-                    <div>
-                      <h3 className="text-[17px] font-semibold tracking-tight text-apple-text">
-                        {t('fieldOmsetByEmployee')}
-                      </h3>
-                      <p className="mt-1.5 text-[13px] text-apple-label">
-                        {t('fieldOmsetByEmployeeHint', { count: report.employees.length })}
-                      </p>
-                    </div>
                     {report.delivery_count === 0 ? (
                       <p className="text-[15px] text-apple-label">{t('fieldOmsetEmpty')}</p>
                     ) : null}
@@ -1466,7 +1459,7 @@ export default function FieldOperationsPanel({
                               {row.checkout_code}
                             </p>
                           ) : null}
-                          {editingId === row.id ? (
+                          {recapEditable && editingId === row.id ? (
                             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                               {[
                                 ['pabrik_code', 'pabrik', 'text'],
@@ -1548,25 +1541,27 @@ export default function FieldOperationsPanel({
                                   ) : null}
                                 </p>
                               ) : null}
-                              <div className="mt-3 flex gap-2">
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => startEditDelivery(row)}
-                                >
-                                  {t('fieldDeliveryEdit')}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="danger"
-                                  size="sm"
-                                  disabled={deletingId === row.id}
-                                  onClick={() => deleteDelivery(row.id)}
-                                >
-                                  {deletingId === row.id ? t('loading') : t('fieldDeliveryDelete')}
-                                </Button>
-                              </div>
+                              {recapEditable ? (
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => startEditDelivery(row)}
+                                  >
+                                    {t('fieldDeliveryEdit')}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="danger"
+                                    size="sm"
+                                    disabled={deletingId === row.id}
+                                    onClick={() => deleteDelivery(row.id)}
+                                  >
+                                    {deletingId === row.id ? t('loading') : t('fieldDeliveryDelete')}
+                                  </Button>
+                                </div>
+                              ) : null}
                             </>
                           )}
                         </li>
