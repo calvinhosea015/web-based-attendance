@@ -1,17 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import AdminLayout from '../components/AdminLayout.jsx';
 import {
   Alert,
@@ -21,14 +10,20 @@ import {
   EmptyState,
   FilterChip,
   Spinner,
+  inputClass,
   inputClassCompact,
 } from '../components/ui.jsx';
-import { CHART_COLORS, CHART_TOOLTIP_STYLE } from '../theme.js';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 const TABS = ['analytics', 'audit', 'activity'];
+const SORT_KEYS = [
+  { key: 'department', labelKey: 'reportsSortDepartment' },
+  { key: 'attendance_rows', labelKey: 'reportsSortRecords' },
+  { key: 'total_work_hours', labelKey: 'reportsSortHours' },
+];
+const pad = (n) => String(n).padStart(2, '0');
 
 export default function AdminReports() {
   const { t } = useTranslation();
@@ -36,47 +31,67 @@ export default function AdminReports() {
   const [tab, setTab] = useState('analytics');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [monthly, setMonthly] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [overtime, setOvertime] = useState([]);
-  const [payrollTrends, setPayrollTrends] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-
-  const monthlyChart = useMemo(
-    () =>
-      monthly.map((row) => ({
-        status: row.attendance_status,
-        count: Number(row.cnt || 0),
-      })),
-    [monthly]
-  );
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState('total_work_hours');
+  const [sortDir, setSortDir] = useState('desc');
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setMessage('');
     try {
       await ensureCsrf();
-      const [m, d, o, p] = await Promise.all([
-        api.get(paths.adminAnalyticsMonthly, { params: { year, month } }),
-        api.get(paths.adminAnalyticsDepartments),
-        api.get(paths.adminAnalyticsOvertime),
-        api.get(paths.adminAnalyticsPayroll),
-      ]);
-      setMonthly(m.data || []);
-      setDepartments(d.data || []);
-      setOvertime(o.data || []);
-      setPayrollTrends((p.data || []).reverse());
+      const dateFrom = `${year}-${pad(month)}-01`;
+      const dateTo = `${year}-${pad(month)}-${pad(new Date(year, month, 0).getDate())}`;
+      const { data } = await api.get(paths.adminAnalyticsDepartments, {
+        params: { date_from: dateFrom, date_to: dateTo },
+      });
+      setDepartments(data || []);
     } catch (err) {
       setMessage(translateApiMessage(err) || String(err));
     } finally {
       setLoading(false);
     }
   }, [year, month]);
+
+  const toggleSort = (key) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'department' ? 'asc' : 'desc');
+    }
+  };
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = departments
+      .map((d) => ({
+        department: d.department,
+        attendance_rows: Number(d.attendance_rows || 0),
+        total_work_hours: Number(d.total_work_hours || 0),
+      }))
+      .filter((d) => !q || d.department.toLowerCase().includes(q));
+    const dir = sortDir === 'asc' ? 1 : -1;
+    list.sort((a, b) =>
+      sortKey === 'department'
+        ? a.department.localeCompare(b.department) * dir
+        : (a[sortKey] - b[sortKey]) * dir
+    );
+    return list;
+  }, [departments, search, sortKey, sortDir]);
+
+  const meterKey = sortKey === 'attendance_rows' ? 'attendance_rows' : 'total_work_hours';
+  const meterMax = useMemo(
+    () => Math.max(1, ...rows.map((r) => r[meterKey])),
+    [rows, meterKey]
+  );
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -123,102 +138,100 @@ export default function AdminReports() {
         {loading && <Spinner />}
 
         {tab === 'analytics' && !loading && (
-          <div className="space-y-6">
-            <Card title={t('reportsMonthlyAttendance')}>
-              <div className="mb-5 flex flex-wrap items-end gap-3">
-                <CompactField label={t('reportsYear')} className="w-28">
-                  <input
-                    type="number"
-                    className={inputClassCompact}
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                  />
-                </CompactField>
-                <CompactField label={t('reportsMonth')} className="w-28">
-                  <input
-                    type="number"
-                    min={1}
-                    max={12}
-                    className={inputClassCompact}
-                    value={month}
-                    onChange={(e) => setMonth(Number(e.target.value))}
-                  />
-                </CompactField>
-                <Button variant="secondary" size="sm" onClick={loadAnalytics}>
-                  {t('reportsRefresh')}
-                </Button>
-              </div>
-              {monthlyChart.length === 0 ? (
-                <EmptyState title={t('reportsNoData')} />
-              ) : (
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                      <XAxis dataKey="status" tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                      <Bar dataKey="count" fill={CHART_COLORS.brand} radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </Card>
+          <Card title={t('reportsDepartmentAttendance')}>
+            <div className="flex flex-wrap items-end gap-3">
+              <CompactField label={t('reportsYear')} className="w-24">
+                <input
+                  type="number"
+                  className={inputClassCompact}
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                />
+              </CompactField>
+              <CompactField label={t('reportsMonth')} className="w-24">
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  className={inputClassCompact}
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                />
+              </CompactField>
+              <Button variant="secondary" size="sm" onClick={loadAnalytics}>
+                {t('reportsRefresh')}
+              </Button>
+              <input
+                type="search"
+                className={`${inputClass} ml-auto w-full sm:w-56`}
+                placeholder={t('reportsSearchDepartment')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label={t('reportsSearchDepartment')}
+              />
+            </div>
 
-            <Card title={t('reportsDepartmentAttendance')}>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-[12px] font-medium text-apple-muted">
+                {t('reportsSortBy')}
+              </span>
+              {SORT_KEYS.map(({ key, labelKey }) => (
+                <FilterChip
+                  key={key}
+                  active={sortKey === key}
+                  onClick={() => toggleSort(key)}
+                  aria-label={t(labelKey)}
+                >
+                  {t(labelKey)}
+                  {sortKey === key && (
+                    <span aria-hidden className="ml-1 inline-block">
+                      {sortDir === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </FilterChip>
+              ))}
+            </div>
+
+            <div className="mt-5">
               {departments.length === 0 ? (
                 <EmptyState title={t('reportsNoData')} />
+              ) : rows.length === 0 ? (
+                <EmptyState title={t('reportsNoMatch')} />
               ) : (
-                <ul className="divide-y divide-black/[0.04] text-[15px]">
-                  {departments.map((row) => (
-                    <li key={row.department} className="flex justify-between gap-4 py-2.5">
-                      <span className="text-apple-text">{row.department}</span>
-                      <span className="text-apple-label tabular-nums">
-                        {row.attendance_rows} · {Number(row.total_work_hours).toFixed(1)}h
-                      </span>
+                <ul className="divide-y divide-black/[0.04]">
+                  {rows.map((row) => (
+                    <li
+                      key={row.department}
+                      className="group -mx-3 rounded-lg px-3 py-3 transition-colors duration-300 ease-premium hover:bg-apple-highlight/60"
+                    >
+                      <div className="flex items-baseline justify-between gap-4">
+                        <span className="truncate font-medium text-apple-text">
+                          {row.department}
+                        </span>
+                        <span className="shrink-0 text-[13px] tabular-nums text-apple-label">
+                          {t('reportsDeptRecords', { count: row.attendance_rows })} ·{' '}
+                          <span className="font-medium text-apple-text">
+                            {row.total_work_hours.toFixed(1)}h
+                          </span>
+                        </span>
+                      </div>
+                      <div
+                        className="mt-2 h-2 overflow-hidden rounded-full bg-apple-fill"
+                        role="presentation"
+                      >
+                        <div
+                          className="h-full rounded-full bg-brand-600 transition-all duration-premium ease-premium group-hover:bg-brand-500"
+                          style={{
+                            width: `${Math.max(2, (row[meterKey] / meterMax) * 100)}%`,
+                          }}
+                        />
+                      </div>
                     </li>
                   ))}
                 </ul>
               )}
-            </Card>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card title={t('reportsOvertimeTrends')}>
-                {overtime.length === 0 ? (
-                  <EmptyState title={t('reportsNoData')} />
-                ) : (
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={overtime}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Line type="monotone" dataKey="overtime_hours" stroke={CHART_COLORS.warning} strokeWidth={2} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </Card>
-              <Card title={t('reportsPayrollTrends')}>
-                {payrollTrends.length === 0 ? (
-                  <EmptyState title={t('reportsNoData')} />
-                ) : (
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={payrollTrends}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                        <XAxis dataKey="payroll_period" tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Bar dataKey="total_final" fill={CHART_COLORS.positive} radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </Card>
             </div>
-          </div>
+          </Card>
         )}
 
         {tab === 'audit' && !loading && (
