@@ -53,13 +53,12 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Ambient page canvas */
+  /* Ambient page canvas — quieter, flatter wash. */
   .page-canvas {
     @apply relative min-h-[100dvh] bg-apple-bg;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 113, 227, 0.06), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(0, 113, 227, 0.04), transparent),
-      radial-gradient(ellipse 50% 30% at 0% 100%, rgba(0, 0, 0, 0.02), transparent);
+      radial-gradient(ellipse 90% 50% at 50% -25%, rgba(37, 99, 201, 0.035), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(37, 99, 201, 0.02), transparent);
   }
 
   .page-canvas::before {
@@ -68,23 +67,23 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.025;
+    opacity: 0.015;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 128px 128px;
   }
 
-  /* Double-bezel nested architecture */
+  /* Double-bezel nested architecture — flattened: thinner tray, lighter sheen. */
   .bezel-outer {
-    @apply rounded-bezel bg-apple-shell p-1.5 ring-1 ring-black/[0.05] transition-all duration-premium ease-premium;
+    @apply rounded-bezel bg-apple-shell p-1 ring-1 ring-black/[0.05] transition-all duration-premium ease-premium;
   }
 
   .bezel-inner {
-    @apply rounded-[calc(2rem-0.375rem)] bg-white shadow-inset;
+    @apply rounded-[calc(1.5rem-0.25rem)] bg-white shadow-inset;
   }
 
   .bezel-inner-dark {
-    @apply rounded-[calc(2rem-0.375rem)] bg-apple-surface shadow-inset;
+    @apply rounded-[calc(1.5rem-0.25rem)] bg-apple-surface shadow-inset;
   }
 
   .apple-link {
@@ -112,23 +111,23 @@
   }
 
   .apple-table {
-    @apply min-w-full text-left text-[15px] leading-snug;
+    @apply min-w-full text-left text-[14px] leading-snug;
   }
 
   .apple-table-head {
-    @apply border-b border-black/[0.05] bg-apple-fill/80 text-[12px] font-semibold text-apple-text;
+    @apply border-b border-black/[0.06] bg-apple-fill/70 text-[12px] font-semibold text-apple-label;
   }
 
   .apple-table-head th {
-    @apply px-5 py-3.5 font-medium normal-case tracking-normal;
+    @apply px-4 py-3 font-semibold;
   }
 
   .apple-table-row {
-    @apply border-b border-black/[0.03] bg-white transition-colors duration-300 ease-premium last:border-0 hover:bg-apple-highlight/60;
+    @apply border-b border-black/[0.04] bg-white transition-colors duration-300 ease-premium last:border-0 hover:bg-apple-highlight/60;
   }
 
   .apple-table-row td {
-    @apply px-5 py-4;
+    @apply px-4 py-3;
   }
 
   .apple-panel {
@@ -136,7 +135,7 @@
   }
 
   .apple-panel > .bezel-panel-inner {
-    @apply bezel-inner p-5;
+    @apply bezel-inner p-4 sm:p-5;
   }
 
   .apple-expand-panel {
@@ -144,19 +143,19 @@
   }
 
   .apple-expand-panel > .bezel-panel-inner {
-    @apply bezel-inner p-5;
+    @apply bezel-inner p-4 sm:p-5;
   }
 
   .apple-inset-panel {
-    @apply rounded-apple-lg bg-apple-fill/70 p-4 ring-1 ring-black/[0.04];
+    @apply rounded-apple-lg bg-apple-fill/60 p-4 ring-1 ring-black/[0.04];
   }
 
   .apple-metric {
-    @apply font-display text-[36px] font-semibold tabular-nums tracking-tightest text-apple-text sm:text-[44px];
+    @apply font-display text-[32px] font-semibold tabular-nums tracking-tightest text-apple-text sm:text-[38px];
   }
 
   .apple-section-grid {
-    @apply grid gap-8 lg:grid-cols-2;
+    @apply grid gap-6 lg:grid-cols-2;
   }
 
   /* Asymmetrical bento grid */

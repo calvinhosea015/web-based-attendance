@@ -46,16 +46,16 @@ export default function FinanceFieldOmset() {
   }
 
   return (
-    <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
+    <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
       <Reveal>
-        <Link to="/employee" className="apple-link text-[15px]">
+        <Link to="/employee" className="apple-link text-[14px]">
           ← {t('payrollEmployeeTitle')}
         </Link>
         <PageHero
           eyebrow={t('fieldOpsTabOmset')}
           title={t('fieldOmsetReportTitle')}
           subtitle={t('fieldOmsetReportSubtitle')}
-          className="!mb-10 !mt-4"
+          className="!mb-8 !mt-3"
           action={
             <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
               {t('logout')}

@@ -587,7 +587,7 @@ export default function FieldOperationsPanel({
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       {message && (
         <Alert tone={messageTone} onDismiss={() => notify('')}>
           {message}
@@ -1286,7 +1286,7 @@ export default function FieldOperationsPanel({
             {omsetLoading && !report ? (
               <p className="text-[15px] text-apple-label">{t('loading')}</p>
             ) : report ? (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <StatTile
                     label={t('fieldOmsetTotal')}

@@ -35,29 +35,29 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4 py-24 sm:px-6">
-      <div className="w-full max-w-[440px]">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4 py-16 sm:px-6">
+      <div className="w-full max-w-[420px]">
         <Reveal>
           <div className="text-center">
             <img
               src="/company-logo.png"
               alt={t('appName')}
-              className="mx-auto h-20 w-auto sm:h-24"
+              className="mx-auto h-16 w-auto sm:h-20"
             />
-            <span className="apple-eyebrow mt-10 inline-flex">{t('appName')}</span>
-            <h1 className="mt-4 font-display text-[40px] font-semibold tracking-tightest text-apple-text sm:text-[52px] sm:leading-none">
+            <span className="apple-eyebrow mt-8 inline-flex">{t('appName')}</span>
+            <h1 className="mt-3 font-display text-display font-semibold text-apple-text sm:text-display-lg">
               {t('login')}
             </h1>
-            <p className="mx-auto mt-4 max-w-sm text-[17px] leading-relaxed text-apple-label">
+            <p className="mx-auto mt-3 max-w-sm text-[16px] leading-relaxed text-apple-label">
               {t('loginSubtitle')}
             </p>
           </div>
         </Reveal>
 
         <Reveal delay={120}>
-          <form className="mt-14" onSubmit={handleLogin}>
+          <form className="mt-10" onSubmit={handleLogin}>
             <DoubleBezel className="shadow-apple-md">
-              <div className="space-y-5 p-8 sm:p-10">
+              <div className="space-y-5 p-7 sm:p-8">
                 <Field label={t('username')}>
                   <input
                     className={inputClass}

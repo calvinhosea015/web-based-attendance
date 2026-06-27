@@ -14,21 +14,21 @@ export function Card({ title, description, action, children, className = '', bod
     <section className={`bezel-outer shadow-apple ${className}`}>
       <div className="bezel-inner overflow-hidden">
         {(title || description || action) && (
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.04] px-6 py-5 sm:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-5 py-4 sm:px-6">
             <div className="max-w-3xl">
               {title && (
-                <h2 className="font-display text-[22px] font-semibold tracking-tightest text-apple-text">
+                <h2 className="font-display text-title font-semibold text-apple-text">
                   {title}
                 </h2>
               )}
               {description && (
-                <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-apple-label">{description}</p>
               )}
             </div>
             {action}
           </div>
         )}
-        <div className={`px-6 py-5 sm:px-8 sm:py-6 ${bodyClassName}`}>{children}</div>
+        <div className={`px-5 py-5 sm:px-6 ${bodyClassName}`}>{children}</div>
       </div>
     </section>
   );
@@ -51,11 +51,11 @@ export function Button({
   };
   const variants = {
     primary:
-      'bg-brand-600 text-white shadow-apple hover:bg-brand-500 active:scale-[0.98]',
+      'bg-brand-600 text-white shadow-apple hover:bg-brand-700 active:scale-[0.98]',
     secondary:
-      'bg-white text-apple-text shadow-apple ring-1 ring-black/[0.06] hover:bg-apple-fill active:scale-[0.98]',
+      'bg-white text-apple-text ring-1 ring-black/[0.08] hover:bg-apple-fill active:scale-[0.98]',
     success:
-      'bg-emerald-600 text-white shadow-apple hover:bg-emerald-500 active:scale-[0.98]',
+      'bg-emerald-600 text-white shadow-apple hover:bg-emerald-700 active:scale-[0.98]',
     ghost:
       'text-apple-label hover:bg-apple-highlight/80 hover:text-brand-700',
     danger:
@@ -209,21 +209,21 @@ export function PageSection({
     <section id={id} className={`bezel-outer shadow-apple ${className}`}>
       <div className="bezel-inner overflow-hidden">
         {(title || description || action) && (
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.04] px-6 py-5 sm:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-5 py-4 sm:px-6">
             <div className="max-w-3xl">
               {title && (
-                <h2 className="font-display text-[22px] font-semibold tracking-tightest text-apple-text">
+                <h2 className="font-display text-title font-semibold text-apple-text">
                   {title}
                 </h2>
               )}
               {description && (
-                <p className="mt-1.5 text-[15px] leading-relaxed text-apple-label">{description}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-apple-label">{description}</p>
               )}
             </div>
             {action}
           </div>
         )}
-        <div className={`px-6 py-5 sm:px-8 sm:py-6 ${bodyClassName}`}>{children}</div>
+        <div className={`px-5 py-5 sm:px-6 ${bodyClassName}`}>{children}</div>
       </div>
     </section>
   );
@@ -265,7 +265,7 @@ export function StatCard({ label, value, tone = 'neutral', className = '', featu
 
   return (
     <div className={`bezel-outer shadow-apple transition-all duration-premium ease-premium hover:shadow-apple-md ${className}`}>
-      <div className={`bezel-inner p-6 sm:p-8 ${featured ? 'sm:p-10' : ''}`}>
+      <div className={`bezel-inner p-5 sm:p-6 ${featured ? 'sm:p-8' : ''}`}>
         <div className="flex items-center gap-2.5">
           <span
             className={`h-2 w-2 shrink-0 rounded-full bg-gradient-to-br ${gradient}`}
@@ -274,8 +274,8 @@ export function StatCard({ label, value, tone = 'neutral', className = '', featu
           <p className="text-[13px] font-medium text-apple-label">{label}</p>
         </div>
         <p
-          className={`mt-4 font-display font-semibold tabular-nums tracking-tightest text-apple-text ${
-            featured ? 'text-[48px] sm:text-[56px]' : 'text-[36px] sm:text-[40px]'
+          className={`mt-3 font-display font-semibold tabular-nums tracking-tightest text-apple-text ${
+            featured ? 'text-[40px] sm:text-[48px]' : 'text-[32px] sm:text-[36px]'
           }`}
         >
           {value}
@@ -287,14 +287,14 @@ export function StatCard({ label, value, tone = 'neutral', className = '', featu
 
 export function PageHero({ eyebrow, title, subtitle, action, className = '' }) {
   return (
-    <div className={`mb-12 flex flex-wrap items-end justify-between gap-8 py-4 ${className}`}>
+    <div className={`mb-8 flex flex-wrap items-end justify-between gap-6 ${className}`}>
       <div className="max-w-3xl">
         {eyebrow && <span className="apple-eyebrow">{eyebrow}</span>}
-        <h1 className="mt-4 font-display text-[36px] font-semibold tracking-tightest text-apple-text sm:text-[48px] sm:leading-[1.05]">
+        <h1 className="mt-3 font-display text-display font-semibold text-apple-text sm:text-display-lg">
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-4 text-[17px] leading-relaxed text-apple-label">{subtitle}</p>
+          <p className="mt-3 text-[16px] leading-relaxed text-apple-label">{subtitle}</p>
         )}
       </div>
       {action}
@@ -349,21 +349,21 @@ export function Modal({ title, subtitle, onClose, children, footer, size = 'md',
         aria-modal="true"
       >
         <div className="bezel-inner flex max-h-full flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-black/[0.04] px-6 py-5">
-            <h3 className="font-display text-[20px] font-semibold tracking-tight text-apple-text">
+          <div className="shrink-0 border-b border-black/[0.05] px-5 py-4 sm:px-6">
+            <h3 className="font-display text-[18px] font-semibold tracking-tight text-apple-text">
               {title}
             </h3>
             {subtitle && (
-              <p className="mt-1 truncate text-[15px] text-apple-label">{subtitle}</p>
+              <p className="mt-0.5 truncate text-[14px] text-apple-label">{subtitle}</p>
             )}
           </div>
           <div
-            className={`shrink-0 px-6 py-5 ${fitScreen ? 'overflow-hidden' : 'flex-1 overflow-y-auto'}`}
+            className={`shrink-0 px-5 py-5 sm:px-6 ${fitScreen ? 'overflow-hidden' : 'flex-1 overflow-y-auto'}`}
           >
             {children}
           </div>
           {footer && (
-            <div className="flex shrink-0 justify-end gap-2 border-t border-black/[0.04] bg-apple-fill/40 px-6 py-4">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-black/[0.05] bg-apple-fill/40 px-5 py-3.5 sm:px-6">
               {footer}
             </div>
           )}

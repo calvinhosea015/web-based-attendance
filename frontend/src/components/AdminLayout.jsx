@@ -384,7 +384,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <Reveal>
           <PageHero
             eyebrow={t('adminOnly')}
@@ -395,7 +395,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
             }
           />
         </Reveal>
-        <div className="space-y-10">{children}</div>
+        <div className="space-y-6">{children}</div>
       </div>
     </div>
   );

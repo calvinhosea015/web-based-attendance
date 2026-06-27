@@ -426,7 +426,7 @@ export default function AdminDashboard() {
         </>
       }
     >
-      <div className="space-y-8">
+      <div className="space-y-6">
       {message && (
         <Alert tone={messageTone} onDismiss={() => notify('')}>
           {message}
