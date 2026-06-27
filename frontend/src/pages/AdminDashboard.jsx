@@ -1003,7 +1003,7 @@ export default function AdminDashboard() {
         !perUserAttendance.user.employee_id ? (
           <p className="mt-2 text-sm text-apple-label">{t('noEmployeeLinkedAttendance')}</p>
         ) : null}
-        <div className="apple-table-wrap mt-4 max-h-96 overflow-auto">
+        <div className="apple-table-wrap mt-4 max-h-[29rem] overflow-auto">
           <table className="apple-table">
             <thead className="apple-table-head sticky top-0">
               <tr>
