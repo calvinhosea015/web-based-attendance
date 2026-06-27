@@ -365,13 +365,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const chartData =
-    overview?.chart?.map((row) => ({
-      date: String(row.d).slice(0, 10),
-      present: row.present_like,
-      late: row.late_cnt,
-    })) || [];
-
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
       const nameA = (a.full_name || a.username || '').trim();
@@ -444,7 +437,7 @@ export default function AdminDashboard() {
         </Alert>
       )}
 
-      <AdminOverviewSection overview={overview} chartData={chartData} />
+      <AdminOverviewSection overview={overview} />
 
       <PageSection title={t('manageUsers')}>
           <form className="space-y-3" onSubmit={handleAddUser}>

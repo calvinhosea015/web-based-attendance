@@ -1,84 +1,20 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { Button, EmptyState, ListGroup, ListRow, PageSection, StatCard } from '../ui.jsx';
-import { CHART_COLORS, CHART_TOOLTIP_STYLE } from '../../theme.js';
+import { StatCard } from '../ui.jsx';
 
-export default function AdminOverviewSection({ overview, chartData }) {
+export default function AdminOverviewSection({ overview }) {
   const { t } = useTranslation();
-  const hasChartData = Array.isArray(chartData) && chartData.length > 0;
+
+  if (!overview) return null;
 
   return (
-    <>
-      {overview && (
-        <section className="space-y-6">
-          <StatCard
-            label={t('totalEmployees')}
-            value={overview.totalEmployees}
-            tone="blue"
-            featured
-          />
-          <div className="grid gap-6 sm:grid-cols-3">
-            <StatCard label={t('presentToday')} value={overview.presentToday} tone="emerald" />
-            <StatCard label={t('lateToday')} value={overview.lateToday} tone="amber" />
-            <StatCard label={t('absentToday')} value={overview.absentToday} tone="rose" />
-          </div>
-        </section>
-      )}
-
-      <PageSection title={t('attendanceCharts')} bodyClassName="!pt-4">
-        {hasChartData ? (
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: CHART_COLORS.axis }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                <Bar dataKey="present" name={t('presentLike')} fill={CHART_COLORS.positive} radius={[6, 6, 0, 0]} />
-                <Bar dataKey="late" name={t('late')} fill={CHART_COLORS.warning} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <EmptyState title={t('payrollSummaryEmpty')} />
-        )}
-      </PageSection>
-
-      <PageSection
-        title={t('payrollSummary')}
-        action={
-          <Link to="/admin/payroll">
-            <Button variant="secondary" size="sm">
-              {t('payrollOpenAdmin')}
-            </Button>
-          </Link>
-        }
-      >
-        {overview?.payrollSummary?.length > 0 ? (
-          <ListGroup>
-            {overview.payrollSummary.map((p) => (
-              <ListRow key={p.payroll_period} className="justify-between">
-                <span className="font-medium text-apple-text">{p.payroll_period}</span>
-                <span className="text-apple-label tabular-nums">
-                  {t('rows')}: {p.rows} · {t('total')}: {Number(p.total_final).toLocaleString('id-ID')}
-                </span>
-              </ListRow>
-            ))}
-          </ListGroup>
-        ) : (
-          <EmptyState title={t('payrollSummaryEmpty')} />
-        )}
-      </PageSection>
-    </>
+    <section>
+      <StatCard
+        label={t('totalEmployees')}
+        value={overview.totalEmployees}
+        tone="blue"
+        featured
+      />
+    </section>
   );
 }
