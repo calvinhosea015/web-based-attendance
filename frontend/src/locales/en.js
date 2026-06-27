@@ -531,7 +531,7 @@ export default {
     'Passwords must be at least 6 characters and contain only letters and numbers (e.g. Abcd1234).',
   professionalReport: 'Absen HJS (Excel)',
   attendanceByUser: 'Filter by user',
-  editAttendance: 'Edit times',
+  editAttendance: 'Edit',
   saveAttendance: 'Save times',
   attendanceTimesUpdated: 'Attendance times updated.',
   clearCheckOut: 'Clear check-out',

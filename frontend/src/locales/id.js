@@ -535,7 +535,7 @@ export default {
     'Kata sandi minimal 6 karakter dan hanya huruf serta angka (contoh: Abcd1234).',
   professionalReport: 'Absen HJS (Excel)',
   attendanceByUser: 'Filter menurut pengguna',
-  editAttendance: 'Ubah waktu',
+  editAttendance: 'Ubah',
   saveAttendance: 'Simpan waktu',
   attendanceTimesUpdated: 'Waktu kehadiran diperbarui.',
   clearCheckOut: 'Hapus absen keluar',
