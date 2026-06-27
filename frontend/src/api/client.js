@@ -142,6 +142,7 @@ export const paths = {
   adminPabrikItemRates: '/v1/admin/pabrik-item-rates',
   adminFieldTonaseBonusExport: '/v1/admin/field-tonase-bonus/export',
   adminFieldDeliveries: '/v1/admin/field-deliveries',
+  adminFieldDeliveryUpdate: (id) => `/v1/admin/field-deliveries/${id}`,
   employeeFieldDeliveries: '/v1/employee/field-deliveries',
   adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
   adminLoanRequests: '/v1/admin/loan-requests',

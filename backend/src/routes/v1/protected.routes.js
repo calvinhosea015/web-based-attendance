@@ -37,6 +37,7 @@ const {
   pabrikUpdateValidators,
   fieldDeliveryQueryValidators,
   adminFieldDeliveryQueryValidators,
+  adminFieldDeliveryUpdateValidators,
   dateRangeQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,
@@ -335,6 +336,13 @@ function buildProtectedRoutes(deps) {
     adminFieldDeliveryQueryValidators,
     validateRequest,
     payrollController.listAllFieldDeliveries
+  );
+  r.put(
+    '/admin/field-deliveries/:id',
+    requireRole('admin'),
+    adminFieldDeliveryUpdateValidators,
+    validateRequest,
+    fieldCheckoutCodeController.adminUpdateDelivery
   );
   r.get(
     '/admin/field-tonase-bonus/export',

@@ -9,6 +9,10 @@ function makeFieldCheckoutCodeController(fieldCheckoutCodeService) {
     listToday: asyncHandler(async (req, res) => {
       res.json(await fieldCheckoutCodeService.listMyDeliveriesToday(req.auth));
     }),
+    adminUpdateDelivery: asyncHandler(async (req, res) => {
+      const id = Number(req.params.id);
+      res.json(await fieldCheckoutCodeService.updateDeliveryAsAdmin(req.auth, id, req.body));
+    }),
   };
 }
 

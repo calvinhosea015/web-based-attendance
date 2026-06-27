@@ -342,6 +342,19 @@ const adminFieldDeliveryQueryValidators = [
   query('limit').optional().isInt({ min: 1, max: 10000 }),
 ];
 
+const adminFieldDeliveryUpdateValidators = [
+  param('id').isInt({ min: 1 }),
+  body('pabrik_code').optional().trim().notEmpty().isString().isLength({ max: 32 }),
+  body('kode_barang').optional().trim().notEmpty().isString().isLength({ max: 64 }),
+  body('norek').optional({ nullable: true }).trim().isLength({ max: 64 }),
+  body('nomor_tanda_terima').optional({ nullable: true }).trim().isLength({ max: 128 }),
+  body('nomor_surat_jalan').optional({ nullable: true }).trim().isLength({ max: 128 }),
+  body('nopol').optional({ nullable: true }).trim().isLength({ max: 64 }),
+  body('no_bs').optional({ nullable: true }).trim().isLength({ max: 64 }),
+  body('kotor').optional().isFloat({ min: 0 }),
+  body('berat_bersih').optional().isFloat({ min: 0 }),
+];
+
 const dateRangeQueryValidators = [
   query('from').matches(/^\d{4}-\d{2}-\d{2}$/),
   query('to').matches(/^\d{4}-\d{2}-\d{2}$/),
@@ -399,6 +412,7 @@ module.exports = {
   loanDecideValidators,
   fieldDeliveryQueryValidators,
   adminFieldDeliveryQueryValidators,
+  adminFieldDeliveryUpdateValidators,
   dateRangeQueryValidators,
   leaveSettingsValidators,
   leaveSubmitValidators,

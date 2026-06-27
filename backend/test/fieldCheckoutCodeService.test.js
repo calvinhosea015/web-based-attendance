@@ -61,6 +61,64 @@ describe('FieldCheckoutCodeService submit', () => {
   });
 });
 
+describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
+  it('recomputes selisih/omset/bonus from the edited net weight and catalog rate', async () => {
+    let saved = null;
+    const fieldDeliveryRepository = {
+      findById: async () => ({
+        id: 7,
+        pabrik_code: 'P1',
+        kode_barang: 'ITEM',
+        norek: '00000',
+        nomor_tanda_terima: 'A',
+        nomor_surat_jalan: 'B',
+        nopol: 'L 1 AB',
+        no_bs: '0',
+        kotor: 100,
+        berat_bersih: 90,
+        selisih: 10,
+        tonase_per_item: 5,
+        price_per_item: 0,
+        omset_amount: 450,
+        bonus_amount: 9,
+      }),
+      updateEntry: async (id, fields) => {
+        saved = { id, ...fields };
+        return saved;
+      },
+    };
+    const pabrikItemRateRepository = {
+      findByPabrikAndBarang: async () => ({ tonase_per_item: 5, price_per_item: 1000 }),
+    };
+    const service = new FieldCheckoutCodeService(
+      fieldDeliveryRepository,
+      pabrikItemRateRepository
+    );
+
+    const res = await service.updateDeliveryAsAdmin({ role: 'admin' }, 7, { berat_bersih: 80 });
+
+    assert.equal(saved.berat_bersih, 80);
+    assert.equal(saved.kotor, 100);
+    assert.equal(saved.selisih, 20); // |100 - 80|
+    assert.equal(saved.price_per_item, 1000); // catalog rate wins over stored
+    assert.equal(saved.omset_amount, 80000); // 1000 × 80
+    assert.equal(saved.bonus_amount, 1600); // 2% of 80000
+    assert.equal(res.code, 'DELIVERY_UPDATED');
+  });
+
+  it('rejects non-admin callers', async () => {
+    const service = new FieldCheckoutCodeService({}, {});
+    await assert.rejects(
+      () => service.updateDeliveryAsAdmin({ role: 'field_officer' }, 1, {}),
+      (err) => {
+        assert.ok(err instanceof AppError);
+        assert.equal(err.statusCode, 403);
+        return true;
+      }
+    );
+  });
+});
+
 describe('FieldCheckoutCodeService assertReadyForCheckout', () => {
   it('lets a field officer check out with no delivery data (does not throw)', async () => {
     let createEntryCalls = 0;

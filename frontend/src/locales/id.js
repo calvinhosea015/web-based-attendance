@@ -76,6 +76,7 @@ export default {
   newPassword: 'Kata sandi baru',
   change: 'Ubah',
   cancel: 'Batal',
+  save: 'Simpan',
   passwordChanged: 'Kata sandi diubah',
   totalEmployees: 'Total karyawan',
   presentToday: 'Hadir hari ini',
@@ -514,6 +515,10 @@ export default {
   fieldDelivery_berat: 'Berat bersih',
   fieldDelivery_selisih: 'Selisih',
   fieldDelivery_nomor_surat_jalan: 'Nomor surat jalan',
+  fieldDeliveryEdit: 'Ubah',
+  fieldDeliveryEditSaved: 'Data pengiriman diperbarui.',
+  fieldDeliveryEditRecalcHint:
+    'Omset dan bonus dihitung ulang otomatis dari berat bersih dan tarif item pabrik.',
   splitShiftTimes: 'Empat absen per hari — waktu sesi',
   segment1Start: 'Mulai sesi 1',
   segment1End: 'Selesai sesi 1',

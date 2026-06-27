@@ -73,6 +73,9 @@ export default function FieldOperationsPanel({
   const [expandedId, setExpandedId] = useState(null);
   const [allDeliveries, setAllDeliveries] = useState([]);
   const [recapLoading, setRecapLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [savingDelivery, setSavingDelivery] = useState(false);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -159,6 +162,46 @@ export default function FieldOperationsPanel({
       setRecapLoading(false);
     }
   }, [showDeliveryRecap, t]);
+
+  const startEditDelivery = (row) => {
+    setEditingId(row.id);
+    setEditForm({
+      pabrik_code: row.pabrik_code ?? '',
+      kode_barang: row.kode_barang ?? '',
+      norek: row.norek ?? '',
+      nomor_tanda_terima: row.nomor_tanda_terima ?? '',
+      nomor_surat_jalan: row.nomor_surat_jalan ?? '',
+      nopol: row.nopol ?? '',
+      no_bs: row.no_bs ?? '',
+      kotor: row.kotor ?? '',
+      berat_bersih: row.berat_bersih ?? '',
+    });
+  };
+
+  const cancelEditDelivery = () => {
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  const saveDeliveryEdit = async (id) => {
+    setSavingDelivery(true);
+    notify('');
+    try {
+      await ensureCsrf();
+      const { data } = await api.put(paths.adminFieldDeliveryUpdate(id), editForm);
+      const updated = data?.entry;
+      // Keep joined display fields (full_name, nama_pabrik, …) from the existing row.
+      setAllDeliveries((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, ...(updated || {}) } : r))
+      );
+      cancelEditDelivery();
+      notify(t('fieldDeliveryEditSaved'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
+    } finally {
+      setSavingDelivery(false);
+    }
+  };
 
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
@@ -1404,33 +1447,100 @@ export default function FieldOperationsPanel({
                               {row.checkout_code}
                             </p>
                           ) : null}
-                          {parsed ? (
-                            <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                              {Object.entries(parsed).map(([key, value]) => (
-                                <div key={key}>
-                                  <dt className="text-xs uppercase tracking-wide text-apple-label">
-                                    {t(`fieldDelivery_${key}`, key)}
-                                  </dt>
-                                  <dd className="font-medium text-apple-text">{value}</dd>
-                                </div>
+                          {editingId === row.id ? (
+                            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                              {[
+                                ['pabrik_code', 'pabrik', 'text'],
+                                ['kode_barang', 'kode_barang', 'text'],
+                                ['norek', 'norek', 'text'],
+                                ['nomor_tanda_terima', 'nomor_tanda_terima', 'text'],
+                                ['nomor_surat_jalan', 'nomor_surat_jalan', 'text'],
+                                ['nopol', 'nopol', 'text'],
+                                ['no_bs', 'no_bs', 'text'],
+                                ['kotor', 'kotor', 'number'],
+                                ['berat_bersih', 'berat_bersih', 'number'],
+                              ].map(([name, labelKey, type]) => (
+                                <label key={name} className="block">
+                                  <span className="text-xs uppercase tracking-wide text-apple-label">
+                                    {t(`fieldDelivery_${labelKey}`, labelKey)}
+                                  </span>
+                                  <input
+                                    type={type}
+                                    inputMode={type === 'number' ? 'decimal' : undefined}
+                                    step={type === 'number' ? 'any' : undefined}
+                                    min={type === 'number' ? '0' : undefined}
+                                    className={`${inputClass} mt-1`}
+                                    value={editForm[name] ?? ''}
+                                    onChange={(e) =>
+                                      setEditForm((f) => ({ ...f, [name]: e.target.value }))
+                                    }
+                                  />
+                                </label>
                               ))}
-                            </dl>
-                          ) : null}
-                          {row.bonus_amount != null || row.omset_amount != null ? (
-                            <p className="mt-2 text-xs text-apple-label">
-                              {row.omset_amount != null ? (
-                                <>
-                                  {t('fieldOmsetTotal')}: Rp {formatIdr(row.omset_amount)}
-                                </>
+                              <p className="text-xs text-apple-label sm:col-span-2 lg:col-span-3">
+                                {t('fieldDeliveryEditRecalcHint')}
+                              </p>
+                              <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={savingDelivery}
+                                  onClick={() => saveDeliveryEdit(row.id)}
+                                >
+                                  {savingDelivery ? t('loading') : t('save')}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  disabled={savingDelivery}
+                                  onClick={cancelEditDelivery}
+                                >
+                                  {t('cancel')}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {parsed ? (
+                                <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                                  {Object.entries(parsed).map(([key, value]) => (
+                                    <div key={key}>
+                                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                                        {t(`fieldDelivery_${key}`, key)}
+                                      </dt>
+                                      <dd className="font-medium text-apple-text">{value}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
                               ) : null}
-                              {row.bonus_amount != null ? (
-                                <>
-                                  {row.omset_amount != null ? ' · ' : ''}
-                                  {t('fieldOmsetBonusTotal')}: Rp {formatIdr(row.bonus_amount)}
-                                </>
+                              {row.bonus_amount != null || row.omset_amount != null ? (
+                                <p className="mt-2 text-xs text-apple-label">
+                                  {row.omset_amount != null ? (
+                                    <>
+                                      {t('fieldOmsetTotal')}: Rp {formatIdr(row.omset_amount)}
+                                    </>
+                                  ) : null}
+                                  {row.bonus_amount != null ? (
+                                    <>
+                                      {row.omset_amount != null ? ' · ' : ''}
+                                      {t('fieldOmsetBonusTotal')}: Rp {formatIdr(row.bonus_amount)}
+                                    </>
+                                  ) : null}
+                                </p>
                               ) : null}
-                            </p>
-                          ) : null}
+                              <div className="mt-3">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => startEditDelivery(row)}
+                                >
+                                  {t('fieldDeliveryEdit')}
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </li>
                       );
                     })}

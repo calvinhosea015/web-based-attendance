@@ -161,6 +161,68 @@ class FieldCheckoutCodeService {
     };
   }
 
+  async updateDeliveryAsAdmin(auth, id, payload) {
+    if (auth.role !== 'admin') {
+      throw new AppError('Only admins can edit delivery entries.', 403, 'NOT_ADMIN');
+    }
+    const existing = await this.fieldDeliveryRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Delivery entry not found.', 404, 'DELIVERY_NOT_FOUND');
+    }
+
+    const str = (v, fallback) => (v === undefined || v === null ? fallback : String(v).trim());
+    const numOr = (v, fallback) => {
+      if (v === undefined || v === null || v === '') return fallback;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const pabrik_code = str(payload.pabrik_code, existing.pabrik_code);
+    const kode_barang = str(payload.kode_barang, existing.kode_barang);
+    const norek = str(payload.norek, existing.norek);
+    const nomor_tanda_terima = str(payload.nomor_tanda_terima, existing.nomor_tanda_terima);
+    const nomor_surat_jalan = str(payload.nomor_surat_jalan, existing.nomor_surat_jalan);
+    const nopol = str(payload.nopol, existing.nopol);
+    const no_bs = str(payload.no_bs, existing.no_bs);
+    const kotor = numOr(payload.kotor, Number(existing.kotor) || 0);
+    const berat_bersih = numOr(payload.berat_bersih, Number(existing.berat_bersih) || 0);
+
+    // Money stays server-authoritative: re-resolve the catalog rate for the (possibly
+    // changed) pabrik+item, falling back to the rate already stored on the line.
+    let tonase_per_item = Number(existing.tonase_per_item) || 0;
+    let price_per_item = Number(existing.price_per_item) || 0;
+    const rate = await this.pabrikItemRateRepository.findByPabrikAndBarang(
+      pabrik_code,
+      kode_barang
+    );
+    if (rate) {
+      tonase_per_item = Number(rate.tonase_per_item) || 0;
+      price_per_item = Number(rate.price_per_item) || 0;
+    }
+
+    const selisih = Math.abs(kotor - berat_bersih);
+    const omset_amount = computeLineOmset(tonase_per_item, berat_bersih, price_per_item);
+    const bonus_amount = computeLineBonus(tonase_per_item, berat_bersih, price_per_item);
+
+    const entry = await this.fieldDeliveryRepository.updateEntry(id, {
+      pabrik_code,
+      norek,
+      nomor_tanda_terima,
+      nomor_surat_jalan,
+      nopol,
+      no_bs,
+      kode_barang,
+      kotor,
+      berat_bersih,
+      selisih,
+      tonase_per_item,
+      price_per_item,
+      omset_amount,
+      bonus_amount,
+    });
+    return { message: 'Delivery entry updated.', code: 'DELIVERY_UPDATED', entry };
+  }
+
   async listMyDeliveriesToday(auth) {
     if (!isFieldOfficer(auth.role) || !auth.employeeId) {
       throw new AppError('Only field officers can view delivery entries.', 403, 'NOT_FIELD_OFFICER');

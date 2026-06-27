@@ -134,6 +134,51 @@ class FieldDeliveryRepository {
     return r.rows[0];
   }
 
+  async findById(id) {
+    const r = await query(`SELECT * FROM field_delivery_entries WHERE id = $1`, [id]);
+    return r.rows[0] ?? null;
+  }
+
+  async updateEntry(id, fields) {
+    const r = await query(
+      `UPDATE field_delivery_entries SET
+        pabrik_code = $2,
+        norek = $3,
+        nomor_tanda_terima = $4,
+        nomor_surat_jalan = $5,
+        nopol = $6,
+        no_bs = $7,
+        kode_barang = $8,
+        kotor = $9,
+        berat_bersih = $10,
+        selisih = $11,
+        tonase_per_item = $12,
+        price_per_item = $13,
+        omset_amount = $14,
+        bonus_amount = $15
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        fields.pabrik_code,
+        fields.norek,
+        fields.nomor_tanda_terima,
+        fields.nomor_surat_jalan,
+        fields.nopol,
+        fields.no_bs,
+        fields.kode_barang,
+        fields.kotor,
+        fields.berat_bersih,
+        fields.selisih,
+        fields.tonase_per_item,
+        fields.price_per_item,
+        fields.omset_amount,
+        fields.bonus_amount,
+      ]
+    );
+    return r.rows[0] ?? null;
+  }
+
   async linkAttendanceForDate(employeeId, validOn, attendanceId) {
     await query(
       `UPDATE field_delivery_entries SET attendance_id = $3
