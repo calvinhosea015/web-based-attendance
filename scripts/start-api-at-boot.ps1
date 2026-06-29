@@ -2,7 +2,10 @@
 # Used by the boot scheduled task and restart-api.ps1.
 
 param(
-    [string]$RepoRoot = (Join-Path $PSScriptRoot "..")
+    [string]$RepoRoot = (Join-Path $PSScriptRoot ".."),
+    # V8 heap cap (MB). A memory leak then crashes node cleanly instead of eating the
+    # whole 32GB box; the watchdog restarts it. Bump if big Excel exports OOM.
+    [int]$MaxOldSpaceMb = 2048
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,8 +54,8 @@ if (Test-ApiHealthy) {
     exit 0
 }
 
-Write-BootLog "Starting API: $NodeExe server.js in $Backend"
-Start-Process -FilePath $NodeExe -ArgumentList "server.js" `
+Write-BootLog "Starting API: $NodeExe --max-old-space-size=$MaxOldSpaceMb server.js in $Backend"
+Start-Process -FilePath $NodeExe -ArgumentList "--max-old-space-size=$MaxOldSpaceMb", "server.js" `
     -WorkingDirectory $Backend `
     -WindowStyle Hidden `
     -RedirectStandardOutput $OutLog `
