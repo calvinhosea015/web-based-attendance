@@ -2,6 +2,13 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    # ponytail: guardrails only (host has 32GB / 20 threads). Postgres for an attendance
+    # app is light; this just stops a runaway query from eating the whole box.
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
     environment:
       POSTGRES_USER: attendance
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
@@ -17,6 +24,14 @@ services:
   app:
     build: .
     restart: unless-stopped
+    # ponytail: guardrails only (host has 32GB / 20 threads). A leak gets the container
+    # OOM-killed (then restarted) instead of slowly starving the host. Bump memory if
+    # Excel exports OOM (exit 137) on big datasets.
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 2G
     environment:
       NODE_ENV: production
       PORT: 5001
