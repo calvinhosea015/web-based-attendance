@@ -2,10 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from './ui.jsx';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
-
-function formatIdr(n) {
-  return Number(n || 0).toLocaleString('id-ID');
-}
+import { formatIdr } from '../utils/payrollDisplay.js';
 
 export default function LoanProgress({ loan }) {
   const { t } = useTranslation();

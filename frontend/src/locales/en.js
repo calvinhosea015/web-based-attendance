@@ -69,6 +69,8 @@ export default {
   userDeleted: 'User deleted',
   userAdded: 'User added',
   userUpdated: 'User updated',
+  confirmDeleteUser: 'Delete user "{{name}}"? This cannot be undone.',
+  searchUsers: 'Search users…',
   editUser: 'Edit',
   saveUser: 'Save',
   fullNameRequired: 'Full name is required for Staff Kantor and Petugas Lapangan.',
@@ -525,7 +527,7 @@ export default {
   dayClockComplete: 'Finished all clocks for today',
   sessionN: 'Session {{n}}',
   passwordPolicyHint:
-    'Passwords must be at least 6 characters and contain only letters and numbers (e.g. Abcd1234).',
+    'Passwords must be at least 8 characters with at least one letter and one number.',
   professionalReport: 'Absen HJS (Excel)',
   attendanceByUser: 'Filter by user',
   editAttendance: 'Edit',

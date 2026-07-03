@@ -69,6 +69,8 @@ export default {
   userDeleted: 'Pengguna dihapus',
   userAdded: 'Pengguna ditambahkan',
   userUpdated: 'Pengguna diperbarui',
+  confirmDeleteUser: 'Hapus pengguna "{{name}}"? Tindakan ini tidak dapat dibatalkan.',
+  searchUsers: 'Cari pengguna…',
   editUser: 'Ubah',
   saveUser: 'Simpan',
   fullNameRequired: 'Nama lengkap wajib untuk Staff Kantor dan Petugas Lapangan.',
@@ -529,7 +531,7 @@ export default {
   dayClockComplete: 'Semua absen hari ini selesai',
   sessionN: 'Sesi {{n}}',
   passwordPolicyHint:
-    'Kata sandi minimal 6 karakter dan hanya huruf serta angka (contoh: Abcd1234).',
+    'Kata sandi minimal 8 karakter, harus mengandung huruf dan angka.',
   professionalReport: 'Absen HJS (Excel)',
   attendanceByUser: 'Filter menurut pengguna',
   editAttendance: 'Ubah',

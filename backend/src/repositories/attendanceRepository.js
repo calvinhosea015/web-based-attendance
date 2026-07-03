@@ -57,8 +57,8 @@ class AttendanceRepository {
     return r.rows;
   }
 
-  async insertCheckIn(row) {
-    const r = await query(
+  async insertCheckIn(row, exec = query) {
+    const r = await exec(
       `INSERT INTO attendance (
         employee_id, office_id, check_in, lat_in, lng_in,
         gps_accuracy_in_m, client_ts_in, ip_in, user_agent_in,
@@ -83,8 +83,8 @@ class AttendanceRepository {
     return r.rows[0];
   }
 
-  async checkoutRow(id, row) {
-    const r = await query(
+  async checkoutRow(id, row, exec = query) {
+    const r = await exec(
       `UPDATE attendance SET
         check_out = NOW(),
         lat_out = $2,

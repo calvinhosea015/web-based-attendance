@@ -1,3 +1,7 @@
+export function formatIdr(n) {
+  return Number(n || 0).toLocaleString('id-ID');
+}
+
 /** Effective daily wage for display (payroll row, employee profile, then field-officer default). */
 export function resolveUpahHarianDisplay(row, settings = null) {
   const payroll = Number(row?.upah_harian);

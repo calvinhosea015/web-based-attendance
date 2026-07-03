@@ -153,8 +153,14 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
   const unreadCount = notifications.filter((n) => !n.read_at).length;
   const bellCount = unreadCount + pendingLoans + pendingLeave + pendingCorrections;
 
-  const handleLogout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    try {
+      const rt = localStorage.getItem('refreshToken');
+      if (rt) await api.post(paths.logout, { refreshToken: rt });
+    } catch { /* best-effort */ }
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('role');
     navigate('/login');
   };
 

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
 import { Alert, Badge, Button, Card, Field, FilterChip, inputClass } from '../components/ui.jsx';
@@ -17,7 +16,6 @@ function statusBadgeVariant(status) {
 
 export default function AdminLeave() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [filter, setFilter] = useState('pending');
   const [rows, setRows] = useState([]);
   const [settings, setSettings] = useState({
@@ -71,14 +69,9 @@ export default function AdminLeave() {
   }, [filter]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token || localStorage.getItem('role') !== 'admin') {
-      navigate('/login');
-      return;
-    }
     loadSettings();
     load();
-  }, [navigate, load, loadSettings]);
+  }, [load, loadSettings]);
 
   const handleSaveSettings = async (e) => {
     e.preventDefault();

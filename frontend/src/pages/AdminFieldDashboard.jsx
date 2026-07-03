@@ -1,25 +1,23 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
-import FieldOperationsPanel from '../components/FieldOperationsPanel.jsx';
+import OmsetReport from '../components/field/OmsetReport.jsx';
+import PabrikCatalog from '../components/field/PabrikCatalog.jsx';
+import LocationManager from '../components/field/LocationManager.jsx';
+import DeliveryRecap from '../components/field/DeliveryRecap.jsx';
 
 export default function AdminFieldDashboard() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!localStorage.getItem('token') || localStorage.getItem('role') !== 'admin') {
-      navigate('/login');
-    }
-  }, [navigate]);
 
   return (
     <AdminLayout
       title={t('fieldOpsDashboardTitle')}
       subtitle={t('fieldOpsDashboardSubtitle')}
     >
-      <FieldOperationsPanel showDeliveryRecap recapEditable />
+      <OmsetReport />
+      <PabrikCatalog />
+      <LocationManager />
+      <DeliveryRecap editable />
     </AdminLayout>
   );
 }

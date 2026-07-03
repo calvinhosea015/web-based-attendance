@@ -14,7 +14,9 @@ const { requestContext } = require('./middleware/requestContext');
 const { buildV1Router } = require('./routes/v1');
 
 function corsOrigin(origin, cb) {
+  // ponytail: in production, require explicit ALLOWED_ORIGINS; dev allows all
   if (!config.allowedOrigins.length) {
+    if (config.nodeEnv === 'production') return cb(null, false);
     return cb(null, true);
   }
   if (!origin) return cb(null, true);
@@ -44,7 +46,16 @@ function createApp() {
   app.set('trust proxy', 1);
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'", ...config.allowedOrigins],
+          fontSrc: ["'self'", 'data:'],
+        },
+      },
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   );

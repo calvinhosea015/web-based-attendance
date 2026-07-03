@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ensureCsrf } from './api/client.js';
+import { canAccessEmployeePayrollPortal } from './roles.js';
+import { EmptyState } from './components/ui.jsx';
 import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPayroll from './pages/AdminPayroll.jsx';
@@ -51,6 +53,27 @@ function PublicHeader({ showName = true, showLogo = true }) {
   );
 }
 
+function ProtectedRoute({ roles, children }) {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(role)) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function NotFound() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[60dvh] items-center justify-center px-4">
+      <EmptyState title="Page not found">
+        <Link to="/login" className="apple-link mt-2 inline-block">
+          {t('login')}
+        </Link>
+      </EmptyState>
+    </div>
+  );
+}
+
 export default function App() {
   const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
@@ -76,17 +99,18 @@ export default function App() {
       <main className="relative z-10">
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/payroll" element={<AdminPayroll />} />
-          <Route path="/admin/field" element={<AdminFieldDashboard />} />
-          <Route path="/admin/loans" element={<AdminLoans />} />
-          <Route path="/admin/leave" element={<AdminLeave />} />
-          <Route path="/admin/corrections" element={<AdminCorrections />} />
-          <Route path="/admin/reports" element={<AdminReports />} />
+          <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/payroll" element={<ProtectedRoute roles={['admin']}><AdminPayroll /></ProtectedRoute>} />
+          <Route path="/admin/field" element={<ProtectedRoute roles={['admin']}><AdminFieldDashboard /></ProtectedRoute>} />
+          <Route path="/admin/loans" element={<ProtectedRoute roles={['admin']}><AdminLoans /></ProtectedRoute>} />
+          <Route path="/admin/leave" element={<ProtectedRoute roles={['admin']}><AdminLeave /></ProtectedRoute>} />
+          <Route path="/admin/corrections" element={<ProtectedRoute roles={['admin']}><AdminCorrections /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute roles={['admin']}><AdminReports /></ProtectedRoute>} />
           <Route path="/employee" element={<EmployeeDashboard />} />
           <Route path="/finance/field-omset" element={<FinanceFieldOmset />} />
           <Route path="/user" element={<Navigate to="/employee" replace />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
     </div>

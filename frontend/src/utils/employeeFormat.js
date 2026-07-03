@@ -8,10 +8,6 @@ export function formatApiError(err) {
   return translateApiMessage(err);
 }
 
-export function formatIdr(n) {
-  return Number(n || 0).toLocaleString('id-ID');
-}
-
 export function toDateTimeLocalValue(v) {
   if (!v) return '';
   const d = new Date(v);

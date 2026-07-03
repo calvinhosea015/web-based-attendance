@@ -3,20 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
-  Badge,
   Button,
   Card,
   EmptyState,
-  Field,
   PageHero,
-  inputClass,
   panelClass,
-  selectClass,
 } from '../components/ui.jsx';
-import LoanProgress from '../components/LoanProgress.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
-import { translateApiMessage, translateAttendanceStatus, translateRole } from '../translateApi.js';
+import { translateAttendanceStatus, translateRole } from '../translateApi.js';
 import {
   canAccessEmployeePayrollPortal,
   isPayrollOnlyRole,
@@ -24,19 +19,17 @@ import {
   ROLE_FIELD_OFFICER,
   isAccountingRole,
 } from '../roles.js';
-import {
-  isFieldCheckoutFormatValid,
-  parseFieldCheckoutDisplay,
-  splitFieldCheckoutLines,
-  fieldDeliveryDisplayFields,
-} from '../utils/fieldCheckout.js';
+import { fieldDeliveryDisplayFields } from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
-import { openLeaveDocument } from '../utils/openLeaveDocument.js';
-import { formatDateRange, formatDisplayDate, formatDisplayDateTime } from '../utils/formatDate.js';
-import LeaveDocumentButton from '../components/LeaveDocumentButton.jsx';
+import { formatDisplayDate, formatDisplayDateTime } from '../utils/formatDate.js';
 import EmployeeHistorySection from '../components/employee/EmployeeHistorySection.jsx';
+import PayrollCard from '../components/employee/PayrollCard.jsx';
+import LoanPanel from '../components/employee/LoanPanel.jsx';
+import LeavePanel from '../components/employee/LeavePanel.jsx';
+import FieldCodePanel from '../components/employee/FieldCodePanel.jsx';
 import { formatApiError } from '../utils/employeeFormat.js';
+import { formatIdr } from '../utils/payrollDisplay.js';
 
 function geoMessage(err) {
   const key = geoMessageKey(err);
@@ -50,10 +43,6 @@ function formatTimePart(t) {
   return s.length >= 5 ? s.slice(0, 5) : s;
 }
 
-function formatIdr(n) {
-  return Number(n || 0).toLocaleString('id-ID');
-}
-
 export default function EmployeeDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -64,30 +53,10 @@ export default function EmployeeDashboard() {
   const [remoteWork, setRemoteWork] = useState(false);
   const [clockPending, setClockPending] = useState(false);
   const [checkoutCode, setCheckoutCode] = useState('');
-  const [fieldCodeDraft, setFieldCodeDraft] = useState('');
-  const [fieldCodeSubmitting, setFieldCodeSubmitting] = useState(false);
-  const [loans, setLoans] = useState([]);
   const [payroll, setPayroll] = useState([]);
-  const [loanForm, setLoanForm] = useState({
-    loan_amount: '',
-    monthly_deduction: '',
-    notes: '',
-  });
-  const [loanSubmitting, setLoanSubmitting] = useState(false);
-  const [leaveBalances, setLeaveBalances] = useState([]);
-  const [leaveRequests, setLeaveRequests] = useState([]);
-  const [leaveForm, setLeaveForm] = useState({
-    leave_type: 'medical',
-    start_date: '',
-    end_date: '',
-    reason: '',
-  });
-  const [leaveDocument, setLeaveDocument] = useState(null);
-  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [geoPreview, setGeoPreview] = useState(null);
   const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
   const [fieldDeliveries, setFieldDeliveries] = useState([]);
-  const [todayDeliveries, setTodayDeliveries] = useState({ entries: [], today_bonus_total: 0 });
 
   const notify = (text, tone = 'error') => {
     setMessageTone(tone);
@@ -132,36 +101,18 @@ export default function EmployeeDashboard() {
           return;
         }
         const isStaffKantor = role === ROLE_EMPLOYEE;
-        const isFieldOfficerRole = role === ROLE_FIELD_OFFICER;
-        const [s, h, ln, pr, fd, lb, lr, td] = await Promise.all([
+        const [s, h, pr, fd] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
-          api.get(paths.employeeLoans).catch(() => ({ data: [] })),
           api.get(paths.employeePayroll).catch(() => ({ data: [] })),
           isStaffKantor
             ? api.get(paths.employeeFieldDeliveries).catch(() => ({ data: [] }))
             : Promise.resolve({ data: [] }),
-          isStaffKantor
-            ? api.get(paths.employeeLeaveBalances).catch(() => ({ data: [] }))
-            : Promise.resolve({ data: [] }),
-          isStaffKantor
-            ? api.get(paths.employeeLeaveRequests).catch(() => ({ data: [] }))
-            : Promise.resolve({ data: [] }),
-          isFieldOfficerRole
-            ? api.get(paths.employeeFieldDeliveriesToday).catch(() => ({ data: { entries: [] } }))
-            : Promise.resolve({ data: { entries: [] } }),
         ]);
         setSummary(s.data);
         setHistory(h.data);
-        setLoans(ln.data || []);
         setPayroll(pr.data || []);
         setFieldDeliveries(fd.data || []);
-        setTodayDeliveries({
-          entries: td.data?.entries || [],
-          today_bonus_total: Number(td.data?.today_bonus_total || 0),
-        });
-        setLeaveBalances(lb.data || []);
-        setLeaveRequests(lr.data || []);
       } catch (e) {
         console.error(e);
         setMessageTone('error');
@@ -206,32 +157,14 @@ export default function EmployeeDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when office assignment loads
   }, [summary?.assigned_office?.id]);
 
-  const loadTodayDeliveries = async (role) => {
-    if (role !== ROLE_FIELD_OFFICER) {
-      setTodayDeliveries({ entries: [], today_bonus_total: 0 });
-      return;
-    }
-    try {
-      const { data } = await api.get(paths.employeeFieldDeliveriesToday);
-      setTodayDeliveries({
-        entries: data?.entries || [],
-        today_bonus_total: Number(data?.today_bonus_total || 0),
-      });
-    } catch {
-      setTodayDeliveries({ entries: [], today_bonus_total: 0 });
-    }
-  };
-
   const refreshEmployee = async () => {
     try {
-      const role = localStorage.getItem('role');
       const [s, h] = await Promise.all([
         api.get(paths.employeeSummary),
         api.get(paths.employeeAttendance),
       ]);
       setSummary(s.data);
       setHistory(h.data);
-      await loadTodayDeliveries(role);
     } catch (e) {
       console.error(e);
       notify(formatApiError(e));
@@ -286,38 +219,6 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const handleSubmitFieldCode = async () => {
-    const lines = splitFieldCheckoutLines(fieldCodeDraft);
-    if (!lines.length) {
-      notify(t('checkoutCodeRequired'));
-      return;
-    }
-    const invalid = lines.find((line) => !isFieldCheckoutFormatValid(line));
-    if (invalid) {
-      notify(t('checkoutCodeInvalidFormat'));
-      return;
-    }
-    setMessage('');
-    setFieldCodeSubmitting(true);
-    try {
-      await ensureCsrf();
-      const { data } = await api.post(paths.employeeFieldCode, { code: fieldCodeDraft.trim() });
-      const count = data?.count ?? lines.length;
-      notify(
-        count > 1
-          ? t('fieldCodesAccepted', { count, bonus: formatIdr(data?.today_bonus_total) })
-          : t('fieldCodeAcceptedBonus', { bonus: formatIdr(data?.today_bonus_total) }),
-        'success'
-      );
-      setFieldCodeDraft('');
-      await refreshEmployee();
-    } catch (err) {
-      notify(formatApiError(err));
-    } finally {
-      setFieldCodeSubmitting(false);
-    }
-  };
-
   const handleCheckOut = async () => {
     setMessage('');
     setClockPending(true);
@@ -339,96 +240,6 @@ export default function EmployeeDashboard() {
     const action = summary?.next_clock_action ?? 'check_in';
     if (action === 'check_out') await handleCheckOut();
     else if (action === 'check_in') await handleCheckIn();
-  };
-
-  const refreshLoans = async () => {
-    try {
-      const { data } = await api.get(paths.employeeLoans);
-      setLoans(data || []);
-    } catch {
-      setLoans([]);
-    }
-  };
-
-  const handleLoanSubmit = async (e) => {
-    e.preventDefault();
-    setLoanSubmitting(true);
-    setMessage('');
-    try {
-      await ensureCsrf();
-      await api.post(paths.employeeLoans, {
-        loan_amount: Number(loanForm.loan_amount),
-        monthly_deduction: Number(loanForm.monthly_deduction),
-        notes: loanForm.notes || undefined,
-      });
-      setLoanForm({ loan_amount: '', monthly_deduction: '', notes: '' });
-      notify(t('loanSubmitted'), 'success');
-      await refreshLoans();
-    } catch (err) {
-      notify(formatApiError(err));
-    } finally {
-      setLoanSubmitting(false);
-    }
-  };
-
-  const hasPendingLoan = loans.some((l) => l.approval_status === 'pending');
-
-  const hasPendingLeave = leaveRequests.some((l) => l.approval_status === 'pending');
-  const leaveNeedsDocument = leaveForm.leave_type === 'medical';
-
-  const refreshLeave = async () => {
-    try {
-      const [lb, lr] = await Promise.all([
-        api.get(paths.employeeLeaveBalances),
-        api.get(paths.employeeLeaveRequests),
-      ]);
-      setLeaveBalances(lb.data || []);
-      setLeaveRequests(lr.data || []);
-    } catch {
-      setLeaveBalances([]);
-      setLeaveRequests([]);
-    }
-  };
-
-  const handleLeaveSubmit = async (e) => {
-    e.preventDefault();
-    if (leaveNeedsDocument && !leaveDocument) {
-      notify(t('leaveDocumentRequired'));
-      return;
-    }
-    setLeaveSubmitting(true);
-    setMessage('');
-    try {
-      await ensureCsrf();
-      const form = new FormData();
-      form.append('leave_type', leaveForm.leave_type);
-      form.append('start_date', leaveForm.start_date);
-      form.append('end_date', leaveForm.end_date);
-      if (leaveForm.reason) form.append('reason', leaveForm.reason);
-      if (leaveDocument) form.append('document', leaveDocument);
-      await api.post(paths.employeeLeaveRequests, form);
-      setLeaveForm({ leave_type: 'medical', start_date: '', end_date: '', reason: '' });
-      setLeaveDocument(null);
-      notify(t('leaveSubmitted'), 'success');
-      await refreshLeave();
-    } catch (err) {
-      notify(formatApiError(err));
-    } finally {
-      setLeaveSubmitting(false);
-    }
-  };
-
-  const openLeaveAttachment = async (requestId) => {
-    if (!requestId) return;
-    try {
-      await openLeaveDocument(api, paths.leaveRequestAttachment(requestId), {
-        title: t('leaveDocumentPreviewTitle'),
-        closeLabel: t('close'),
-        downloadLabel: t('download'),
-      });
-    } catch (err) {
-      notify(err.message ? err.message : formatApiError(err));
-    }
   };
 
   const handleLogout = async () => {
@@ -512,114 +323,6 @@ export default function EmployeeDashboard() {
     distancePreview != null && maxAllowedPreview != null && distancePreview <= maxAllowedPreview;
 
   const payrollOnly = isPayrollOnlyRole(localStorage.getItem('role'));
-
-  const payrollCard = (
-    <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
-      {payroll.length > 0 ? (
-        <ul className="space-y-3 text-sm">
-          {payroll.map((row) => {
-            const loanDeduction = Number(row.loan_deduction || 0);
-            const pph21 = Number(row.pph_21 || 0);
-            const otherDeductions = Number(row.other_deductions || 0);
-            const deductions = loanDeduction + pph21 + otherDeductions;
-            return (
-              <li
-                key={row.id}
-                className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-apple-text">
-                    {payrollCycleLabel(row.payroll_period)}
-                  </span>
-                  <span className="font-semibold text-brand-700">
-                    Rp {formatIdr(row.final_salary)}
-                  </span>
-                </div>
-                <dl className="mt-3 grid gap-1 text-apple-label sm:grid-cols-2">
-                  <div>
-                    <dt className="text-xs uppercase tracking-wide text-apple-label">
-                      {t('payrollDaysAttended')}
-                    </dt>
-                    <dd className="font-medium text-apple-text">{row.days_attended ?? 0}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs uppercase tracking-wide text-apple-label">
-                      {t('payrollBasicSalary')}
-                    </dt>
-                    <dd className="font-medium text-apple-text">Rp {formatIdr(row.basic_salary)}</dd>
-                  </div>
-                  {(row.payroll_mode === 'monthly' ||
-                    row.payroll_mode === 'umum' ||
-                    row.payroll_mode === 'general_affairs' ||
-                    row.payroll_mode === 'accounting') &&
-                    Number(row.absence_deduction || 0) > 0 && (
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollAbsenceDeduction')}
-                      </dt>
-                      <dd className="font-medium text-rose-700">
-                        Rp {formatIdr(row.absence_deduction)}
-                      </dd>
-                    </div>
-                  )}
-                  {loanDeduction > 0 && (
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollLoanDeduction')}
-                      </dt>
-                      <dd className="font-medium text-rose-700">Rp {formatIdr(loanDeduction)}</dd>
-                    </div>
-                  )}
-                  {pph21 > 0 && (
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollPph21')}
-                      </dt>
-                      <dd className="font-medium text-rose-700">Rp {formatIdr(pph21)}</dd>
-                    </div>
-                  )}
-                  {otherDeductions > 0 && (
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollOtherDeductions')}
-                      </dt>
-                      <dd className="font-medium text-apple-text">Rp {formatIdr(otherDeductions)}</dd>
-                    </div>
-                  )}
-                  {Number(row.bonus_omset || 0) > 0 && (
-                    <div>
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollBonusOmset')}
-                      </dt>
-                      <dd className="font-medium text-brand-700">Rp {formatIdr(row.bonus_omset)}</dd>
-                    </div>
-                  )}
-                  {deductions > 0 && loanDeduction > 0 && otherDeductions > 0 && (
-                    <div className="sm:col-span-2">
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollDeductions')}
-                      </dt>
-                      <dd className="font-medium text-apple-text">Rp {formatIdr(deductions)}</dd>
-                    </div>
-                  )}
-                  {row.keterangan ? (
-                    <div className="sm:col-span-2">
-                      <dt className="text-xs uppercase tracking-wide text-apple-label">
-                        {t('payrollKeterangan')}
-                      </dt>
-                      <dd className="font-medium text-apple-text">{row.keterangan}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="text-sm text-apple-label">{t('payrollEmployeeEmpty')}</p>
-      )}
-    </Card>
-  );
 
   if (payrollOnly) {
     return (
@@ -902,62 +605,7 @@ export default function EmployeeDashboard() {
                 </Button>
               </div>
 
-              <div className="border-t border-black/[0.06] pt-6">
-                <Field
-                  label={t('fieldCheckoutCode')}
-                  hint={
-                    nextAction === 'check_in' ? t('fieldCodeCheckInFirst') : t('fieldCodeSubmitHint')
-                  }
-                >
-                  <textarea
-                    className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
-                    value={fieldCodeDraft}
-                    onChange={(e) => setFieldCodeDraft(e.target.value)}
-                    autoComplete="off"
-                    placeholder={t('fieldCheckoutCodePlaceholder')}
-                    disabled={nextAction === 'check_in'}
-                  />
-                  <Button
-                    type="button"
-                    variant="primary"
-                    className="mt-3 w-full sm:w-auto"
-                    disabled={
-                      nextAction === 'check_in' ||
-                      fieldCodeSubmitting ||
-                      !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
-                        isFieldCheckoutFormatValid(line)
-                      ) ||
-                      !splitFieldCheckoutLines(fieldCodeDraft).length
-                    }
-                    onClick={handleSubmitFieldCode}
-                  >
-                    {fieldCodeSubmitting ? t('loading') : t('submitFieldCode')}
-                  </Button>
-                  {todayDeliveries.entries.length > 0 && (
-                    <div className="mt-4 rounded-apple-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-xs">
-                      <p className="font-medium text-apple-text">
-                        {t('fieldDeliveryTodayTotal', {
-                          count: todayDeliveries.entries.length,
-                          bonus: formatIdr(todayDeliveries.today_bonus_total),
-                        })}
-                      </p>
-                      <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                        {todayDeliveries.entries.map((entry) => (
-                          <li key={entry.id} className="border-t border-black/[0.04] pt-2 font-mono">
-                            <div className="break-all text-apple-text">{entry.checkout_code}</div>
-                            <div className="mt-0.5 text-apple-label">
-                              {t('fieldDeliveryLineBonus', {
-                                berat: entry.berat_bersih,
-                                bonus: formatIdr(entry.bonus_amount),
-                              })}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </Field>
-              </div>
+              <FieldCodePanel summary={summary} notify={notify} onRefresh={refreshEmployee} />
             </div>
           </Card>
 
@@ -1056,238 +704,11 @@ export default function EmployeeDashboard() {
       </Card>
       )}
 
-      {!isFieldOfficer && payrollCard}
+      {!isFieldOfficer && <PayrollCard payroll={payroll} />}
 
-      {isStaffKantor && (
-        <Card title={t('leaveTitle')} description={t('leaveEmployeeHint')}>
-          {leaveBalances.length > 0 && (
-            <div className="mb-6 grid gap-3 sm:grid-cols-3">
-              {leaveBalances.map((b) => (
-                <div
-                  key={b.leave_type}
-                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/60 px-4 py-3 text-sm"
-                >
-                  <p className="text-xs font-medium uppercase tracking-wide text-apple-label">
-                    {t(`leaveType_${b.leave_type}`)}
-                  </p>
-                  <p className="mt-1 text-[22px] font-semibold tracking-tightest text-apple-text">
-                    {b.remaining_days} / {b.quota_days} {t('leaveDaysUnit')}
-                  </p>
-                  <p className="text-xs text-apple-label">{t('leaveBalanceRemaining')}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLeaveSubmit}>
-            <Field label={t('leaveType')}>
-              <select
-                className={selectClass}
-                value={leaveForm.leave_type}
-                onChange={(e) => {
-                  setLeaveForm((f) => ({ ...f, leave_type: e.target.value }));
-                  if (e.target.value !== 'medical') setLeaveDocument(null);
-                }}
-                disabled={hasPendingLeave}
-              >
-                <option value="medical">{t('leaveType_medical')}</option>
-                <option value="unpaid">{t('leaveType_unpaid')}</option>
-                <option value="paternity">{t('leaveType_paternity')}</option>
-              </select>
-            </Field>
-            <Field label={t('leaveStartDate')}>
-              <input
-                type="date"
-                required
-                className={inputClass}
-                value={leaveForm.start_date}
-                onChange={(e) => setLeaveForm((f) => ({ ...f, start_date: e.target.value }))}
-                disabled={hasPendingLeave}
-              />
-            </Field>
-            <Field label={t('leaveEndDate')}>
-              <input
-                type="date"
-                required
-                className={inputClass}
-                value={leaveForm.end_date}
-                min={leaveForm.start_date || undefined}
-                onChange={(e) => setLeaveForm((f) => ({ ...f, end_date: e.target.value }))}
-                disabled={hasPendingLeave}
-              />
-            </Field>
-            {leaveNeedsDocument && (
-              <Field label={t('leaveDocument')} hint={t('leaveDocumentHint')}>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  required
-                  className={inputClass}
-                  onChange={(e) => setLeaveDocument(e.target.files?.[0] || null)}
-                  disabled={hasPendingLeave}
-                />
-              </Field>
-            )}
-            <Field label={t('leaveReason')} className="sm:col-span-2">
-              <textarea
-                className={`${inputClass} min-h-[72px]`}
-                value={leaveForm.reason}
-                onChange={(e) => setLeaveForm((f) => ({ ...f, reason: e.target.value }))}
-                disabled={hasPendingLeave}
-                maxLength={2000}
-              />
-            </Field>
-            <div className="sm:col-span-2">
-              {hasPendingLeave && (
-                <p className="mb-3 text-sm text-amber-800">{t('leavePendingExists')}</p>
-              )}
-              <Button type="submit" variant="primary" disabled={leaveSubmitting || hasPendingLeave}>
-                {leaveSubmitting ? t('loading') : t('leaveSubmit')}
-              </Button>
-            </div>
-          </form>
-          {leaveRequests.length > 0 && (
-            <ul className="mt-6 space-y-4 border-t border-black/[0.04] pt-6">
-              {leaveRequests.map((req) => (
-                <li
-                  key={req.id}
-                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <span className="font-semibold text-apple-text">
-                        {t(`leaveType_${req.leave_type}`)}
-                      </span>
-                      <span className="ml-2 text-apple-label">
-                        {formatDateRange(req.start_date, req.end_date)} · {req.days_count}{' '}
-                        {t('leaveDaysUnit')}
-                      </span>
-                    </div>
-                    <Badge
-                      variant={
-                        req.approval_status === 'approved'
-                          ? 'success'
-                          : req.approval_status === 'rejected'
-                            ? 'muted'
-                            : 'neutral'
-                      }
-                    >
-                      {t(`leaveStatus_${req.approval_status}`)}
-                    </Badge>
-                  </div>
-                  {req.reason && <p className="mt-1 text-xs text-apple-label">{req.reason}</p>}
-                  {req.approval_status === 'approved' && (
-                    <p className="mt-1 text-xs text-apple-label">
-                      {t('leavePayStatus')}: {req.is_paid ? t('leavePaid') : t('leaveUnpaid')}
-                    </p>
-                  )}
-                  {req.approval_status === 'pending' && req.leave_type === 'medical' && (
-                    <p className="mt-1 text-xs text-apple-label">{t('leaveMedicalPaidHint')}</p>
-                  )}
-                  {req.approval_status === 'pending' && req.leave_type === 'unpaid' && (
-                    <p className="mt-1 text-xs text-apple-label">{t('leaveUnpaidHint')}</p>
-                  )}
-                  <p className="mt-1 text-xs text-apple-label">
-                    {t('leaveSubmittedAt')}: {formatDisplayDateTime(req.created_at)}
-                  </p>
-                  {req.attachment_path && (
-                    <LeaveDocumentButton onClick={() => openLeaveAttachment(req.id)} />
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
+      {isStaffKantor && <LeavePanel notify={notify} />}
 
-      <Card title={t('loanTitle')} description={t('loanEmployeeHint')}>
-        <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLoanSubmit}>
-          <Field label={t('loanAmount')}>
-            <input
-              type="number"
-              min="1"
-              required
-              className={inputClass}
-              value={loanForm.loan_amount}
-              onChange={(e) => setLoanForm((f) => ({ ...f, loan_amount: e.target.value }))}
-              disabled={hasPendingLoan}
-            />
-          </Field>
-          <Field label={t('loanMonthlyDeduction')} hint={t('loanPotongGajiHint')}>
-            <input
-              type="number"
-              min="1"
-              required
-              className={inputClass}
-              value={loanForm.monthly_deduction}
-              onChange={(e) => setLoanForm((f) => ({ ...f, monthly_deduction: e.target.value }))}
-              disabled={hasPendingLoan}
-            />
-          </Field>
-          <Field label={t('loanNotes')} className="sm:col-span-2">
-            <textarea
-              className={`${inputClass} min-h-[72px]`}
-              value={loanForm.notes}
-              onChange={(e) => setLoanForm((f) => ({ ...f, notes: e.target.value }))}
-              disabled={hasPendingLoan}
-              maxLength={2000}
-            />
-          </Field>
-          <div className="sm:col-span-2">
-            {hasPendingLoan && (
-              <p className="mb-3 text-sm text-amber-800">{t('loanPendingExists')}</p>
-            )}
-            <Button type="submit" variant="primary" disabled={loanSubmitting || hasPendingLoan}>
-              {loanSubmitting ? t('loading') : t('loanSubmit')}
-            </Button>
-          </div>
-        </form>
-        {loans.length > 0 && (
-          <ul className="mt-6 space-y-4 border-t border-black/[0.04] pt-6">
-            {loans.map((loan) => (
-              <li
-                key={loan.id}
-                className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4 text-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="font-semibold text-apple-text">
-                      Rp {Number(loan.loan_amount).toLocaleString('id-ID')}
-                    </span>
-                    <span className="ml-2 text-apple-label">
-                      · Rp {Number(loan.monthly_deduction).toLocaleString('id-ID')}/{t('loanPerMonth')}
-                    </span>
-                  </div>
-                  <Badge
-                    variant={
-                      loan.approval_status === 'approved'
-                        ? loan.is_paid_off
-                          ? 'success'
-                          : 'success'
-                        : loan.approval_status === 'rejected'
-                          ? 'muted'
-                          : 'neutral'
-                    }
-                  >
-                    {loan.is_paid_off
-                      ? t('loanProgressPaidOff')
-                      : t(`loanStatus_${loan.approval_status}`)}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-apple-label">
-                  {t('loanSubmittedAt')}: {formatDisplayDateTime(loan.created_at)}
-                  {loan.decided_at && (
-                    <>
-                      {' '}
-                      · {t('loanDecidedAt')}: {formatDisplayDateTime(loan.decided_at)}
-                    </>
-                  )}
-                </p>
-                <LoanProgress loan={loan} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <LoanPanel notify={notify} />
 
       {isStaffKantor && (
         <Card title={t('fieldDeliveryTitle')} description={t('fieldDeliveryHint')}>
@@ -1368,10 +789,7 @@ export default function EmployeeDashboard() {
       />
       )}
 
-      {isFieldOfficer && payrollCard}
+      {isFieldOfficer && <PayrollCard payroll={payroll} />}
     </div>
   );
 }
-
-
-

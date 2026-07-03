@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
 import { Alert, Badge, Button, Card, EmptyState, Spinner } from '../components/ui.jsx';
@@ -9,7 +8,6 @@ import { formatDisplayDateTime } from '../utils/formatDate.js';
 
 export default function AdminCorrections() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('info');
@@ -37,13 +35,8 @@ export default function AdminCorrections() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token || localStorage.getItem('role') !== 'admin') {
-      navigate('/login');
-      return;
-    }
     load();
-  }, [navigate, load]);
+  }, [load]);
 
   const handleDecide = async (id, status) => {
     setDecidingId(id);

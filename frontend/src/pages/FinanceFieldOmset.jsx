@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, PageHero } from '../components/ui.jsx';
 import { Reveal } from '../components/Reveal.jsx';
-import FieldOperationsPanel from '../components/FieldOperationsPanel.jsx';
+import OmsetReport from '../components/field/OmsetReport.jsx';
 import { ROLE_ADMIN, canViewFieldOmsetReport } from '../roles.js';
 import { currentPayrollPeriodKey } from '../utils/payrollPeriod.js';
 
@@ -63,14 +63,7 @@ export default function FinanceFieldOmset() {
           }
         />
       </Reveal>
-      <FieldOperationsPanel
-        period={period}
-        onPeriodChange={onPeriodChange}
-        showPabrik={false}
-        showTonase={false}
-        showOmset
-        showDeliveryRecap
-      />
+      <OmsetReport period={period} onPeriodChange={onPeriodChange} />
     </div>
   );
 }

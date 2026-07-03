@@ -9,9 +9,9 @@ export function DoubleBezel({ children, className = '', innerClassName = '' }) {
   );
 }
 
-export function Card({ title, description, action, children, className = '', bodyClassName = '' }) {
+export function Card({ title, description, action, children, className = '', bodyClassName = '', id }) {
   return (
-    <section className={`bezel-outer shadow-apple ${className}`}>
+    <section id={id} className={`bezel-outer shadow-apple ${className}`}>
       <div className="bezel-inner overflow-hidden">
         {(title || description || action) && (
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-5 py-4 sm:px-6">
@@ -43,7 +43,7 @@ export function Button({
   ...props
 }) {
   const base =
-    'group inline-flex items-center justify-center gap-2 font-medium transition-all duration-premium ease-premium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-40';
+    'group inline-flex items-center justify-center gap-2 font-medium transition-all duration-fast ease-premium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-40';
   const sizes = {
     sm: 'px-4 py-2 text-[13px] rounded-full',
     md: 'px-5 py-2.5 text-[15px] rounded-full',
@@ -72,7 +72,7 @@ export function Button({
     >
       <span>{children}</span>
       {showTrailing && (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] transition-all duration-premium ease-premium group-hover:translate-x-0.5 group-hover:-translate-y-px group-hover:scale-105 group-active:scale-95 dark:bg-white/10">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] transition-all duration-fast ease-premium group-hover:translate-x-0.5 group-hover:-translate-y-px group-hover:scale-105 group-active:scale-95 dark:bg-white/10">
           {trailingIcon || (
             <span className="text-[14px] leading-none" aria-hidden>
               ↗
@@ -99,7 +99,7 @@ export function Alert({ tone = 'info', children, onDismiss }) {
       {onDismiss && (
         <button
           type="button"
-          className="shrink-0 rounded-full p-1 text-apple-muted transition-all duration-300 ease-premium hover:bg-black/[0.06] hover:text-apple-text"
+          className="shrink-0 rounded-full p-1 text-apple-muted transition-all duration-fast ease-premium hover:bg-black/[0.06] hover:text-apple-text"
           onClick={onDismiss}
           aria-label="Dismiss"
         >
@@ -196,38 +196,8 @@ export const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
 export const panelClass = 'bezel-outer shadow-apple';
 
-export function PageSection({
-  title,
-  description,
-  action,
-  children,
-  className = '',
-  bodyClassName = '',
-  id,
-}) {
-  return (
-    <section id={id} className={`bezel-outer shadow-apple ${className}`}>
-      <div className="bezel-inner overflow-hidden">
-        {(title || description || action) && (
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-5 py-4 sm:px-6">
-            <div className="max-w-3xl">
-              {title && (
-                <h2 className="font-display text-title font-semibold text-apple-text">
-                  {title}
-                </h2>
-              )}
-              {description && (
-                <p className="mt-1 text-[14px] leading-relaxed text-apple-label">{description}</p>
-              )}
-            </div>
-            {action}
-          </div>
-        )}
-        <div className={`px-5 py-5 sm:px-6 ${bodyClassName}`}>{children}</div>
-      </div>
-    </section>
-  );
-}
+// ponytail: PageSection was identical to Card — kept as alias for backward compat
+export const PageSection = Card;
 
 export function ListGroup({ children, className = '' }) {
   return (

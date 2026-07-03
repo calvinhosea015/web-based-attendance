@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Geist"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-        display: ['"Geist"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        sans: ['"Geist"', 'system-ui', 'sans-serif'],
+        display: ['"Plus Jakarta Sans"', '"Geist"', 'system-ui', 'sans-serif'],
         mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       fontSize: {
@@ -68,6 +68,8 @@ export default {
         spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
       transitionDuration: {
+        fast: '200ms',
+        medium: '400ms',
         premium: '700ms',
       },
       backdropBlur: {

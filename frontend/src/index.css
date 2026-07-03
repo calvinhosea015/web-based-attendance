@@ -19,7 +19,8 @@
   }
 
   :focus-visible {
-    outline: none;
+    outline: 2px solid rgba(37, 99, 201, 0.45);
+    outline-offset: 2px;
   }
 
   /* Consistent, accessible native checkboxes/radios across the whole app. */
@@ -61,18 +62,6 @@
       radial-gradient(ellipse 60% 40% at 100% 0%, rgba(37, 99, 201, 0.02), transparent);
   }
 
-  .page-canvas::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.015;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 128px 128px;
-  }
-
   /* Double-bezel nested architecture — flattened: thinner tray, lighter sheen. */
   .bezel-outer {
     @apply rounded-bezel bg-apple-shell p-1 ring-1 ring-black/[0.05] transition-all duration-premium ease-premium;
@@ -87,15 +76,15 @@
   }
 
   .apple-link {
-    @apply font-medium text-brand-600 transition-all duration-300 ease-premium hover:text-brand-500;
+    @apply font-medium text-brand-600 transition-all duration-fast ease-premium hover:text-brand-500;
   }
 
   .apple-chip {
-    @apply rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-apple-label ring-1 ring-black/[0.06] transition-all duration-300 ease-premium hover:bg-apple-highlight hover:text-apple-text;
+    @apply rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-apple-label ring-1 ring-black/[0.06] transition-all duration-fast ease-premium hover:bg-apple-highlight hover:text-apple-text;
   }
 
   .apple-chip-active {
-    @apply rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-apple transition-all duration-300 ease-premium;
+    @apply rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-apple transition-all duration-fast ease-premium;
   }
 
   .apple-eyebrow {
@@ -123,7 +112,7 @@
   }
 
   .apple-table-row {
-    @apply border-b border-black/[0.04] bg-white transition-colors duration-300 ease-premium last:border-0 hover:bg-apple-highlight/60;
+    @apply border-b border-black/[0.04] bg-white transition-colors duration-fast ease-premium last:border-0 hover:bg-apple-highlight/60;
   }
 
   .apple-table-row td {

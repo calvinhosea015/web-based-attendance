@@ -24,7 +24,7 @@ module.exports = {
   accessTokenTtlSec: parseInt(process.env.ACCESS_TOKEN_TTL_SEC || '900', 10),
   refreshTokenTtlDays: parseInt(process.env.REFRESH_TOKEN_TTL_DAYS || '14', 10),
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
-  passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '6', 10),
+  passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '8', 10),
   allowedOrigins: parseList(process.env.ALLOWED_ORIGINS),
   csrfEnabled: process.env.CSRF_ENABLED !== 'false',
   activityLogEnabled: process.env.ACTIVITY_LOG_ENABLED !== 'false',

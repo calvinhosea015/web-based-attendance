@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
 import {
@@ -27,7 +26,6 @@ const pad = (n) => String(n).padStart(2, '0');
 
 export default function AdminReports() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [tab, setTab] = useState('analytics');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -113,14 +111,9 @@ export default function AdminReports() {
   }, [tab]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token || localStorage.getItem('role') !== 'admin') {
-      navigate('/login');
-      return;
-    }
     if (tab === 'analytics') loadAnalytics();
     else loadLogs();
-  }, [navigate, tab, loadAnalytics, loadLogs]);
+  }, [tab, loadAnalytics, loadLogs]);
 
   return (
     <AdminLayout title={t('reportsTitle')} subtitle={t('reportsSubtitle')}>

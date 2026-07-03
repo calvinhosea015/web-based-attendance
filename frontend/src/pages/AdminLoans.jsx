@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
 import { Alert, Badge, Button, Card, FilterChip } from '../components/ui.jsx';
 import { api, paths, ensureCsrf } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
 import { formatDisplayDateTime } from '../utils/formatDate.js';
-
-function formatIdr(n) {
-  return Number(n || 0).toLocaleString('id-ID');
-}
+import { formatIdr } from '../utils/payrollDisplay.js';
 
 function estimateMonths(loan, monthly) {
   const l = Number(loan);
@@ -26,7 +22,6 @@ function statusBadgeVariant(status) {
 
 export default function AdminLoans() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [filter, setFilter] = useState('pending');
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState('');
@@ -61,13 +56,8 @@ export default function AdminLoans() {
   }, [filter]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token || localStorage.getItem('role') !== 'admin') {
-      navigate('/login');
-      return;
-    }
     load();
-  }, [navigate, load]);
+  }, [load]);
 
   const handleDecide = async (id, status) => {
     setDecidingId(id);

@@ -1,7 +1,8 @@
 const { AppError } = require('./errors');
 const config = require('../config/env');
 
-const ALPHANUMERIC = /^[a-zA-Z0-9]+$/;
+const HAS_LETTER = /[a-zA-Z]/;
+const HAS_DIGIT = /[0-9]/;
 
 function assertPasswordPolicy(password) {
   if (!password || typeof password !== 'string') {
@@ -11,14 +12,15 @@ function assertPasswordPolicy(password) {
     throw new AppError(
       `Password must be at least ${config.passwordMinLength} characters.`,
       400,
-      'PASSWORD_POLICY'
+      'PASSWORD_MIN_LENGTH',
+      { min: config.passwordMinLength }
     );
   }
-  if (!ALPHANUMERIC.test(password)) {
+  if (!HAS_LETTER.test(password) || !HAS_DIGIT.test(password)) {
     throw new AppError(
-      'Password must contain only letters and numbers.',
+      'Password must contain at least one letter and one number.',
       400,
-      'PASSWORD_POLICY'
+      'PASSWORD_ALPHANUMERIC'
     );
   }
 }

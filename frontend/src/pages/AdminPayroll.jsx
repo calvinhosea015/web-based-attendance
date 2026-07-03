@@ -24,11 +24,7 @@ import {
   countWorkingDaysMonSatInCycle,
   previewMonthlyStaffPayroll,
 } from '../utils/payrollPeriod.js';
-import { resolveUpahHarianDisplay } from '../utils/payrollDisplay.js';
-
-function formatIdr(n) {
-  return Number(n || 0).toLocaleString('id-ID');
-}
+import { resolveUpahHarianDisplay, formatIdr } from '../utils/payrollDisplay.js';
 
 const UI_BUILD_SHA = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'dev';
 
@@ -145,13 +141,8 @@ export default function AdminPayroll() {
   }, [period]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token || localStorage.getItem('role') !== 'admin') {
-      navigate('/login');
-      return;
-    }
     loadPeriod();
-  }, [navigate, loadPeriod]);
+  }, [loadPeriod]);
 
   const PAYROLL_POLL_MS = 30000;
 

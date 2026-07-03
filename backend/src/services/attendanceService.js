@@ -1,3 +1,4 @@
+const { pool } = require('../db/pool');
 const { findCheckInOffice, nearestAssignedOffice, allowedRadiusMeters } = require('../utils/officeAttendance');
 const { resolveAssignedOfficesForEmployee } = require('../utils/employeeOffices');
 const { validateClockGeoOrThrow } = require('../utils/geoTrust');
@@ -355,7 +356,8 @@ class AttendanceService {
       attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : late.status;
     }
 
-    const row = await this.attendanceRepository.insertCheckIn({
+    // ponytail: umum needs insert+auto-checkout atomically; others are a single INSERT
+    const insertArgs = {
       employeeId: auth.employeeId,
       officeId,
       latIn: lat,
@@ -371,29 +373,42 @@ class AttendanceService {
         fake_gps_hints: geo.fakeGpsHints,
         remote_work: remoteWork,
       },
-    });
+    };
 
     if (umum) {
-      const closed = await this.attendanceRepository.checkoutRow(row.id, {
-        latOut: lat,
-        lngOut: lng,
-        gpsAccuracyOutM: accuracyMeters,
-        clientTsOut: clientTimestampMs,
-        ipOut: reqMeta.ip,
-        userAgentOut: reqMeta.userAgent,
-        workHours: 0,
-        overtimeHours: 0,
-        attendanceStatus: row.attendance_status,
-        checkoutCode: null,
-        validationFlagsOut: {
-          umum_auto_checkout: true,
-          checkout_geo_flags: geo.flags,
-          checkout_fake_gps_hints: geo.fakeGpsHints,
-        },
-      });
-      return { message: 'Checked in successfully.', attendance: closed || row };
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const exec = (text, params) => client.query(text, params);
+        const row = await this.attendanceRepository.insertCheckIn(insertArgs, exec);
+        const closed = await this.attendanceRepository.checkoutRow(row.id, {
+          latOut: lat,
+          lngOut: lng,
+          gpsAccuracyOutM: accuracyMeters,
+          clientTsOut: clientTimestampMs,
+          ipOut: reqMeta.ip,
+          userAgentOut: reqMeta.userAgent,
+          workHours: 0,
+          overtimeHours: 0,
+          attendanceStatus: row.attendance_status,
+          checkoutCode: null,
+          validationFlagsOut: {
+            umum_auto_checkout: true,
+            checkout_geo_flags: geo.flags,
+            checkout_fake_gps_hints: geo.fakeGpsHints,
+          },
+        }, exec);
+        await client.query('COMMIT');
+        return { message: 'Checked in successfully.', attendance: closed || row };
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
     }
 
+    const row = await this.attendanceRepository.insertCheckIn(insertArgs);
     return { message: 'Checked in successfully.', attendance: row };
   }
 
