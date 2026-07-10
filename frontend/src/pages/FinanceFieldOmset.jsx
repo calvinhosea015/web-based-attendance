@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, PageHero } from '../components/ui.jsx';
 import { Reveal } from '../components/Reveal.jsx';
 import OmsetReport from '../components/field/OmsetReport.jsx';
+import FinancePayrollSummary from '../components/payroll/FinancePayrollSummary.jsx';
 import { ROLE_ADMIN, canViewFieldOmsetReport } from '../roles.js';
 import { currentPayrollPeriodKey } from '../utils/payrollPeriod.js';
 
@@ -63,7 +64,10 @@ export default function FinanceFieldOmset() {
           }
         />
       </Reveal>
-      <OmsetReport period={period} onPeriodChange={onPeriodChange} />
+      <div className="space-y-6">
+        <FinancePayrollSummary period={period} />
+        <OmsetReport period={period} onPeriodChange={onPeriodChange} />
+      </div>
     </div>
   );
 }

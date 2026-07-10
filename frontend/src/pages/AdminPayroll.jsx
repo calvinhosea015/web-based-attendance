@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AdminLayout from '../components/AdminLayout.jsx';
 import {
@@ -25,8 +24,8 @@ import {
   previewMonthlyStaffPayroll,
 } from '../utils/payrollPeriod.js';
 import { resolveUpahHarianDisplay, formatIdr } from '../utils/payrollDisplay.js';
-
-const UI_BUILD_SHA = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'dev';
+import PayrollWorkflowBar from '../components/payroll/PayrollWorkflowBar.jsx';
+import { payrollRowNeedsAttention, payrollWorkflowStep } from '../utils/payrollRowUtils.js';
 
 function apiHostForHealth() {
   const base = String(import.meta.env.VITE_API_BASE || '/api').replace(/\/+$/, '');
@@ -43,7 +42,6 @@ function apiHostForHealth() {
 
 export default function AdminPayroll() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [period, setPeriod] = useState(currentPayrollPeriodKey());
   const [periodCycleLabel, setPeriodCycleLabel] = useState(() => payrollCycleLabel(currentPayrollPeriodKey()));
   const [settings, setSettings] = useState({
@@ -64,6 +62,10 @@ export default function AdminPayroll() {
   const [payrollHolidays, setPayrollHolidays] = useState([]);
   const [manualRequiredDays, setManualRequiredDays] = useState('');
   const [apiBuildSha, setApiBuildSha] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState('all');
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showAdvancedDeductions, setShowAdvancedDeductions] = useState(false);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
@@ -222,6 +224,7 @@ export default function AdminPayroll() {
   };
 
   const openEdit = (row) => {
+    setShowAdvancedDeductions(false);
     const mode = row.payroll_mode || 'daily';
     const isMonthlyMode = isMonthlyPayrollMode(mode);
     const monthlyGross =
@@ -315,19 +318,39 @@ export default function AdminPayroll() {
     return { count, payrollSum, daysSum };
   }, [rows]);
 
+  const attentionCount = useMemo(
+    () => rows.filter((row) => payrollRowNeedsAttention(row, requiredWorkDays)).length,
+    [rows, requiredWorkDays]
+  );
+
+  const workflowStep = useMemo(() => {
+    const base = payrollWorkflowStep({ rows, periodSelected: Boolean(period) });
+    if (rows.length > 0 && attentionCount === 0) return 4;
+    return base;
+  }, [rows, period, attentionCount]);
+
+  const filteredRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (filterMode === 'attention' && !payrollRowNeedsAttention(row, requiredWorkDays)) {
+        return false;
+      }
+      if (!q) return true;
+      const name = String(row.full_name || '').toLowerCase();
+      const code = String(row.employee_code || '').toLowerCase();
+      return name.includes(q) || code.includes(q);
+    });
+  }, [rows, searchQuery, filterMode, requiredWorkDays]);
+
   const editingRow = rows.find((r) => r.employee_id === editingId);
   const editIsManual = editForm?.payroll_mode === 'manual';
   const editIsMonthly = isMonthlyPayrollMode(editForm?.payroll_mode);
   const editIsFieldOfficer = editingRow?.user_role === 'field_officer';
   const editShowsExpectedDays = editIsMonthly || editIsFieldOfficer;
 
-  const deploySubtitle = [
-    t('payrollSubtitle'),
-    `${t('deployUiBuild')}: ${UI_BUILD_SHA}`,
-    apiBuildSha ? `${t('deployApiBuild')}: ${apiBuildSha}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const deploySubtitle = apiBuildSha
+    ? `${t('deployApiBuild')}: ${apiBuildSha}`
+    : t('payrollSubtitle');
 
   return (
     <AdminLayout
@@ -350,7 +373,7 @@ export default function AdminPayroll() {
           </Alert>
         )}
 
-        <p className="text-xs text-apple-label">{t('deployUiStaleHint')}</p>
+        <PayrollWorkflowBar currentStep={workflowStep} attentionCount={attentionCount} />
 
         {payrollHolidays.length > 0 && (
           <p className="text-sm text-apple-label">
@@ -382,42 +405,66 @@ export default function AdminPayroll() {
           />
         </div>
 
-        <div className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card title={t('payrollPeriod')} description={t('payrollGenerateHint')}>
-              <div className="space-y-4">
-                <Field label={t('payrollMonth')}>
-                  <input
-                    type="month"
-                    className={inputClass}
-                    value={period}
-                    onChange={(e) => setPeriod(e.target.value)}
-                  />
-                </Field>
-                <Field label={t('payrollExpectedWorkDaysManual')}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="31"
-                    className={inputClass}
-                    value={manualRequiredDays}
-                    onChange={(e) => setManualRequiredDays(e.target.value)}
-                    placeholder={String(requiredWorkDays ?? countWorkingDaysMonSatInCycle(period))}
-                  />
-                </Field>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={loadPeriod} disabled={loading}>
-                    {loading ? t('loading') : t('payrollRefresh')}
-                  </Button>
-                  <Button variant="success" onClick={handleGenerate} disabled={generating}>
-                    {generating ? t('loading') : t('payrollGenerate')}
-                  </Button>
-                </div>
-              </div>
-            </Card>
+        <Card title={t('payrollPeriod')} description={t('payrollProcessMonthHint')}>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label={t('payrollMonth')}>
+                <input
+                  type="month"
+                  className={inputClass}
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                />
+              </Field>
+              <Field label={t('payrollExpectedWorkDaysManual')}>
+                <input
+                  type="number"
+                  min="0"
+                  max="31"
+                  className={inputClass}
+                  value={manualRequiredDays}
+                  onChange={(e) => setManualRequiredDays(e.target.value)}
+                  placeholder={String(requiredWorkDays ?? countWorkingDaysMonSatInCycle(period))}
+                />
+              </Field>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="success" size="lg" onClick={handleGenerate} disabled={generating}>
+                {generating ? t('loading') : t('payrollProcessMonth')}
+              </Button>
+              <Button variant="secondary" onClick={loadPeriod} disabled={loading}>
+                {loading ? t('loading') : t('payrollRefresh')}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleExportAllSlips}
+                disabled={exportingSlips || rows.length === 0}
+              >
+                {exportingSlips ? t('loading') : t('payrollExportAllSlips')}
+              </Button>
+            </div>
+          </div>
+        </Card>
 
-            <Card title={t('payrollGlobalSettings')}>
-              <form className="space-y-4" onSubmit={handleSaveSettings}>
+        <Card>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 text-left"
+            onClick={() => setShowAdvancedSettings((v) => !v)}
+          >
+            <div>
+              <h2 className="font-display text-title font-semibold text-apple-text">
+                {t('payrollAdvancedSettings')}
+              </h2>
+              <p className="mt-1 text-[14px] text-apple-label">{t('payrollGlobalSettings')}</p>
+            </div>
+            <span className="text-sm text-brand-600">
+              {showAdvancedSettings ? t('payrollHideAdvancedSettings') : t('payrollShowAdvancedSettings')}
+            </span>
+          </button>
+          {showAdvancedSettings && (
+            <form className="mt-4 space-y-4 border-t border-black/[0.06] pt-4" onSubmit={handleSaveSettings}>
+              <div className="grid gap-4 sm:grid-cols-3">
                 <Field label={t('payrollTransportNominal')}>
                   <input
                     type="number"
@@ -454,14 +501,37 @@ export default function AdminPayroll() {
                     }
                   />
                 </Field>
-                <Button type="submit" variant="primary" disabled={savingSettings}>
-                  {savingSettings ? t('loading') : t('payrollSaveSettings')}
-                </Button>
-              </form>
-            </Card>
-          </div>
+              </div>
+              <Button type="submit" variant="primary" disabled={savingSettings}>
+                {savingSettings ? t('loading') : t('payrollSaveSettings')}
+              </Button>
+            </form>
+          )}
+        </Card>
 
-          <Card className="flex flex-col" title={t('payrollEmployeeTable')}>
+        <Card
+          className="flex flex-col"
+          title={t('payrollEmployeeTable')}
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                className={`${inputClass} !py-2 text-sm`}
+                placeholder={t('payrollSearchPlaceholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <select
+                className={`${inputClass} !w-auto !py-2 text-sm`}
+                value={filterMode}
+                onChange={(e) => setFilterMode(e.target.value)}
+              >
+                <option value="all">{t('payrollFilterAll')}</option>
+                <option value="attention">{t('payrollFilterAttention')}</option>
+              </select>
+            </div>
+          }
+        >
             <div className="-mx-5 -mb-4 max-h-[min(65vh,calc(100vh-16rem))] overflow-auto sm:-mx-6">
               <table className="apple-table">
                 <thead className="sticky top-0 z-10">
@@ -476,17 +546,31 @@ export default function AdminPayroll() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.length === 0 && (
+                  {filteredRows.length === 0 && (
                     <tr className="apple-table-row">
                       <td colSpan={7} className="!py-12 text-center text-apple-label">
-                        {loading ? t('loading') : t('payrollNoRows')}
+                        {loading
+                          ? t('loading')
+                          : rows.length === 0
+                            ? t('payrollNoRows')
+                            : t('payrollNoMatches')}
                       </td>
                     </tr>
                   )}
-                  {rows.map((row) => (
-                    <tr key={row.employee_id} className="apple-table-row">
+                  {filteredRows.map((row) => {
+                    const needsAttention = payrollRowNeedsAttention(row, requiredWorkDays);
+                    return (
+                    <tr
+                      key={row.employee_id}
+                      className={`apple-table-row ${needsAttention ? 'bg-amber-50/50' : ''}`}
+                    >
                       <td>
-                        <div className="font-medium text-apple-text">{row.full_name}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-medium text-apple-text">{row.full_name}</div>
+                          {needsAttention && (
+                            <Badge variant="warning">{t('payrollFilterAttention')}</Badge>
+                          )}
+                        </div>
                         <div className="text-[12px] text-apple-label">{row.employee_code}</div>
                         {row.has_active_loan && (
                           <div className="mt-1 text-[12px] text-amber-700">
@@ -571,7 +655,7 @@ export default function AdminPayroll() {
                       <td>
                         <div className="flex justify-end gap-1.5">
                           <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
-                            {t('editUser')}
+                            {t('payrollEditRowAction')}
                           </Button>
                           <Button
                             variant="success"
@@ -583,12 +667,12 @@ export default function AdminPayroll() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
           </Card>
-        </div>
       </div>
 
       {editingId && editForm && (
@@ -767,7 +851,14 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <CompactField label={t('payrollLembur')}>
+            <CompactField
+              label={t('payrollLembur')}
+              hint={
+                editIsMonthly || editForm.payroll_mode === 'accounting'
+                  ? t('payrollLemburAutoHint')
+                  : undefined
+              }
+            >
               <input
                 type="number"
                 min="0"
@@ -803,20 +894,35 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <CompactField
-              label={t('payrollBonusOmset')}
-              hint={editIsFieldOfficer ? t('payrollBonusFieldOfficerHint') : undefined}
-            >
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.bonus_omset}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, bonus_omset: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
+            {!editIsFieldOfficer && (
+              <CompactField label={t('payrollBonusOmset')}>
+                <input
+                  type="number"
+                  min="0"
+                  className={inputClassCompact}
+                  value={editForm.bonus_omset}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, bonus_omset: Number(e.target.value) }))
+                  }
+                />
+              </CompactField>
+            )}
+            {editIsFieldOfficer && (
+              <CompactField
+                label={t('payrollBonusOmset')}
+                hint={t('payrollBonusFieldOfficerHint')}
+              >
+                <input
+                  type="number"
+                  min="0"
+                  className={inputClassCompact}
+                  value={editForm.bonus_omset}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, bonus_omset: Number(e.target.value) }))
+                  }
+                />
+              </CompactField>
+            )}
             <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4">
               <label className="flex cursor-pointer items-center gap-1.5 text-xs text-apple-text">
                 <input
@@ -872,39 +978,6 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <CompactField label={t('payrollBpjsTk')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.bpjs_tk}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, bpjs_tk: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
-            <CompactField label={t('payrollBpjsKes')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.bpjs_kes}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, bpjs_kes: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
-            <CompactField label={t('payrollPph21')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.pph_21}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, pph_21: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
             <CompactField
               label={t('payrollSlipKasbon')}
               hint={t('payrollLoanDeductionHint')}
@@ -930,6 +1003,54 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
+            <div className="col-span-2 md:col-span-4">
+              <button
+                type="button"
+                className="text-[12px] font-medium text-brand-600"
+                onClick={() => setShowAdvancedDeductions((v) => !v)}
+              >
+                {showAdvancedDeductions
+                  ? t('payrollHideAdvancedSettings')
+                  : t('payrollAdvancedDeductions')}
+              </button>
+            </div>
+            {showAdvancedDeductions && (
+              <>
+                <CompactField label={t('payrollBpjsTk')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.bpjs_tk}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, bpjs_tk: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+                <CompactField label={t('payrollBpjsKes')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.bpjs_kes}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, bpjs_kes: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+                <CompactField label={t('payrollPph21')}>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClassCompact}
+                    value={editForm.pph_21}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, pph_21: Number(e.target.value) }))
+                    }
+                  />
+                </CompactField>
+              </>
+            )}
             {editingRow?.has_active_loan && (
               <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
                 {t('payrollActiveLoanHint', {

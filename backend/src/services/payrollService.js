@@ -1085,6 +1085,17 @@ class PayrollService {
     return { ...meta, settings, rows };
   }
 
+  /** Read-only period load — no roster cleanup (safe for finance review). */
+  async getPeriodReadOnly(period) {
+    const bounds = parsePeriod(period);
+    const payrollPeriod = bounds.payroll_period;
+    const listed = await this.payrollRepository.listByPeriod(payrollPeriod);
+    const persistedRequired = listed.find((row) => row.expected_work_days != null)?.expected_work_days;
+    const meta = this.periodMeta(period, persistedRequired);
+    const rows = await this.enrichPayrollRows(listed);
+    return { ...meta, rows };
+  }
+
   async generatePeriod(period, payload = {}) {
     const bounds = parsePeriod(period);
     const requiredWorkDays = this.resolveExpectedWorkDays({

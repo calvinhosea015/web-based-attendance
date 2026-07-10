@@ -331,6 +331,13 @@ function buildProtectedRoutes(deps) {
     payrollController.getFieldOfficerOmsetReport
   );
   r.get(
+    '/finance/payroll/periods/:period',
+    requireRole('head_of_finance'),
+    ...payrollPeriodParamValidator,
+    validateRequest,
+    payrollController.getFinancePeriodSummary
+  );
+  r.get(
     '/admin/field-deliveries',
     requireRole('admin', 'head_of_finance'),
     adminFieldDeliveryQueryValidators,

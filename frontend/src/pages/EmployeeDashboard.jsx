@@ -329,61 +329,29 @@ export default function EmployeeDashboard() {
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="apple-eyebrow">{translateRole(localStorage.getItem('role'))}</span>
+            <span className="apple-eyebrow">{t('headOfFinanceHubTitle')}</span>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-apple-text">
               {t('payrollEmployeeTitle')}
             </h1>
             <p className="mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => navigate('/finance/field-omset')}
-            >
-              {t('fieldOmsetReportTitle')}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              {t('logout')}
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            {t('logout')}
+          </Button>
         </div>
-        {message && (
-          <Alert tone="error">{message}</Alert>
-        )}
-        <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
-          {payroll.length > 0 ? (
-            <ul className="space-y-3 text-sm">
-              {payroll.map((row) => (
-                <li
-                  key={row.id}
-                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/50 px-4 py-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-apple-text">
-                      {payrollCycleLabel(row.payroll_period)}
-                    </span>
-                    <span className="font-semibold text-brand-700">
-                      Rp {formatIdr(row.final_salary)}
-                    </span>
-                  </div>
-                  <div className="mt-2 grid gap-1 text-xs text-apple-label sm:grid-cols-2">
-                    <div>
-                      {t('payrollBasicSalary')}: Rp {formatIdr(row.basic_salary)}
-                    </div>
-                    {Number(row.bonus_omset || 0) > 0 && (
-                      <div>
-                        {t('payrollBonusOmset')}: Rp {formatIdr(row.bonus_omset)}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-apple-label">{t('payrollEmployeeEmpty')}</p>
-          )}
+        {message && <Alert tone="error">{message}</Alert>}
+        <Card
+          title={t('headOfFinanceReviewOmset')}
+          description={t('headOfFinanceReviewOmsetHint')}
+          action={
+            <Button variant="primary" onClick={() => navigate('/finance/field-omset')}>
+              {t('headOfFinanceReviewOmset')}
+            </Button>
+          }
+        >
+          <p className="text-sm text-apple-label">{t('fieldOmsetReportSubtitle')}</p>
         </Card>
+        <PayrollCard payroll={payroll} />
       </div>
     );
   }

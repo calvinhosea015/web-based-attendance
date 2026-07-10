@@ -133,6 +133,8 @@ export const paths = {
   adminPayrollSlipsAll: (period) => `/v1/admin/payroll/periods/${period}/slips/export`,
   /** @param {string} period YYYY-MM */
   financeFieldOmset: (period) => `/v1/finance/field-omset/periods/${period}`,
+  /** Read-only payroll period summary for finance review */
+  financePayrollPeriod: (period) => `/v1/finance/payroll/periods/${period}`,
   employeeLoans: '/v1/employee/me/loans',
   employeeFieldCode: '/v1/employee/me/field-code',
   employeeFieldDeliveriesToday: '/v1/employee/me/field-deliveries/today',
