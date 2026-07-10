@@ -3,7 +3,7 @@ const { query } = require('../db/pool');
 class PabrikItemRateRepository {
   async listAll() {
     const r = await query(
-      `SELECT id, pabrik_code, kode_barang, tonase_per_item, price_per_item, created_at, updated_at
+      `SELECT id, pabrik_code, kode_barang, nama_barang, tonase_per_item, price_per_item, created_at, updated_at
        FROM pabrik_item_rates
        ORDER BY pabrik_code ASC, kode_barang ASC`
     );
@@ -12,7 +12,7 @@ class PabrikItemRateRepository {
 
   async findByPabrikAndBarang(pabrikCode, kodeBarang) {
     const r = await query(
-      `SELECT id, pabrik_code, kode_barang, tonase_per_item, price_per_item
+      `SELECT id, pabrik_code, kode_barang, nama_barang, tonase_per_item, price_per_item
        FROM pabrik_item_rates
        WHERE pabrik_code = $1 AND kode_barang = $2`,
       [String(pabrikCode).trim(), String(kodeBarang).trim()]
@@ -20,23 +20,23 @@ class PabrikItemRateRepository {
     return r.rows[0] || null;
   }
 
-  async create({ pabrik_code, kode_barang, tonase_per_item, price_per_item }) {
+  async create({ pabrik_code, kode_barang, nama_barang, tonase_per_item, price_per_item }) {
     const r = await query(
-      `INSERT INTO pabrik_item_rates (pabrik_code, kode_barang, tonase_per_item, price_per_item)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO pabrik_item_rates (pabrik_code, kode_barang, nama_barang, tonase_per_item, price_per_item)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [pabrik_code, kode_barang, tonase_per_item, price_per_item]
+      [pabrik_code, kode_barang, nama_barang ?? '', tonase_per_item, price_per_item]
     );
     return r.rows[0];
   }
 
-  async update(id, { pabrik_code, kode_barang, tonase_per_item, price_per_item }) {
+  async update(id, { pabrik_code, kode_barang, nama_barang, tonase_per_item, price_per_item }) {
     const r = await query(
       `UPDATE pabrik_item_rates
-       SET pabrik_code = $2, kode_barang = $3, tonase_per_item = $4, price_per_item = $5, updated_at = NOW()
+       SET pabrik_code = $2, kode_barang = $3, nama_barang = $4, tonase_per_item = $5, price_per_item = $6, updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [id, pabrik_code, kode_barang, tonase_per_item, price_per_item]
+      [id, pabrik_code, kode_barang, nama_barang ?? '', tonase_per_item, price_per_item]
     );
     return r.rows[0] || null;
   }

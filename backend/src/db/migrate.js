@@ -576,6 +576,9 @@ async function migrateFieldCheckoutTables() {
   await query(
     `ALTER TABLE field_delivery_entries ADD COLUMN IF NOT EXISTS price_per_item NUMERIC(14,2) NOT NULL DEFAULT 0`
   );
+  await query(
+    `ALTER TABLE pabrik_item_rates ADD COLUMN IF NOT EXISTS nama_barang VARCHAR(255) NOT NULL DEFAULT ''`
+  );
 }
 
 async function migrateEmployeeOffices() {

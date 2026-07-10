@@ -159,7 +159,7 @@ export default {
   payrollBonusOmset: 'Bonus',
   payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (omset × 2%).',
   payrollBonusFieldOfficerHint:
-    'From delivery codes: omset = price per item × berat bersih (falls back to tonase when no price); bonus = omset × 2%. Can override manually.',
+    'From delivery codes: omset = price per item × berat bersih; bonus = omset × 2%. Can override manually.',
   fieldOpsDashboardTitle: 'Field operations',
   fieldOpsDashboardSubtitle:
     'Field officer omset and factory catalog — use the tabs to switch.',
@@ -167,14 +167,14 @@ export default {
   fieldOpsTabCatalog: 'Factories, items & tonase bonus',
   pabrikCatalogTitle: 'Factories, items & tonase bonus',
   pabrikCatalogHint:
-    'Manage factories, locations, and item codes. Expand a factory to add items and edit price per item (saved on blur or Enter). Omset = price per item × berat bersih (falls back to tonase when no price). Bonus = omset × 2%.',
+    'Manage factories, locations, and item codes. Expand a factory to add items with a name and edit price per item (saved on blur or Enter). Omset = price per item × berat bersih. Bonus = omset × 2%.',
   pabrikCatalogStatFactories: 'Factories',
   pabrikCatalogStatItems: 'Item codes',
   pabrikCatalogStatPriced: 'With price set',
   pabrikCatalogStatPricedSub: 'Expand a factory to edit',
   pabrikCatalogNewFactory: 'New factory',
   pabrikCatalogSearch: 'Search',
-  pabrikCatalogSearchPlaceholder: 'Factory code, name, or item code…',
+  pabrikCatalogSearchPlaceholder: 'Factory code, name, item code, or item name…',
   pabrikCatalogFilterLocation: 'Location',
   pabrikCatalogFilterAllLocations: 'All locations',
   pabrikCatalogFilterClear: 'Clear filters',
@@ -183,7 +183,7 @@ export default {
   pabrikCatalogItemsCol: 'Items',
   pabrikCatalogActions: 'Actions',
   pabrikCatalogManageItems: 'Item codes — {{factory}}',
-  pabrikCatalogAddItemHint: 'Edit price per item in the table below (saved on blur or Enter).',
+  pabrikCatalogAddItemHint: 'Edit item name and price per item in the table below (saved on blur or Enter).',
   pabrikCatalogNoItems: 'No item codes yet. Add one above.',
   pabrikCatalogRateSet: 'Configured',
   pabrikCatalogEmpty: 'Factory list not loaded yet. Restart the API so migrations can seed pabriks.',
@@ -226,7 +226,7 @@ export default {
   pabrikItemSaveTonase: 'Save tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
-    'Expand a factory above to edit price per item. Omset = price per item × berat bersih (falls back to tonase when no price). Bonus = omset × 2%.',
+    'Expand a factory above to edit price per item. Omset = price per item × berat bersih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Download omset bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',
@@ -236,10 +236,12 @@ export default {
   pabrikTonaseExported: 'Tonase bonus report downloaded.',
   pabrikItemPabrikCode: 'Factory code',
   pabrikItemKodeBarang: 'Item code',
-  pabrikItemTonase: 'Tonase per item',
+  pabrikItemNamaBarang: 'Item name',
+  pabrikItemNamaBarangPlaceholder: 'e.g. Palm kernel shell',
+  pabrikItemNameSaved: 'Item name saved.',
   pabrikItemPrice: 'Price per item (Rp)',
   pabrikItemSaveRate: 'Save rate',
-  pabrikItemRateRequired: 'Enter tonase and/or price per item.',
+  pabrikItemRateRequired: 'Enter price per item.',
   pabrikItemAdd: 'Add',
   pabrikItemRatesEmpty: 'No item rates yet. Add item codes under Factories & item codes above.',
   pabrikTonaseFilterFactory: 'Factory',
@@ -640,7 +642,7 @@ export default {
     NOT_FIELD_OFFICER: 'Only Petugas Lapangan can submit delivery data.',
     FIELD_CODE_ALREADY: 'Delivery data already recorded for today.',
     PABRIK_ITEM_NOT_FOUND:
-      'No tonase rate for this factory and item code. Contact admin.',
+      'No price rate for this factory and item code. Contact admin.',
     PABRIK_NOT_FOUND: 'Unknown factory code. Add the factory in Field operations first.',
     PABRIK_NOT_ASSIGNED:
       'This factory is not assigned to your account. Contact admin to update your factory assignments.',

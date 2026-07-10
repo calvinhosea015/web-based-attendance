@@ -15,11 +15,10 @@ function computeSelisih(kotor, beratBersih) {
   return { ok: true, selisih: gross - net };
 }
 
-/** Omset per baris = harga per item × berat bersih; tonase per item is the fallback rate when no price is set. */
-function computeLineOmset(tonasePerItem, beratBersih, pricePerItem = 0) {
+/** Omset per baris = harga per item × berat bersih. */
+function computeLineOmset(_tonasePerItem, beratBersih, pricePerItem = 0) {
   const price = num(pricePerItem);
-  const rate = price > 0 ? price : num(tonasePerItem);
-  return Math.round(rate * num(beratBersih) * 100) / 100;
+  return Math.round(price * num(beratBersih) * 100) / 100;
 }
 
 /** Bonus per baris = omset × 2%. */

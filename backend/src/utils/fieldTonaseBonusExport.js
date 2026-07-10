@@ -42,7 +42,7 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
     'Kode pabrik',
     'Nama pabrik',
     'Kode barang',
-    'Tonase per item',
+    'Nama barang',
     'Harga per item',
     'Jumlah pengiriman',
     'Total selisih (kg)',
@@ -63,14 +63,13 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
       row.pabrik_code,
       row.nama_pabrik,
       row.kode_barang,
-      Number(row.tonase_per_item) || 0,
+      row.nama_barang || '',
       Number(row.price_per_item) || 0,
       Number(row.delivery_count) || 0,
       Number(row.total_selisih) || 0,
       Number(row.total_omset) || 0,
       Number(row.total_bonus) || 0,
     ]);
-    dataRow.getCell(4).numFmt = AMOUNT_NUMFMT;
     dataRow.getCell(5).numFmt = AMOUNT_NUMFMT;
     dataRow.getCell(6).numFmt = COUNT_NUMFMT;
     dataRow.getCell(7).numFmt = AMOUNT_NUMFMT;
@@ -118,7 +117,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
     'Kode pabrik',
     'Nama pabrik',
     'Kode barang',
-    'Tonase per item',
+    'Nama barang',
     'Harga per item',
     'Kotor (kg)',
     'Berat bersih (kg)',
@@ -142,7 +141,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
       row.pabrik_code,
       row.nama_pabrik || '',
       row.kode_barang,
-      Number(row.tonase_per_item) || 0,
+      row.nama_barang || '',
       Number(row.price_per_item) || 0,
       Number(row.kotor) || 0,
       Number(row.berat_bersih) || 0,
@@ -155,7 +154,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
       row.nopol,
       row.no_bs,
     ]);
-    for (const col of [7, 8, 9, 10, 11, 12, 13]) {
+    for (const col of [8, 9, 10, 11, 12, 13, 14]) {
       dataRow.getCell(col).numFmt = AMOUNT_NUMFMT;
     }
   }

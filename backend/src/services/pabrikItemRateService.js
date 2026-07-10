@@ -1,12 +1,12 @@
 const { AppError } = require('../utils/errors');
 const { normalizePabrikCode, normalizeKodeBarang } = require('../utils/pabrikNormalize');
 
-function normalizeTonase(value) {
+function normalizePrice(value) {
   return Math.max(0, Number(value) || 0);
 }
 
-function normalizePrice(value) {
-  return Math.max(0, Number(value) || 0);
+function normalizeNamaBarang(value) {
+  return String(value ?? '').trim().slice(0, 255);
 }
 
 class PabrikItemRateService {
@@ -35,7 +35,7 @@ class PabrikItemRateService {
     const pabrik_code = normalizePabrikCode(payload.pabrik_code);
     await this.assertPabrikExists(pabrik_code);
     const kode_barang = normalizeKodeBarang(payload.kode_barang);
-    const tonase_per_item = normalizeTonase(payload.tonase_per_item);
+    const nama_barang = normalizeNamaBarang(payload.nama_barang);
     const price_per_item = normalizePrice(payload.price_per_item);
     const existing = await this.pabrikItemRateRepository.findByPabrikAndBarang(
       pabrik_code,
@@ -47,7 +47,8 @@ class PabrikItemRateService {
     return this.pabrikItemRateRepository.create({
       pabrik_code,
       kode_barang,
-      tonase_per_item,
+      nama_barang,
+      tonase_per_item: 0,
       price_per_item,
     });
   }
@@ -60,12 +61,13 @@ class PabrikItemRateService {
     const pabrik_code = normalizePabrikCode(payload.pabrik_code);
     await this.assertPabrikExists(pabrik_code);
     const kode_barang = normalizeKodeBarang(payload.kode_barang);
-    const tonase_per_item = normalizeTonase(payload.tonase_per_item);
+    const nama_barang = normalizeNamaBarang(payload.nama_barang);
     const price_per_item = normalizePrice(payload.price_per_item);
     const saved = await this.pabrikItemRateRepository.update(rateId, {
       pabrik_code,
       kode_barang,
-      tonase_per_item,
+      nama_barang,
+      tonase_per_item: 0,
       price_per_item,
     });
     if (!saved) throw new AppError('Rate not found.', 404, 'NOT_FOUND');

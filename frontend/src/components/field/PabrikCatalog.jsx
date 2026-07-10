@@ -26,10 +26,11 @@ export default function PabrikCatalog() {
   const [radiusDraft, setRadiusDraft] = useState({});
   const [radiusSavingId, setRadiusSavingId] = useState(null);
   const [itemAddDraft, setItemAddDraft] = useState({});
+  const [itemNameAddDraft, setItemNameAddDraft] = useState({});
   const [priceDraft, setPriceDraft] = useState({});
   const [priceSavingId, setPriceSavingId] = useState(null);
-  const [tonaseDraft, setTonaseDraft] = useState({});
-  const [tonaseSavingId, setTonaseSavingId] = useState(null);
+  const [nameDraft, setNameDraft] = useState({});
+  const [nameSavingId, setNameSavingId] = useState(null);
   const [factorySaving, setFactorySaving] = useState(false);
   const [itemSavingCode, setItemSavingCode] = useState(null);
   const [factoryDeletingId, setFactoryDeletingId] = useState(null);
@@ -65,18 +66,13 @@ export default function PabrikCatalog() {
           ])
         )
       );
-      setTonaseDraft(
-        Object.fromEntries(
-          items.map((item) => [
-            item.id,
-            Number(item.tonase_per_item) > 0 ? String(item.tonase_per_item) : '',
-          ])
-        )
+      setNameDraft(
+        Object.fromEntries(items.map((item) => [item.id, item.nama_barang || '']))
       );
     } catch (err) {
       setPabriks([]);
       setPriceDraft({});
-      setTonaseDraft({});
+      setNameDraft({});
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
       setPabrikLoading(false);
@@ -121,8 +117,10 @@ export default function PabrikCatalog() {
       if (!q) return true;
       const codeMatch = String(pabrik.pabrik_code).toUpperCase().includes(q);
       const nameMatch = String(pabrik.nama_pabrik).toUpperCase().includes(q);
-      const itemMatch = (pabrik.items || []).some((item) =>
-        String(item.kode_barang).toUpperCase().includes(q)
+      const itemMatch = (pabrik.items || []).some(
+        (item) =>
+          String(item.kode_barang).toUpperCase().includes(q) ||
+          String(item.nama_barang || '').toUpperCase().includes(q)
       );
       return codeMatch || nameMatch || itemMatch;
     });
@@ -142,7 +140,11 @@ export default function PabrikCatalog() {
     (items) => {
       const q = catalogSearch.trim().toUpperCase();
       if (!q) return items;
-      return items.filter((item) => String(item.kode_barang).toUpperCase().includes(q));
+      return items.filter(
+        (item) =>
+          String(item.kode_barang).toUpperCase().includes(q) ||
+          String(item.nama_barang || '').toUpperCase().includes(q)
+      );
     },
     [catalogSearch]
   );
@@ -204,9 +206,10 @@ export default function PabrikCatalog() {
       await api.post(paths.adminPabrikItemRates, {
         pabrik_code: pabrik.pabrik_code,
         kode_barang: kode,
-        tonase_per_item: 0,
+        nama_barang: (itemNameAddDraft[pabrik.pabrik_code] || '').trim(),
       });
       setItemAddDraft((d) => ({ ...d, [pabrik.pabrik_code]: '' }));
+      setItemNameAddDraft((d) => ({ ...d, [pabrik.pabrik_code]: '' }));
       await loadPabriks();
       notify(t('pabrikItemAdded'), 'success');
     } catch (err) {
@@ -259,39 +262,27 @@ export default function PabrikCatalog() {
     }
   };
 
-  const handleSaveInlineTonase = async (row) => {
-    const draft = tonaseDraft[row.id] ?? '';
-    const tonase = Number(draft) || 0;
-    const current = Number(row.tonase_per_item) || 0;
-    if (tonase === current) return;
-    if (tonase <= 0 && Number(row.price_per_item) <= 0) {
-      notify(t('pabrikItemRateRequired'), 'error');
-      setTonaseDraft((d) => ({
-        ...d,
-        [row.id]: current > 0 ? String(current) : '',
-      }));
-      return;
-    }
-    setTonaseSavingId(row.id);
+  const handleSaveInlineName = async (row) => {
+    const draft = (nameDraft[row.id] ?? '').trim();
+    const current = String(row.nama_barang || '').trim();
+    if (draft === current) return;
+    setNameSavingId(row.id);
     dismiss();
     try {
       await ensureCsrf();
       await api.put(`${paths.adminPabrikItemRates}/${row.id}`, {
         pabrik_code: row.pabrik_code,
         kode_barang: row.kode_barang,
-        tonase_per_item: tonase,
+        nama_barang: draft,
         price_per_item: row.price_per_item,
       });
       await loadPabriks();
-      notify(t('pabrikRateSaved'), 'success');
+      notify(t('pabrikItemNameSaved'), 'success');
     } catch (err) {
-      setTonaseDraft((d) => ({
-        ...d,
-        [row.id]: current > 0 ? String(current) : '',
-      }));
+      setNameDraft((d) => ({ ...d, [row.id]: current }));
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
-      setTonaseSavingId(null);
+      setNameSavingId(null);
     }
   };
 
@@ -300,7 +291,7 @@ export default function PabrikCatalog() {
     const price = Number(draft) || 0;
     const current = Number(row.price_per_item) || 0;
     if (price === current) return;
-    if (price <= 0 && Number(row.tonase_per_item) <= 0) {
+    if (price <= 0) {
       notify(t('pabrikItemRateRequired'), 'error');
       setPriceDraft((d) => ({
         ...d,
@@ -315,7 +306,7 @@ export default function PabrikCatalog() {
       await api.put(`${paths.adminPabrikItemRates}/${row.id}`, {
         pabrik_code: row.pabrik_code,
         kode_barang: row.kode_barang,
-        tonase_per_item: row.tonase_per_item,
+        nama_barang: row.nama_barang || '',
         price_per_item: price,
       });
       await loadPabriks();
@@ -706,7 +697,7 @@ export default function PabrikCatalog() {
                                   >
                                     <Field
                                       label={t('pabrikItemKodeBarang')}
-                                      className="min-w-[12rem] flex-1"
+                                      className="min-w-[10rem] flex-1"
                                     >
                                       <input
                                         className={inputClass}
@@ -719,6 +710,22 @@ export default function PabrikCatalog() {
                                         }
                                         placeholder="PA1"
                                         required
+                                      />
+                                    </Field>
+                                    <Field
+                                      label={t('pabrikItemNamaBarang')}
+                                      className="min-w-[12rem] flex-[2]"
+                                    >
+                                      <input
+                                        className={inputClass}
+                                        value={itemNameAddDraft[pabrik.pabrik_code] ?? ''}
+                                        onChange={(e) =>
+                                          setItemNameAddDraft((d) => ({
+                                            ...d,
+                                            [pabrik.pabrik_code]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder={t('pabrikItemNamaBarangPlaceholder')}
                                       />
                                     </Field>
                                     <Button
@@ -742,9 +749,7 @@ export default function PabrikCatalog() {
                                         <thead className="apple-table-head">
                                           <tr>
                                             <th>{t('pabrikItemKodeBarang')}</th>
-                                            <th className="text-right">
-                                              {t('pabrikItemTonase')}
-                                            </th>
+                                            <th>{t('pabrikItemNamaBarang')}</th>
                                             <th className="text-right">
                                               {t('pabrikItemPrice')}
                                             </th>
@@ -766,23 +771,21 @@ export default function PabrikCatalog() {
                                                 <td className="font-medium text-apple-text">
                                                   {item.kode_barang}
                                                 </td>
-                                                <td className="text-right">
+                                                <td>
                                                   <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    className="w-28 rounded-apple border border-apple-border bg-white px-3 py-1.5 text-right text-[14px] tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
-                                                    value={tonaseDraft[item.id] ?? ''}
-                                                    placeholder="0"
-                                                    disabled={tonaseSavingId === item.id}
+                                                    type="text"
+                                                    className="w-full min-w-[10rem] rounded-apple border border-apple-border bg-white px-3 py-1.5 text-[14px] focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
+                                                    value={nameDraft[item.id] ?? ''}
+                                                    placeholder={t('pabrikItemNamaBarangPlaceholder')}
+                                                    disabled={nameSavingId === item.id}
                                                     onChange={(e) =>
-                                                      setTonaseDraft((d) => ({
+                                                      setNameDraft((d) => ({
                                                         ...d,
                                                         [item.id]: e.target.value,
                                                       }))
                                                     }
                                                     onBlur={() =>
-                                                      handleSaveInlineTonase(rateRow)
+                                                      handleSaveInlineName(rateRow)
                                                     }
                                                     onKeyDown={(e) => {
                                                       if (e.key === 'Enter') {
@@ -790,14 +793,9 @@ export default function PabrikCatalog() {
                                                         e.currentTarget.blur();
                                                       }
                                                       if (e.key === 'Escape') {
-                                                        const current =
-                                                          Number(item.tonase_per_item) || 0;
-                                                        setTonaseDraft((d) => ({
+                                                        setNameDraft((d) => ({
                                                           ...d,
-                                                          [item.id]:
-                                                            current > 0
-                                                              ? String(current)
-                                                              : '',
+                                                          [item.id]: item.nama_barang || '',
                                                         }));
                                                         e.currentTarget.blur();
                                                       }

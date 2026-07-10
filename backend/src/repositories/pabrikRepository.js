@@ -26,6 +26,7 @@ class PabrikRepository {
             json_build_object(
               'id', r.id,
               'kode_barang', r.kode_barang,
+              'nama_barang', r.nama_barang,
               'tonase_per_item', r.tonase_per_item,
               'price_per_item', r.price_per_item
             )

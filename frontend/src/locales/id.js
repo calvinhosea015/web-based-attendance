@@ -159,7 +159,7 @@ export default {
   payrollBonusOmset: 'Bonus',
   payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (omset × 2%).',
   payrollBonusFieldOfficerHint:
-    'Dari kode pengiriman: omset = harga per item × berat bersih (pakai tonase bila harga kosong); bonus = omset × 2%. Bisa di-override manual.',
+    'Dari kode pengiriman: omset = harga per item × berat bersih; bonus = omset × 2%. Bisa di-override manual.',
   fieldOpsDashboardTitle: 'Operasi lapangan',
   fieldOpsDashboardSubtitle:
     'Omset petugas lapangan dan katalog pabrik — gunakan tab untuk berpindah.',
@@ -167,14 +167,14 @@ export default {
   fieldOpsTabCatalog: 'Pabrik, barang & tonase bonus',
   pabrikCatalogTitle: 'Pabrik, barang & tonase bonus',
   pabrikCatalogHint:
-    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga per item × berat bersih (pakai tonase bila harga kosong). Bonus = omset × 2%.',
+    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item beserta nama dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga per item × berat bersih. Bonus = omset × 2%.',
   pabrikCatalogStatFactories: 'Pabrik',
   pabrikCatalogStatItems: 'Kode barang',
   pabrikCatalogStatPriced: 'Sudah ada harga',
   pabrikCatalogStatPricedSub: 'Buka pabrik untuk mengedit',
   pabrikCatalogNewFactory: 'Pabrik baru',
   pabrikCatalogSearch: 'Cari',
-  pabrikCatalogSearchPlaceholder: 'Kode pabrik, nama, atau kode barang…',
+  pabrikCatalogSearchPlaceholder: 'Kode pabrik, nama, kode barang, atau nama barang…',
   pabrikCatalogFilterLocation: 'Lokasi',
   pabrikCatalogFilterAllLocations: 'Semua lokasi',
   pabrikCatalogFilterClear: 'Hapus filter',
@@ -183,7 +183,7 @@ export default {
   pabrikCatalogItemsCol: 'Barang',
   pabrikCatalogActions: 'Aksi',
   pabrikCatalogManageItems: 'Kode barang — {{factory}}',
-  pabrikCatalogAddItemHint: 'Edit harga per item di tabel di bawah (tersimpan saat blur atau Enter).',
+  pabrikCatalogAddItemHint: 'Edit nama barang dan harga per item di tabel di bawah (tersimpan saat blur atau Enter).',
   pabrikCatalogNoItems: 'Belum ada kode barang. Tambahkan di atas.',
   pabrikCatalogRateSet: 'Sudah diatur',
   pabrikCatalogEmpty: 'Daftar pabrik belum dimuat. Restart API agar migrasi mengisi data pabrik.',
@@ -227,7 +227,7 @@ export default {
   pabrikItemSaveTonase: 'Simpan tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
-    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga per item × berat bersih (pakai tonase bila harga kosong). Bonus = omset × 2%.',
+    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga per item × berat bersih. Bonus = omset × 2%.',
   pabrikTonaseExportTitle: 'Unduh laporan bonus omset',
   pabrikTonaseExportHint:
     'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
@@ -237,10 +237,12 @@ export default {
   pabrikTonaseExported: 'Laporan tonase bonus diunduh.',
   pabrikItemPabrikCode: 'Kode pabrik',
   pabrikItemKodeBarang: 'Kode barang',
-  pabrikItemTonase: 'Tonase per item',
+  pabrikItemNamaBarang: 'Nama barang',
+  pabrikItemNamaBarangPlaceholder: 'mis. Cangkang sawit',
+  pabrikItemNameSaved: 'Nama barang disimpan.',
   pabrikItemPrice: 'Harga per item (Rp)',
   pabrikItemSaveRate: 'Simpan tarif',
-  pabrikItemRateRequired: 'Isi tonase dan/atau harga per item.',
+  pabrikItemRateRequired: 'Isi harga per item.',
   pabrikItemAdd: 'Tambah',
   pabrikItemRatesEmpty: 'Belum ada tarif. Tambah kode barang di bagian Pabrik & kode barang di atas.',
   pabrikTonaseFilterFactory: 'Pabrik',
@@ -644,7 +646,7 @@ export default {
     NOT_FIELD_OFFICER: 'Hanya Petugas Lapangan yang dapat mengirim data pengiriman.',
     FIELD_CODE_ALREADY: 'Data pengiriman hari ini sudah tercatat.',
     PABRIK_ITEM_NOT_FOUND:
-      'Tarif tonase untuk pabrik dan kode barang ini belum diatur. Hubungi admin.',
+      'Tarif harga untuk pabrik dan kode barang ini belum diatur. Hubungi admin.',
     PABRIK_NOT_FOUND: 'Kode pabrik tidak dikenal. Tambahkan pabrik di Operasi lapangan terlebih dahulu.',
     PABRIK_NOT_ASSIGNED:
       'Pabrik ini tidak ditugaskan ke akun Anda. Hubungi admin untuk memperbarui penugasan pabrik.',

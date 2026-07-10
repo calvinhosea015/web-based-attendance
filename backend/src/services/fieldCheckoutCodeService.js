@@ -67,23 +67,22 @@ class FieldCheckoutCodeService {
     );
     if (!rate) {
       throw new AppError(
-        `No tonase rate for pabrik "${parsed.pabrik_code}" and item "${parsed.kode_barang}". Ask admin to configure pabrik item rates.`,
+        `No price rate for pabrik "${parsed.pabrik_code}" and item "${parsed.kode_barang}". Ask admin to configure pabrik item rates.`,
         400,
         'PABRIK_ITEM_NOT_FOUND'
       );
     }
-    const tonase = Number(rate.tonase_per_item) || 0;
     const price_per_item = Number(rate.price_per_item) || 0;
-    if (tonase <= 0 && price_per_item <= 0) {
+    if (price_per_item <= 0) {
       throw new AppError(
-        `No tonase or price for pabrik "${parsed.pabrik_code}" and item "${parsed.kode_barang}". Ask admin to configure rates.`,
+        `No price for pabrik "${parsed.pabrik_code}" and item "${parsed.kode_barang}". Ask admin to configure rates.`,
         400,
         'PABRIK_ITEM_NOT_FOUND'
       );
     }
-    const omset_amount = computeLineOmset(tonase, parsed.berat_bersih, price_per_item);
-    const bonus_amount = computeLineBonus(tonase, parsed.berat_bersih, price_per_item);
-    return { tonase_per_item: tonase, price_per_item, omset_amount, bonus_amount, rate };
+    const omset_amount = computeLineOmset(0, parsed.berat_bersih, price_per_item);
+    const bonus_amount = computeLineBonus(0, parsed.berat_bersih, price_per_item);
+    return { tonase_per_item: 0, price_per_item, omset_amount, bonus_amount, rate };
   }
 
   async submit(auth, payload) {
@@ -189,20 +188,18 @@ class FieldCheckoutCodeService {
 
     // Money stays server-authoritative: re-resolve the catalog rate for the (possibly
     // changed) pabrik+item, falling back to the rate already stored on the line.
-    let tonase_per_item = Number(existing.tonase_per_item) || 0;
     let price_per_item = Number(existing.price_per_item) || 0;
     const rate = await this.pabrikItemRateRepository.findByPabrikAndBarang(
       pabrik_code,
       kode_barang
     );
     if (rate) {
-      tonase_per_item = Number(rate.tonase_per_item) || 0;
       price_per_item = Number(rate.price_per_item) || 0;
     }
 
     const selisih = Math.abs(kotor - berat_bersih);
-    const omset_amount = computeLineOmset(tonase_per_item, berat_bersih, price_per_item);
-    const bonus_amount = computeLineBonus(tonase_per_item, berat_bersih, price_per_item);
+    const omset_amount = computeLineOmset(0, berat_bersih, price_per_item);
+    const bonus_amount = computeLineBonus(0, berat_bersih, price_per_item);
 
     const entry = await this.fieldDeliveryRepository.updateEntry(id, {
       pabrik_code,
@@ -215,7 +212,7 @@ class FieldCheckoutCodeService {
       kotor,
       berat_bersih,
       selisih,
-      tonase_per_item,
+      tonase_per_item: 0,
       price_per_item,
       omset_amount,
       bonus_amount,

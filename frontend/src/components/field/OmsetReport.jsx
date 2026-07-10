@@ -178,8 +178,7 @@ export default function OmsetReport({ period: periodProp, onPeriodChange }) {
                                     </span>
                                   </div>
                                   <div className="mt-1 text-apple-muted">
-                                    {t('fieldDelivery_berat_bersih')}: {d.berat_bersih} kg ·{' '}
-                                    {t('pabrikItemTonase')}: {d.tonase_per_item}
+                                    {t('fieldDelivery_berat_bersih')}: {d.berat_bersih} kg
                                     {Number(d.price_per_item) > 0
                                       ? ` · ${t('pabrikItemPrice')}: Rp ${formatIdr(d.price_per_item)}`
                                       : ''}

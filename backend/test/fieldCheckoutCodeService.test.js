@@ -6,15 +6,14 @@ const { computeLineOmset, computeLineBonus } = require('../src/utils/fieldOffice
 const { AppError } = require('../src/utils/errors');
 
 describe('field officer omset = berat bersih × harga per item', () => {
-  it('uses price per item × berat bersih when a price is set', () => {
-    // tonase 5 should be ignored when price 1000 is present.
-    assert.equal(computeLineOmset(5, 90, 1000), 90000);
-    assert.equal(computeLineBonus(5, 90, 1000), 1800); // 2% of 90000
+  it('uses price per item × berat bersih', () => {
+    assert.equal(computeLineOmset(0, 90, 1000), 90000);
+    assert.equal(computeLineBonus(0, 90, 1000), 1800); // 2% of 90000
   });
 
-  it('falls back to tonase per item × berat bersih when no price', () => {
-    assert.equal(computeLineOmset(5, 90, 0), 450);
-    assert.equal(computeLineBonus(5, 90, 0), 9); // 2% of 450
+  it('returns zero omset when no price is set', () => {
+    assert.equal(computeLineOmset(5, 90, 0), 0);
+    assert.equal(computeLineBonus(5, 90, 0), 0);
   });
 });
 
@@ -77,10 +76,10 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
         kotor: 100,
         berat_bersih: 90,
         selisih: 10,
-        tonase_per_item: 5,
+        tonase_per_item: 0,
         price_per_item: 0,
-        omset_amount: 450,
-        bonus_amount: 9,
+        omset_amount: 0,
+        bonus_amount: 0,
       }),
       updateEntry: async (id, fields) => {
         saved = { id, ...fields };
@@ -88,7 +87,11 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
       },
     };
     const pabrikItemRateRepository = {
-      findByPabrikAndBarang: async () => ({ tonase_per_item: 5, price_per_item: 1000 }),
+      findByPabrikAndBarang: async () => ({
+        tonase_per_item: 0,
+        price_per_item: 1000,
+        nama_barang: 'Test item',
+      }),
     };
     const service = new FieldCheckoutCodeService(
       fieldDeliveryRepository,
@@ -101,6 +104,7 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     assert.equal(saved.kotor, 100);
     assert.equal(saved.selisih, 20); // |100 - 80|
     assert.equal(saved.price_per_item, 1000); // catalog rate wins over stored
+    assert.equal(saved.tonase_per_item, 0);
     assert.equal(saved.omset_amount, 80000); // 1000 × 80
     assert.equal(saved.bonus_amount, 1600); // 2% of 80000
     assert.equal(res.code, 'DELIVERY_UPDATED');

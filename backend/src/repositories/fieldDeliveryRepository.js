@@ -66,11 +66,14 @@ class FieldDeliveryRepository {
         fde.*,
         e.full_name,
         e.employee_id AS employee_code,
-        p.nama_pabrik
+        p.nama_pabrik,
+        r.nama_barang
        FROM field_delivery_entries fde
        JOIN employees e ON e.id = fde.employee_id
        JOIN users u ON u.employee_id = e.id AND u.role = 'field_officer'
        LEFT JOIN pabriks p ON p.pabrik_code = fde.pabrik_code
+       LEFT JOIN pabrik_item_rates r
+         ON r.pabrik_code = fde.pabrik_code AND r.kode_barang = fde.kode_barang
        WHERE fde.valid_on >= $1::date AND fde.valid_on <= $2::date
        ORDER BY e.full_name ASC, fde.valid_on ASC, fde.created_at ASC`,
       [periodStart, periodEnd]
@@ -84,7 +87,7 @@ class FieldDeliveryRepository {
         fde.pabrik_code,
         COALESCE(p.nama_pabrik, '') AS nama_pabrik,
         fde.kode_barang,
-        MAX(fde.tonase_per_item)::numeric AS tonase_per_item,
+        MAX(r.nama_barang) AS nama_barang,
         MAX(fde.price_per_item)::numeric AS price_per_item,
         COUNT(*)::int AS delivery_count,
         COALESCE(SUM(fde.selisih), 0)::numeric AS total_selisih,
@@ -93,6 +96,8 @@ class FieldDeliveryRepository {
        FROM field_delivery_entries fde
        JOIN users u ON u.employee_id = fde.employee_id AND u.role = 'field_officer'
        LEFT JOIN pabriks p ON p.pabrik_code = fde.pabrik_code
+       LEFT JOIN pabrik_item_rates r
+         ON r.pabrik_code = fde.pabrik_code AND r.kode_barang = fde.kode_barang
        WHERE fde.valid_on >= $1::date AND fde.valid_on <= $2::date
        GROUP BY fde.pabrik_code, p.nama_pabrik, fde.kode_barang
        ORDER BY fde.pabrik_code ASC, fde.kode_barang ASC`,
