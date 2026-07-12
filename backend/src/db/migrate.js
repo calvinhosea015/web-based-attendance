@@ -663,6 +663,37 @@ async function migrateEmployeePabriks() {
   );
 }
 
+async function migrateFieldDeliveryBackdateRequests() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS field_delivery_backdate_requests (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      delivery_id INTEGER NOT NULL REFERENCES field_delivery_entries(id) ON DELETE CASCADE,
+      from_valid_on DATE NOT NULL,
+      requested_valid_on DATE NOT NULL,
+      reason TEXT NOT NULL,
+      approval_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      decided_by INTEGER REFERENCES users(id),
+      decided_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_field_delivery_backdate_pending
+     ON field_delivery_backdate_requests(approval_status, created_at DESC)`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_field_delivery_backdate_delivery
+     ON field_delivery_backdate_requests(delivery_id, approval_status)`
+  );
+  // One pending request per delivery (closes check-then-insert race).
+  await query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_field_delivery_backdate_pending
+     ON field_delivery_backdate_requests(delivery_id)
+     WHERE approval_status = 'pending'`
+  );
+}
+
 async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
@@ -675,6 +706,7 @@ async function migrate() {
   await migrateEmployeeOffices();
   await migratePabrikCatalog();
   await migrateEmployeePabriks();
+  await migrateFieldDeliveryBackdateRequests();
   await migrateLeaveFeatures();
   await normalizeEmployeeClockMode();
   await migratePayrollColumns();

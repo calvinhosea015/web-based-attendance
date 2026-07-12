@@ -93,14 +93,17 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
 
   const refreshPending = useCallback(async () => {
     try {
-      const [loansRes, leaveRes, correctionsRes] = await Promise.all([
+      const [loansRes, leaveRes, correctionsRes, backdatesRes] = await Promise.all([
         api.get(paths.adminLoanRequestsPending),
         api.get(paths.adminLeaveRequestsPending),
         api.get(paths.adminAttendanceCorrectionsPending),
+        api.get(paths.adminFieldDeliveryBackdatesPending),
       ]);
       setPendingLoans(Array.isArray(loansRes.data) ? loansRes.data.length : 0);
       setPendingLeave(Array.isArray(leaveRes.data) ? leaveRes.data.length : 0);
-      setPendingCorrections(Array.isArray(correctionsRes.data) ? correctionsRes.data.length : 0);
+      const correctionCount = Array.isArray(correctionsRes.data) ? correctionsRes.data.length : 0;
+      const backdateCount = Array.isArray(backdatesRes.data) ? backdatesRes.data.length : 0;
+      setPendingCorrections(correctionCount + backdateCount);
     } catch {
       /* ignore poll errors */
     }

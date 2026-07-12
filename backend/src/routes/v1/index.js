@@ -27,11 +27,13 @@ const { LoanService } = require('../../services/loanService');
 const { LeaveService } = require('../../services/leaveService');
 const { FieldCodeEntryRepository } = require('../../repositories/fieldCodeEntryRepository');
 const { FieldDeliveryRepository } = require('../../repositories/fieldDeliveryRepository');
+const { FieldDeliveryBackdateRepository } = require('../../repositories/fieldDeliveryBackdateRepository');
 const { PabrikItemRateRepository } = require('../../repositories/pabrikItemRateRepository');
 const { PabrikRepository } = require('../../repositories/pabrikRepository');
 const { EmployeeOfficeRepository } = require('../../repositories/employeeOfficeRepository');
 const { EmployeePabrikRepository } = require('../../repositories/employeePabrikRepository');
 const { FieldCheckoutCodeService } = require('../../services/fieldCheckoutCodeService');
+const { FieldDeliveryBackdateService } = require('../../services/fieldDeliveryBackdateService');
 const { PabrikItemRateService } = require('../../services/pabrikItemRateService');
 const { PabrikService } = require('../../services/pabrikService');
 const { makePabrikItemRateController } = require('../../controllers/pabrikItemRateController');
@@ -47,6 +49,7 @@ const { makePayrollController } = require('../../controllers/payrollController')
 const { makeLoanController } = require('../../controllers/loanController');
 const { makeLeaveController } = require('../../controllers/leaveController');
 const { makeFieldCheckoutCodeController } = require('../../controllers/fieldCheckoutCodeController');
+const { makeFieldDeliveryBackdateController } = require('../../controllers/fieldDeliveryBackdateController');
 const { makeAttendanceCorrectionController } = require('../../controllers/attendanceCorrectionController');
 const { AttendanceCorrectionService } = require('../../services/attendanceCorrectionService');
 const { buildAuthRoutes } = require('./auth.routes');
@@ -59,6 +62,7 @@ function buildV1Router() {
   const attendanceRepository = new AttendanceRepository();
   const fieldCodeEntryRepository = new FieldCodeEntryRepository();
   const fieldDeliveryRepository = new FieldDeliveryRepository();
+  const fieldDeliveryBackdateRepository = new FieldDeliveryBackdateRepository();
   const pabrikItemRateRepository = new PabrikItemRateRepository();
   const pabrikRepository = new PabrikRepository();
   const employeeOfficeRepository = new EmployeeOfficeRepository();
@@ -140,6 +144,12 @@ function buildV1Router() {
     attendanceRepository,
     attendanceService
   );
+  const fieldDeliveryBackdateService = new FieldDeliveryBackdateService(
+    fieldDeliveryBackdateRepository,
+    fieldDeliveryRepository,
+    attendanceRepository,
+    fieldCodeEntryRepository
+  );
   const analyticsService = new AnalyticsService(analyticsRepository);
   const loanService = new LoanService(
     loanRequestRepository,
@@ -163,7 +173,13 @@ function buildV1Router() {
   const payrollController = makePayrollController(payrollService);
   const loanController = makeLoanController(loanService);
   const leaveController = makeLeaveController(leaveService);
-  const fieldCheckoutCodeController = makeFieldCheckoutCodeController(fieldCheckoutCodeService);
+  const fieldCheckoutCodeController = makeFieldCheckoutCodeController(
+    fieldCheckoutCodeService,
+    fieldDeliveryBackdateRepository
+  );
+  const fieldDeliveryBackdateController = makeFieldDeliveryBackdateController(
+    fieldDeliveryBackdateService
+  );
   const pabrikItemRateController = makePabrikItemRateController(pabrikItemRateService);
   const pabrikController = makePabrikController(pabrikService);
   const attendanceCorrectionController = makeAttendanceCorrectionController(attendanceCorrectionService);
@@ -183,6 +199,7 @@ function buildV1Router() {
       loanController,
       leaveController,
       fieldCheckoutCodeController,
+      fieldDeliveryBackdateController,
       pabrikItemRateController,
       pabrikController,
       attendanceCorrectionController,

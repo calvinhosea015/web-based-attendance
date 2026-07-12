@@ -145,7 +145,11 @@ export const paths = {
   adminFieldTonaseBonusExport: '/v1/admin/field-tonase-bonus/export',
   adminFieldDeliveries: '/v1/admin/field-deliveries',
   adminFieldDeliveryUpdate: (id) => `/v1/admin/field-deliveries/${id}`,
+  adminFieldDeliveryBackdatesPending: '/v1/admin/field-delivery-backdates/pending',
+  adminFieldDeliveryBackdate: (id) => `/v1/admin/field-delivery-backdates/${id}`,
   employeeFieldDeliveries: '/v1/employee/field-deliveries',
+  employeeFieldDeliveryBackdates: '/v1/employee/me/field-delivery-backdates',
+  employeeFieldDeliveryBackdate: (id) => `/v1/employee/me/field-deliveries/${id}/backdate-request`,
   adminLoanRequestsPending: '/v1/admin/loan-requests/pending',
   adminLoanRequests: '/v1/admin/loan-requests',
   /** @param {string|number} id */

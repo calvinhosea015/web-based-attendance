@@ -184,6 +184,18 @@ class FieldDeliveryRepository {
     return r.rows[0] ?? null;
   }
 
+  async updateValidOn(id, validOn, attendanceId) {
+    const r = await query(
+      `UPDATE field_delivery_entries SET
+        valid_on = $2::date,
+        attendance_id = $3
+       WHERE id = $1
+       RETURNING *`,
+      [id, validOn, attendanceId]
+    );
+    return r.rows[0] ?? null;
+  }
+
   async deleteEntry(id) {
     const r = await query(`DELETE FROM field_delivery_entries WHERE id = $1 RETURNING id`, [id]);
     return r.rows[0] ?? null;

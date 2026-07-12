@@ -21,6 +21,7 @@ const {
   officeUpdateValidators,
   departmentCreateValidators,
   attendanceCorrectionSubmitValidators,
+  fieldDeliveryBackdateSubmitValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
@@ -58,6 +59,7 @@ function buildProtectedRoutes(deps) {
     payrollController,
     loanController,
     fieldCheckoutCodeController,
+    fieldDeliveryBackdateController,
     pabrikItemRateController,
     pabrikController,
     leaveController,
@@ -189,6 +191,19 @@ function buildProtectedRoutes(deps) {
     body('status').isIn(['approved', 'rejected']),
     validateRequest,
     attendanceCorrectionController.decide
+  );
+  r.get(
+    '/admin/field-delivery-backdates/pending',
+    requireRole('admin'),
+    fieldDeliveryBackdateController.listPending
+  );
+  r.put(
+    '/admin/field-delivery-backdates/:id',
+    requireRole('admin'),
+    idParamValidator,
+    body('status').isIn(['approved', 'rejected']),
+    validateRequest,
+    fieldDeliveryBackdateController.decide
   );
   r.put(
     '/admin/employees/:id',
@@ -455,6 +470,18 @@ function buildProtectedRoutes(deps) {
     fieldCodeSubmitValidators,
     validateRequest,
     fieldCheckoutCodeController.submit
+  );
+  r.get(
+    '/employee/me/field-delivery-backdates',
+    requireAttendanceRole,
+    fieldDeliveryBackdateController.listMine
+  );
+  r.post(
+    '/employee/me/field-deliveries/:id/backdate-request',
+    requireAttendanceRole,
+    fieldDeliveryBackdateSubmitValidators,
+    validateRequest,
+    fieldDeliveryBackdateController.submitMine
   );
 
   return r;

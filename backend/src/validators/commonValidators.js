@@ -247,6 +247,15 @@ const officeUpdateValidators = [...officeCreateValidators];
 
 const departmentCreateValidators = [body('name').trim().notEmpty()];
 
+const fieldDeliveryBackdateSubmitValidators = [
+  param('id').isInt({ min: 1 }),
+  body('requested_valid_on')
+    .trim()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage('requested_valid_on must be YYYY-MM-DD'),
+  body('reason').trim().notEmpty().isLength({ max: 2000 }),
+];
+
 const attendanceCorrectionSubmitValidators = [
   body('attendance_id').isInt({ min: 1 }),
   body('reason').trim().notEmpty().isLength({ max: 2000 }),
@@ -402,6 +411,7 @@ module.exports = {
   officeUpdateValidators,
   departmentCreateValidators,
   attendanceCorrectionSubmitValidators,
+  fieldDeliveryBackdateSubmitValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
