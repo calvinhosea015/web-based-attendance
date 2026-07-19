@@ -3,7 +3,8 @@
 
 param(
     [string]$RepoRoot = (Join-Path $PSScriptRoot ".."),
-    [switch]$NoElevate
+    [switch]$NoElevate,
+    [int]$MaxWaitSeconds = 2400
 )
 
 $ErrorActionPreference = "Stop"
@@ -58,4 +59,4 @@ if ($pids.Count -gt 0) {
     Write-BootLog "restart-api: stopped pid(s) $($pids -join ', ')."
 }
 
-& $StartScript -RepoRoot $RepoRoot
+& $StartScript -RepoRoot $RepoRoot -MaxWaitSeconds $MaxWaitSeconds

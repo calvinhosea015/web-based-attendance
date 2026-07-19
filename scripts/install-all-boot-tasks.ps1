@@ -6,6 +6,7 @@
 #   2. Attendance Frontend Boot - vite dev server -> :3000 (proxies /api to :5001)
 #   3. Attendance Tunnel Boot   - cloudflared     -> public HTTPS URL for :5001
 #   4. Attendance Vercel Sync   - pushes the live tunnel URL into Vercel VITE_API_BASE
+#   5. Attendance API Watchdog  - every few minutes, ensure API + FE + tunnel + Vercel sync
 #
 # The database is remote managed Postgres (Neon) per backend/.env, so there is
 # nothing local to start for it. Do NOT add a Docker Postgres boot task here.
@@ -33,6 +34,7 @@ if (-not $IsAdmin) {
 $ProdRepo = "D:\Calvin\web-based-attendance"
 $RepoRoot = if (Test-Path $ProdRepo) { $ProdRepo } else { (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
 $ScriptDir = Join-Path $RepoRoot "scripts"
+$SourceScripts = (Resolve-Path (Join-Path $PSScriptRoot ".")).Path
 
 $LogDir = "C:\Users\calvin\.pm2\logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
@@ -43,6 +45,37 @@ function Log([string]$m) {
     Write-Host $line
 }
 
+# Keep production scripts in sync with this checkout when they differ.
+if ($SourceScripts -ne $ScriptDir -and (Test-Path $ProdRepo)) {
+    New-Item -ItemType Directory -Force -Path $ScriptDir | Out-Null
+    $toSync = @(
+        "start-api-at-boot.ps1", "start-backend-at-boot.ps1", "restart-api.ps1",
+        "start-frontend-at-boot.ps1", "start-tunnel-at-boot.ps1",
+        "ensure-stack.ps1", "api-watchdog.ps1",
+        "install-backend-boot-task.ps1", "install-frontend-boot-task.ps1",
+        "install-tunnel-boot-task.ps1", "install-vercel-sync-boot-task.ps1",
+        "install-api-watchdog-task.ps1", "sync-vercel-api-url.ps1", "sync-vercel-at-boot.ps1"
+    )
+    foreach ($f in $toSync) {
+        $src = Join-Path $SourceScripts $f
+        if (Test-Path $src) {
+            Copy-Item $src (Join-Path $ScriptDir $f) -Force
+        }
+    }
+    # Also sync the Neon retry helper used at API boot.
+    $backendSrc = Join-Path (Split-Path $SourceScripts -Parent) "backend\src"
+    $backendDst = Join-Path $ProdRepo "backend\src"
+    foreach ($rel in @("server.js", "utils\dbConnectRetry.js")) {
+        $s = Join-Path $backendSrc $rel
+        $d = Join-Path $backendDst $rel
+        if (Test-Path $s) {
+            New-Item -ItemType Directory -Force -Path (Split-Path $d -Parent) | Out-Null
+            Copy-Item $s $d -Force
+        }
+    }
+    Log "Synced boot scripts + Neon retry code to $ProdRepo"
+}
+
 Log "Installing boot tasks from $ScriptDir"
 
 # (installer file, friendly name) in boot order.
@@ -50,7 +83,8 @@ $installers = @(
     @{ File = "install-backend-boot-task.ps1";     Name = "Attendance API Boot" },
     @{ File = "install-frontend-boot-task.ps1";     Name = "Attendance Frontend Boot" },
     @{ File = "install-tunnel-boot-task.ps1";       Name = "Attendance Tunnel Boot" },
-    @{ File = "install-vercel-sync-boot-task.ps1";  Name = "Attendance Vercel Sync" }
+    @{ File = "install-vercel-sync-boot-task.ps1";  Name = "Attendance Vercel Sync" },
+    @{ File = "install-api-watchdog-task.ps1";      Name = "Attendance API Watchdog" }
 )
 
 $failed = @()
@@ -81,4 +115,5 @@ if ($failed.Count -gt 0) {
 } else {
     Log "DONE. All boot tasks installed."
     Log "Verify after reboot (or test now): Start-ScheduledTask -TaskName 'Attendance API Boot'"
+    Log "Watchdog: Start-ScheduledTask -TaskName 'Attendance API Watchdog'"
 }

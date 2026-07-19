@@ -528,7 +528,7 @@ To keep the local stack running after a PC restart **without anyone logging in**
 .\scripts\install-all-boot-tasks.ps1
 ```
 
-It targets the production checkout (`D:\Calvin\web-based-attendance` if present) and logs to `C:\Users\calvin\.pm2\logs\install-all-boot-tasks.log`. The database is **remote Neon Postgres** (see `backend/.env`), so there is **no local database task** — do not add Docker Postgres at boot, that would be a different, empty database.
+It targets the production checkout (`D:\Calvin\web-based-attendance` if present), syncs boot scripts there, registers **API / Frontend / Tunnel / Vercel Sync / Watchdog**, and logs to `C:\Users\calvin\.pm2\logs\install-all-boot-tasks.log`. The database is **remote Neon Postgres** (see `backend/.env`), so there is **no local database task** — do not add Docker Postgres at boot, that would be a different, empty database.
 
 Or install each task individually (PowerShell **as Administrator**, from the repo root):
 
@@ -538,7 +538,7 @@ Or install each task individually (PowerShell **as Administrator**, from the rep
 .\scripts\install-tunnel-boot-task.ps1
 ```
 
-The API task waits ~60 seconds after boot, then waits for network and retries Neon until the API is healthy (up to ~15 minutes). The tunnel task waits ~5.5 minutes, then starts cloudflared and syncs Vercel. Allow **6–8 minutes** after reboot before the full stack is ready for login.
+The API task waits ~60 seconds after boot, then waits for network and retries Neon until the API is healthy (including **Neon free-tier compute quota** — the process keeps retrying for ~40 minutes). Frontend and tunnel wait longer for the API. **Attendance API Watchdog** then runs every few minutes and brings back API, Vite, the tunnel, and **Vercel `VITE_API_BASE` sync** if anything dies after boot. Allow **6–8 minutes** after reboot for a normal start; after a Neon quota hit, the stack may take longer and recover automatically once Neon allows connections again.
 
 **Important (Vercel + quick tunnel):** Quick tunnel hostnames **change every restart**. Auto-sync is handled by:
 
@@ -564,12 +564,15 @@ For a **stable URL** without redeploys, use a named Cloudflare tunnel with your 
 Start-ScheduledTask -TaskName "Attendance API Boot"
 Start-ScheduledTask -TaskName "Attendance Frontend Boot"
 Start-ScheduledTask -TaskName "Attendance Tunnel Boot"
+Start-ScheduledTask -TaskName "Attendance API Watchdog"
 Get-Content C:\Users\calvin\.pm2\logs\boot-start.log -Tail 20
 Get-Content C:\Users\calvin\.pm2\logs\boot-frontend.log -Tail 20
 Get-Content C:\Users\calvin\.pm2\logs\boot-tunnel.log -Tail 20
+Get-Content C:\Users\calvin\.pm2\logs\stack-ensure.log -Tail 20
 Get-Content D:\Calvin\cloudflared\tunnel-url.txt
 ```
 
+Or one-shot without Task Scheduler (Administrator): `.\scripts\ensure-stack.ps1`
 **After code updates**, pull and restart the running API (does not reinstall the boot tasks):
 
 ```powershell

@@ -100,16 +100,18 @@ function Resolve-LiveTunnelUrl {
         [long]$LogOffset = 0
     )
 
-    $candidates = @(Get-TunnelUrlCandidatesFromLog -AfterByteOffset $LogOffset)
-    for ($i = $candidates.Count - 1; $i -ge 0; $i--) {
-        if (Test-TunnelHealthy $candidates[$i]) {
-            return $candidates[$i]
-        }
-    }
+    # Prefer the explicit URL file (boot/ensure-stack write the live one here).
     if (Test-Path $TunnelUrlFile) {
         $fileUrl = (Get-Content $TunnelUrlFile -Raw).Trim().TrimEnd('/')
         if ($fileUrl -and (Test-TunnelHealthy $fileUrl)) {
             return $fileUrl
+        }
+    }
+
+    $candidates = @(Get-TunnelUrlCandidatesFromLog -AfterByteOffset $LogOffset)
+    for ($i = $candidates.Count - 1; $i -ge 0; $i--) {
+        if (Test-TunnelHealthy $candidates[$i]) {
+            return $candidates[$i]
         }
     }
     return $null
@@ -135,7 +137,7 @@ try {
         throw "vercel-sync.env must set VERCEL_TOKEN and VERCEL_PROJECT"
     }
 
-    $tunnelBase = Resolve-LiveTunnelUrl
+    $tunnelBase = Resolve-LiveTunnelUrl -TunnelUrlFile $TunnelUrlFile
     if (-not $tunnelBase) {
         throw "No healthy quick tunnel URL found (check cloudflared and tunnel.log)"
     }

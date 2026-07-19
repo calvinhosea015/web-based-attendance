@@ -97,7 +97,7 @@ try {
     }
 
     Write-BootLog "Waiting for API on port 5001..."
-    if (-not (Wait-ApiHealthy -MaxAttempts 30 -SecondsBetween 10)) {
+    if (-not (Wait-ApiHealthy -MaxAttempts 90 -SecondsBetween 20)) {
         throw "API not healthy on port 5001; cannot start frontend dev server."
     }
 

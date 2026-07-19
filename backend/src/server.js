@@ -3,20 +3,27 @@ const config = require('./config/env');
 const { migrate } = require('./db/migrate');
 const { logger } = require('./utils/logger');
 const { startAutoCheckoutScheduler } = require('./jobs/autoCheckout');
+const {
+  isRetryableDbStartupError,
+  isQuotaLikeDbError,
+} = require('./utils/dbConnectRetry');
 
 async function migrateWithRetry() {
-  const maxAttempts = Number(process.env.DB_CONNECT_RETRIES || 12);
-  const delayMs = Number(process.env.DB_CONNECT_RETRY_MS || 15000);
+  // ponytail: Neon free-tier quota can block for tens of minutes after reboot; keep trying.
+  // Ceiling: DB_CONNECT_RETRIES × delay (~40×30s default). Upgrade: paid Neon or local Postgres.
+  const maxAttempts = Number(process.env.DB_CONNECT_RETRIES || 40);
+  const delayMs = Number(process.env.DB_CONNECT_RETRY_MS || 30000);
+  const quotaDelayMs = Number(process.env.DB_QUOTA_RETRY_MS || 60000);
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await migrate();
       return;
     } catch (err) {
       const msg = String(err.message || err);
-      const retryable = /timeout|ECONNREFUSED|ENOTFOUND|terminated|connect|EAI_AGAIN/i.test(msg);
-      if (!retryable || attempt === maxAttempts) throw err;
-      logger.warn(`Database not ready (attempt ${attempt}/${maxAttempts}): ${msg}`);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (!isRetryableDbStartupError(err) || attempt === maxAttempts) throw err;
+      const wait = isQuotaLikeDbError(err) ? quotaDelayMs : delayMs;
+      logger.warn(`Database not ready (attempt ${attempt}/${maxAttempts}, wait ${wait}ms): ${msg}`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
     }
   }
 }

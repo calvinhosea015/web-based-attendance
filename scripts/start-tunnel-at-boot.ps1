@@ -12,6 +12,12 @@ $CloudflaredExe = Join-Path $CloudflaredDir "cloudflared.exe"
 $ConfigFile = Join-Path $CloudflaredDir "config.yml"
 $CertFile = Join-Path $CloudflaredDir "cert.pem"
 $TunnelLog = Join-Path $CloudflaredDir "tunnel.log"
+try {
+    Add-Content -Path $TunnelLog -Value "" -ErrorAction Stop
+} catch {
+    # SYSTEM-owned / locked log — write somewhere the current principal can use.
+    $TunnelLog = Join-Path $env:TEMP "attendance-cloudflared-tunnel.log"
+}
 $TunnelUrlFile = Join-Path $CloudflaredDir "tunnel-url.txt"
 $TunnelModeFile = Join-Path $CloudflaredDir "tunnel-mode.txt"
 $Pm2Home = "C:\Users\calvin\.pm2"
@@ -188,7 +194,13 @@ function Resolve-LiveQuickTunnelUrl([long]$LogOffset) {
 function Start-QuickTunnel {
     Write-BootLog "Starting cloudflared quick tunnel (URL will change on restart)..."
     if (Test-Path $TunnelLog) {
-        Move-Item $TunnelLog "$TunnelLog.bak" -Force
+        $bak = "$TunnelLog.bak"
+        if (Test-Path $bak) { Remove-Item $bak -Force -ErrorAction SilentlyContinue }
+        Move-Item $TunnelLog $bak -Force -ErrorAction SilentlyContinue
+        if (Test-Path $TunnelLog) {
+            # Still locked: truncate instead of failing boot.
+            Set-Content -Path $TunnelLog -Value "" -Encoding UTF8 -ErrorAction SilentlyContinue
+        }
     }
     $logOffset = 0
     Start-Process -FilePath $CloudflaredExe -ArgumentList @(
@@ -256,13 +268,13 @@ try {
     }
 
     Write-BootLog "Waiting for API on port 5001..."
-    if (-not (Wait-ApiHealthy -MaxAttempts 36 -SecondsBetween 10)) {
+    if (-not (Wait-ApiHealthy -MaxAttempts 90 -SecondsBetween 20)) {
         $apiBoot = "D:\Calvin\web-based-attendance\scripts\start-backend-at-boot.ps1"
         if (Test-Path $apiBoot) {
             Write-BootLog "API still down; running start-backend-at-boot.ps1 once..."
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $apiBoot
         }
-        if (-not (Wait-ApiHealthy -MaxAttempts 36 -SecondsBetween 10)) {
+        if (-not (Wait-ApiHealthy -MaxAttempts 90 -SecondsBetween 20)) {
             throw "API not healthy on port 5001; cannot start tunnel."
         }
     }

@@ -9,6 +9,7 @@ $StartScript = Join-Path $RepoRoot "scripts\start-api-at-boot.ps1"
 $Pm2Home = "C:\Users\calvin\.pm2"
 $LogDir = Join-Path $Pm2Home "logs"
 $LogFile = Join-Path $LogDir "boot-start.log"
+$LockFile = Join-Path $LogDir "api-boot.lock"
 
 if (-not (Test-Path $LogDir)) {
     New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
@@ -28,18 +29,31 @@ function Test-ApiHealthy {
     }
 }
 
-function Stop-BackendServer([string]$BackendPath) {
-    $backendNorm = $BackendPath.ToLowerInvariant()
-    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-        Where-Object {
-            $_.CommandLine -and
-            $_.CommandLine.ToLowerInvariant().Contains($backendNorm) -and
-            $_.CommandLine -match 'server\.js'
-        } |
-        ForEach-Object {
-            Write-BootLog "Stopping stale server.js PID $($_.ProcessId)."
-            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+function Test-OutLogShowsQuota {
+    $outLog = Join-Path $RepoRoot "logs\api-out.log"
+    if (-not (Test-Path $outLog)) { return $false }
+    $tail = Get-Content $outLog -Tail 40 -ErrorAction SilentlyContinue | Out-String
+    return ($tail -match 'quota|compute time')
+}
+
+function Enter-BootLock {
+    # ponytail: overlapping boot + tunnel "kick API" races. Ceiling: stale lock after 45 min.
+    if (Test-Path $LockFile) {
+        $ageMin = ((Get-Date) - (Get-Item $LockFile).LastWriteTime).TotalMinutes
+        if ($ageMin -lt 45) {
+            Write-BootLog "Another API boot holds the lock ($([int]$ageMin)m old); exiting."
+            exit 0
         }
+        Write-BootLog "Stale API boot lock ($([int]$ageMin)m); taking over."
+        Remove-Item $LockFile -Force -ErrorAction SilentlyContinue
+    }
+    Set-Content -Path $LockFile -Value $PID -Encoding ASCII
+}
+
+function Exit-BootLock {
+    if ((Test-Path $LockFile) -and ((Get-Content $LockFile -Raw).Trim() -eq [string]$PID)) {
+        Remove-Item $LockFile -Force -ErrorAction SilentlyContinue
+    }
 }
 
 try {
@@ -48,6 +62,8 @@ try {
     if (-not (Test-Path $StartScript)) {
         throw "Missing start script: $StartScript"
     }
+
+    Enter-BootLock
 
     # Wait for network/DNS after reboot before hitting Neon.
     Write-BootLog "Waiting 90s for network..."
@@ -58,12 +74,11 @@ try {
         exit 0
     }
 
-    $Backend = Join-Path $RepoRoot "backend"
-    $maxCycles = 3
+    # More cycles: Neon free-tier quota often clears within ~30–60 minutes after reboot.
+    $maxCycles = 8
 
     for ($cycle = 1; $cycle -le $maxCycles; $cycle++) {
         Write-BootLog "Start attempt $cycle/$maxCycles..."
-        Stop-BackendServer -BackendPath $Backend
 
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $StartScript -RepoRoot $RepoRoot
         if ($LASTEXITCODE -eq 0 -and (Test-ApiHealthy)) {
@@ -72,8 +87,9 @@ try {
         }
 
         if ($cycle -lt $maxCycles) {
-            Write-BootLog "Attempt $cycle failed; retrying in 60s..."
-            Start-Sleep -Seconds 60
+            $pause = if (Test-OutLogShowsQuota) { 180 } else { 60 }
+            Write-BootLog "Attempt $cycle failed; retrying in ${pause}s..."
+            Start-Sleep -Seconds $pause
         }
     }
 
@@ -81,4 +97,6 @@ try {
 } catch {
     Write-BootLog "ERROR: $($_.Exception.Message)"
     exit 1
+} finally {
+    Exit-BootLock
 }
