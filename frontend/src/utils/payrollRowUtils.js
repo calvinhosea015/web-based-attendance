@@ -13,11 +13,7 @@ export function payrollRowNeedsAttention(row, requiredWorkDays) {
 
   if (expected != null && expected > 0) {
     const absent = Math.max(0, expected - days);
-    if (
-      (isMonthlyPayrollMode(row.payroll_mode) || row.user_role === 'field_officer') &&
-      absent > 0 &&
-      absent >= expected
-    ) {
+    if (isMonthlyPayrollMode(row.payroll_mode) && absent > 0 && absent >= expected) {
       return true;
     }
   }

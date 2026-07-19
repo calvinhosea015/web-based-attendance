@@ -229,22 +229,20 @@ export default function AdminPayroll() {
     const isMonthlyMode = isMonthlyPayrollMode(mode);
     const monthlyGross =
       row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary ?? 0;
-    const expectedDefault =
-      row.expected_work_days ?? requiredWorkDays ?? countWorkingDaysMonSatInCycle(period);
+    const isFieldOfficer = row.user_role === 'field_officer';
+    const expectedDefault = isFieldOfficer
+      ? null
+      : (row.expected_work_days ?? requiredWorkDays ?? countWorkingDaysMonSatInCycle(period));
     const daysAttended = row.days_attended ?? 0;
     const upah = resolveUpahHarianDisplay(row, settings);
-    let absenceDeduction = Number(row.absence_deduction ?? 0);
-    if (row.absence_deduction == null) {
-      if (isMonthlyMode) {
-        absenceDeduction =
-          previewMonthlyStaffPayroll({
-            monthlyBasic: monthlyGross,
-            expectedDays: expectedDefault,
-            daysAttended,
-          }).absenceDeduction ?? 0;
-      } else if (row.user_role === 'field_officer') {
-        absenceDeduction = Math.max(0, expectedDefault - daysAttended) * upah;
-      }
+    let absenceDeduction = isFieldOfficer ? 0 : Number(row.absence_deduction ?? 0);
+    if (!isFieldOfficer && row.absence_deduction == null && isMonthlyMode) {
+      absenceDeduction =
+        previewMonthlyStaffPayroll({
+          monthlyBasic: monthlyGross,
+          expectedDays: expectedDefault,
+          daysAttended,
+        }).absenceDeduction ?? 0;
     }
     setEditingId(row.employee_id);
     setEditForm({
@@ -297,7 +295,10 @@ export default function AdminPayroll() {
         delete payload.expected_work_days;
       }
       const rowRole = rows.find((r) => r.employee_id === editingId)?.user_role;
-      if (!isMonthlyMode && rowRole !== 'field_officer') {
+      if (rowRole === 'field_officer') {
+        delete payload.absence_deduction;
+        delete payload.expected_work_days;
+      } else if (!isMonthlyMode) {
         delete payload.absence_deduction;
         delete payload.expected_work_days;
       }
@@ -346,7 +347,7 @@ export default function AdminPayroll() {
   const editIsManual = editForm?.payroll_mode === 'manual';
   const editIsMonthly = isMonthlyPayrollMode(editForm?.payroll_mode);
   const editIsFieldOfficer = editingRow?.user_role === 'field_officer';
-  const editShowsExpectedDays = editIsMonthly || editIsFieldOfficer;
+  const editShowsExpectedDays = editIsMonthly;
 
   const deploySubtitle = apiBuildSha
     ? `${t('deployApiBuild')}: ${apiBuildSha}`
@@ -653,16 +654,9 @@ export default function AdminPayroll() {
                         {formatIdr(row.final_salary)}
                       </td>
                       <td>
-                        <div className="flex justify-end gap-1.5">
+                        <div className="flex justify-end">
                           <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
                             {t('payrollEditRowAction')}
-                          </Button>
-                          <Button
-                            variant="success"
-                            size="sm"
-                            onClick={() => handleExportSlip(row.employee_id, row.full_name)}
-                          >
-                            {t('payrollExportSlip')}
                           </Button>
                         </div>
                       </td>
@@ -696,6 +690,15 @@ export default function AdminPayroll() {
                 }}
               >
                 {t('cancel')}
+              </Button>
+              <Button
+                variant="success"
+                size="sm"
+                onClick={() =>
+                  handleExportSlip(editingId, editingRow?.full_name)
+                }
+              >
+                {t('payrollExportSlip')}
               </Button>
               <Button type="submit" form="payroll-edit-form" variant="primary" size="sm">
                 {t('saveUser')}
@@ -951,7 +954,7 @@ export default function AdminPayroll() {
             <p className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wide text-apple-label md:col-span-4">
               {t('payrollSlipDeductions')}
             </p>
-            {(editIsMonthly || editIsFieldOfficer) && (
+            {editIsMonthly && (
               <CompactField label={t('payrollSlipPotonganAbsen')}>
                 <input
                   type="number"

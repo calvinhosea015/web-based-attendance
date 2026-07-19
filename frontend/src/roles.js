@@ -2,7 +2,7 @@
 export const ROLE_EMPLOYEE = 'employee';
 /** Petugas lapangan */
 export const ROLE_FIELD_OFFICER = 'field_officer';
-/** Umum — one check-in per day; monthly gaji; potongan absen */
+/** Cleaning — one check-in per day; monthly gaji; potongan absen */
 export const ROLE_UMUM = 'umum';
 /** Accounting — custom work hours; simplified payroll */
 export const ROLE_ACCOUNTING = 'accounting';

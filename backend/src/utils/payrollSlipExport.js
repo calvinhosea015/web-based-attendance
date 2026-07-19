@@ -218,7 +218,7 @@ function slipAmounts(row) {
     bpjs_kes: num(row.bpjs_kes),
     pph21: num(row.pph_21),
     kasbon: num(row.loan_deduction ?? row.loan_deduction_preview),
-    potongan_lain: num(row.other_deductions ?? row.deductions),
+    potongan_lain: num(row.other_deductions),
   };
 }
 
@@ -236,9 +236,9 @@ function jabatanLabel(row) {
   const byRole = {
     field_officer: 'Petugas Lapangan',
     employee: 'Staff Kantor',
-    umum: 'Umum',
+    umum: 'Cleaning',
     accounting: 'Accounting',
-    general_affairs: 'Umum',
+    general_affairs: 'Cleaning',
     head_of_finance: 'Head of Finance',
   };
   if (byRole[role]) return byRole[role];
@@ -434,10 +434,6 @@ function addFieldOfficerCalculationSection(
   setAmountCell(ws, 43, COL.D, fieldOfficerNet);
   ws.getCell(43, COL.D).font = FONT_TOTAL;
 
-  setLabelColon(ws, 45, COL.A, 'Jumlah Hari');
-  setCell(ws, 45, COL.B, num(row.expected_work_days), {
-    alignment: { horizontal: 'left', vertical: 'middle' },
-  });
   setLabelColon(ws, 45, COL.C, 'Jumlah Hadir');
   setCell(ws, 45, COL.D, hariKerja, {
     alignment: { horizontal: 'left', vertical: 'middle' },
@@ -585,8 +581,10 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
     isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW
   );
 
-  setLabelColon(ws, ROW.JUMLAH_HARI, COL.A, 'Jumlah Hari');
-  setColonText(ws, ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period));
+  if (!isFieldOfficerSlip) {
+    setLabelColon(ws, ROW.JUMLAH_HARI, COL.A, 'Jumlah Hari');
+    setColonText(ws, ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period));
+  }
 
   setLabelColon(ws, ROW.JUMLAH_HADIR, COL.A, 'Jumlah Hadir');
   setColonText(ws, ROW.JUMLAH_HADIR, COL.B, num(row.days_attended));

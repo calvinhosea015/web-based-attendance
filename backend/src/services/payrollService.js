@@ -31,6 +31,10 @@ const {
   receivesStaffKantorAttendancePayroll,
   normalizeRolePayrollFields,
 } = require('../utils/payrollRoleRules');
+const {
+  resolveOtherDeductionsAmount,
+  resolveOtherDeductionsFromPayload,
+} = require('../utils/payrollOtherDeductions');
 const { countEffectiveDaysAttended } = require('../utils/leavePayrollDays');
 const {
   computeStaffKantorOvertimeMinutes,
@@ -109,7 +113,7 @@ function buildManualPayrollFields({ prev, emp, settings }) {
     diligence_eligible: diligenceEligible,
     diligence_allowance_amount: diligenceAmount,
     bonus_omset: num(prev?.bonus_omset ?? 0),
-    other_deductions: num(prev?.other_deductions ?? prev?.deductions ?? 0),
+    other_deductions: resolveOtherDeductionsAmount(prev),
     loan_deduction: num(prev?.loan_deduction ?? 0),
     late_deduction: num(prev?.late_deduction ?? 0),
     pph_21: num(prev?.pph_21 ?? 0),
@@ -628,7 +632,7 @@ class PayrollService {
             loan_deduction: num(merged.loan_deduction),
             late_deduction: num(merged.late_deduction),
             pph_21: num(merged.pph_21),
-            other_deductions: num(merged.other_deductions ?? merged.deductions),
+            other_deductions: resolveOtherDeductionsAmount(merged),
             bpjs_tk: num(merged.bpjs_tk),
             bpjs_kes: num(merged.bpjs_kes),
           },
@@ -675,9 +679,10 @@ class PayrollService {
         num(merged.loan_deduction),
         num(enriched.loan_deduction_preview ?? 0)
       ),
-      other_deductions: num(
-        merged.other_deductions ?? merged.deductions ?? totals.other_deductions
-      ),
+      other_deductions:
+        merged.other_deductions != null
+          ? resolveOtherDeductionsAmount(merged)
+          : num(totals.other_deductions),
       final_salary: num(totals.final_salary ?? merged.final_salary),
       transport_eligible: transportEligible,
       diligence_eligible: diligenceEligible,
@@ -762,7 +767,7 @@ class PayrollService {
         diligence_eligible: diligenceEligible,
         diligence_allowance_amount: diligenceAmount,
         bonus_omset: prev?.bonus_omset ?? 0,
-        other_deductions: prev?.other_deductions ?? prev?.deductions ?? 0,
+        other_deductions: resolveOtherDeductionsAmount(prev),
         loan_deduction: 0,
         late_deduction: prev?.late_deduction ?? 0,
         pph_21: prev?.pph_21 ?? 0,
@@ -892,13 +897,12 @@ class PayrollService {
     const upahHarian = resolveUpahHarian(row, employee, role, settings);
     let gaji;
 
-    const expectedDays =
-      hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
-        ? this.resolveExpectedWorkDays({
-            payrollPeriod: bounds.payroll_period,
-            existing: row.expected_work_days,
-          })
-        : null;
+    const expectedDays = hasMonthlyBasicPayroll(role)
+      ? this.resolveExpectedWorkDays({
+          payrollPeriod: bounds.payroll_period,
+          existing: row.expected_work_days,
+        })
+      : null;
 
     let monthlyCalc = null;
     let absenceForTotals = num(row.absence_deduction);
@@ -912,13 +916,7 @@ class PayrollService {
       if (row.absence_deduction == null) absenceForTotals = monthlyCalc.absence_deduction;
     } else {
       gaji = computeGaji(days, upahHarian);
-      if (
-        isFieldOfficer(role) &&
-        expectedDays != null &&
-        row.absence_deduction == null
-      ) {
-        absenceForTotals = Math.max(0, expectedDays - days) * upahHarian;
-      }
+      if (isFieldOfficer(role)) absenceForTotals = 0;
     }
 
     let overtimePay = num(row.overtime_pay);
@@ -984,10 +982,7 @@ class PayrollService {
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
         bonus_omset: bonusOmset,
         omset_total: omsetTotal,
-        other_deductions: Math.max(
-          0,
-          num(row.other_deductions ?? row.deductions) - num(row.late_deduction)
-        ),
+        other_deductions: resolveOtherDeductionsAmount(row),
         loan_deduction: num(row.loan_deduction),
       },
       role
@@ -1173,14 +1168,13 @@ class PayrollService {
         role,
         monthlyBasicGross,
       });
-      const expectedDays =
-        hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
-          ? this.resolveExpectedWorkDays({
-              payrollPeriod: bounds.payroll_period,
-              explicit: requiredWorkDays,
-              existing: prev?.expected_work_days,
-            })
-          : null;
+      const expectedDays = hasMonthlyBasicPayroll(role)
+        ? this.resolveExpectedWorkDays({
+            payrollPeriod: bounds.payroll_period,
+            explicit: requiredWorkDays,
+            existing: prev?.expected_work_days,
+          })
+        : null;
       let monthlyCalc = null;
       let absenceForTotals =
         prev?.absence_deduction != null ? num(prev.absence_deduction) : 0;
@@ -1222,15 +1216,7 @@ class PayrollService {
           bounds.period_start,
           bounds.period_end
         );
-      }
-      if (
-        isFieldOfficer(role) &&
-        expectedDays != null &&
-        prev?.absence_deduction == null
-      ) {
-        absenceForTotals =
-          Math.max(0, expectedDays - (fields._resolvedDays ?? days)) *
-          (fields._resolvedUpahHarian ?? upahHarian);
+        absenceForTotals = 0;
       }
 
       const totals = computeTotals(
@@ -1375,12 +1361,7 @@ class PayrollService {
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
         bonus_omset:
           payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
-        other_deductions:
-          payload.other_deductions != null
-            ? num(payload.other_deductions)
-            : payload.deductions != null
-              ? num(payload.deductions)
-              : num(existing.other_deductions ?? existing.deductions),
+        other_deductions: resolveOtherDeductionsFromPayload(payload, existing),
         loan_deduction:
           payload.loan_deduction != null ? num(payload.loan_deduction) : num(existing.loan_deduction),
         late_deduction:
@@ -1451,15 +1432,14 @@ class PayrollService {
     let gaji;
     let monthlyBasicGross = num(employee.basic_salary);
     let absenceForTotals = 0;
-    const expectedDays =
-      hasMonthlyBasicPayroll(role) || isFieldOfficer(role)
-        ? payload.expected_work_days != null
-          ? Math.max(0, Math.floor(num(payload.expected_work_days)))
-          : this.resolveExpectedWorkDays({
-              payrollPeriod: bounds.payroll_period,
-              existing: existing.expected_work_days,
-            })
-        : null;
+    const expectedDays = hasMonthlyBasicPayroll(role)
+      ? payload.expected_work_days != null
+        ? Math.max(0, Math.floor(num(payload.expected_work_days)))
+        : this.resolveExpectedWorkDays({
+            payrollPeriod: bounds.payroll_period,
+            existing: existing.expected_work_days,
+          })
+      : null;
     if (receivesMonthlyAbsenceDeduction(role)) {
       if (payload.monthly_basic_gross != null) {
         monthlyBasicGross = num(payload.monthly_basic_gross);
@@ -1478,13 +1458,6 @@ class PayrollService {
       gaji = Math.max(0, monthlyBasicGross - absenceForTotals);
     } else {
       gaji = computeGaji(daysN, upahHarian);
-      if (isFieldOfficer(role) && expectedDays != null) {
-        if (payload.absence_deduction != null) {
-          absenceForTotals = num(payload.absence_deduction);
-        } else {
-          absenceForTotals = Math.max(0, expectedDays - daysN) * upahHarian;
-        }
-      }
     }
 
     const transportEligible =
@@ -1566,16 +1539,7 @@ class PayrollService {
         diligence_eligible: diligenceEligible,
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
         bonus_omset: 0,
-        other_deductions:
-          payload.other_deductions != null
-            ? num(payload.other_deductions)
-            : payload.deductions != null
-              ? num(payload.deductions)
-              : Math.max(
-                  0,
-                  num(existing.other_deductions ?? existing.deductions) -
-                    num(existing.late_deduction)
-                ),
+        other_deductions: resolveOtherDeductionsFromPayload(payload, existing),
         loan_deduction: loanDeduction,
         late_deduction: lateDeduction,
         pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),

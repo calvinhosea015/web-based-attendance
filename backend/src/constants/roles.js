@@ -5,7 +5,7 @@ const ROLES = {
   EMPLOYEE: 'employee',
   /** Petugas lapangan — one check-in per day; checkout requires structured delivery data */
   FIELD_OFFICER: 'field_officer',
-  /** Umum — one check-in per day (auto close); monthly gaji; potongan absen = gaji/hari kerja × hari absen */
+  /** Cleaning (umum) — one check-in per day (auto close); monthly gaji; potongan absen = gaji/hari kerja × hari absen */
   UMUM: 'umum',
   /** Accounting — monthly gaji like Staff Kantor; custom work hours; potongan absen from attendance */
   ACCOUNTING: 'accounting',
