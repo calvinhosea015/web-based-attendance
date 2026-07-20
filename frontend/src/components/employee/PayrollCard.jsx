@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Card } from '../ui.jsx';
 import { payrollCycleLabel } from '../../utils/payrollPeriod.js';
+import { isMonthlyPayrollMode } from '../../roles.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
 export default function PayrollCard({ payroll }) {
@@ -41,10 +42,7 @@ export default function PayrollCard({ payroll }) {
                     </dt>
                     <dd className="font-medium text-apple-text">Rp {formatIdr(row.basic_salary)}</dd>
                   </div>
-                  {(row.payroll_mode === 'monthly' ||
-                    row.payroll_mode === 'umum' ||
-                    row.payroll_mode === 'general_affairs' ||
-                    row.payroll_mode === 'accounting') &&
+                  {isMonthlyPayrollMode(row.payroll_mode) &&
                     Number(row.absence_deduction || 0) > 0 && (
                     <div>
                       <dt className="text-xs uppercase tracking-wide text-apple-label">

@@ -2,6 +2,8 @@
 export const ROLE_EMPLOYEE = 'employee';
 /** Petugas lapangan */
 export const ROLE_FIELD_OFFICER = 'field_officer';
+/** General affairs — gaji harian like petugas lapangan */
+export const ROLE_GENERAL_AFFAIRS = 'general_affairs';
 /** Cleaning — one check-in per day; monthly gaji; potongan absen */
 export const ROLE_UMUM = 'umum';
 /** Accounting — custom work hours; simplified payroll */
@@ -13,6 +15,7 @@ export const ROLE_ADMIN = 'admin';
 export const ATTENDANCE_ROLES = [
   ROLE_EMPLOYEE,
   ROLE_FIELD_OFFICER,
+  ROLE_GENERAL_AFFAIRS,
   ROLE_UMUM,
   ROLE_ACCOUNTING,
 ];
@@ -59,12 +62,11 @@ export function requiresFullName(role) {
   return isAttendanceRole(role) || isHeadOfFinanceRole(role);
 }
 
-/** Monthly payroll UI modes (includes legacy general_affairs rows). */
+export function usesDailyWagePayrollRole(role) {
+  return role === ROLE_FIELD_OFFICER || role === ROLE_GENERAL_AFFAIRS;
+}
+
+/** Monthly payroll UI modes (legacy DB rows may still carry payroll_mode general_affairs). */
 export function isMonthlyPayrollMode(mode) {
-  return (
-    mode === 'monthly' ||
-    mode === 'umum' ||
-    mode === 'general_affairs' ||
-    mode === 'accounting'
-  );
+  return mode === 'monthly' || mode === 'umum' || mode === 'accounting';
 }

@@ -4,7 +4,7 @@ const {
   countWorkingDaysMonSatInCycle,
   cycleEndDate,
 } = require('./payrollPeriod');
-const { isFieldOfficer } = require('../constants/roles');
+const { usesDailyWagePayroll } = require('../constants/roles');
 const {
   resolveTransportEligible,
   resolveDiligenceEligible,
@@ -159,7 +159,7 @@ function slipAsOfDate(row, period) {
 }
 
 function slipAmounts(row) {
-  const fieldOfficer = isFieldOfficer(row.user_role);
+  const dailyWageSlip = usesDailyWagePayroll(row.user_role);
   const transportEligible = resolveTransportEligible(row);
   const diligenceEligible = resolveDiligenceEligible(row);
   const { transport_allowance: transport, diligence_bonus: kerajinan } = resolvePayrollAllowanceAmounts({
@@ -175,14 +175,13 @@ function slipAmounts(row) {
   const monthlyStaff =
     row.payroll_mode === 'monthly' ||
     row.payroll_mode === 'umum' ||
-    row.payroll_mode === 'general_affairs' ||
     row.payroll_mode === 'accounting';
   const monthlyGross =
     row.monthly_basic_gross != null
       ? num(row.monthly_basic_gross)
       : num(row.employee_basic_salary);
   let absenceDeduction = 0;
-  if (!fieldOfficer) {
+  if (!dailyWageSlip) {
     absenceDeduction = monthlyStaff ? num(row.absence_deduction) : 0;
     if (!monthlyStaff) {
       if (row.absence_deduction != null) {
@@ -238,7 +237,7 @@ function jabatanLabel(row) {
     employee: 'Staff Kantor',
     umum: 'Cleaning',
     accounting: 'Accounting',
-    general_affairs: 'Cleaning',
+    general_affairs: 'General Affairs',
     head_of_finance: 'Head of Finance',
   };
   if (byRole[role]) return byRole[role];
@@ -475,7 +474,7 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   applyColumnWidths(ws);
 
   const amounts = slipAmounts(row);
-  const isFieldOfficerSlip = isFieldOfficer(row.user_role);
+  const isFieldOfficerSlip = dailyWageSlip;
   const totalPendapatan = isFieldOfficerSlip
     ? fieldOfficerEarningsTotal(row, amounts)
     : sumAmountKeys(amounts, EARNINGS);

@@ -24,6 +24,7 @@ const {
   isUmum,
   isHeadOfFinance,
   isFieldOfficer,
+  usesDailyWagePayroll,
 } = require('../constants/roles');
 const {
   hasMonthlyBasicPayroll,
@@ -616,12 +617,23 @@ class PayrollService {
       settings,
     });
 
+    const joinDateForTunjangan = merged.join_date ?? employee?.join_date;
+    const slipTunjangan = receivesTunjanganMasaKerja(merged.user_role)
+      ? merged.tunjangan_masa_kerja != null
+        ? num(merged.tunjangan_masa_kerja)
+        : resolveTunjanganMasaKerjaForRole(
+            merged.user_role,
+            joinDateForTunjangan,
+            period
+          )
+      : 0;
+
     const totals = computeTotals(
       withSlipTotalsContext(
         normalizeRolePayrollFields(
           {
             basic_salary: num(merged.basic_salary),
-            tunjangan_masa_kerja: num(merged.tunjangan_masa_kerja),
+            tunjangan_masa_kerja: slipTunjangan,
             transport_eligible: transportEligible,
             diligence_eligible: diligenceEligible,
             transport_allowance_amount: allowanceRates.transport_allowance_amount,
@@ -657,16 +669,7 @@ class PayrollService {
       payroll_period: period,
       upah_harian: num(merged.upah_harian ?? merged.employee_upah_harian),
       monthly_basic_gross: num(merged.monthly_basic_gross ?? merged.employee_basic_salary),
-      tunjangan_masa_kerja:
-        merged.tunjangan_masa_kerja != null
-          ? num(merged.tunjangan_masa_kerja)
-          : receivesTunjanganMasaKerja(merged.user_role)
-            ? resolveTunjanganMasaKerjaForRole(
-                merged.user_role,
-                merged.join_date ?? employee?.join_date,
-                period
-              )
-            : 0,
+      tunjangan_masa_kerja: slipTunjangan,
       overtime_pay: num(merged.overtime_pay),
       insentif: num(merged.insentif),
       bonus_omset: num(merged.bonus_omset),
@@ -916,7 +919,7 @@ class PayrollService {
       if (row.absence_deduction == null) absenceForTotals = monthlyCalc.absence_deduction;
     } else {
       gaji = computeGaji(days, upahHarian);
-      if (isFieldOfficer(role)) absenceForTotals = 0;
+      if (usesDailyWagePayroll(role)) absenceForTotals = 0;
     }
 
     let overtimePay = num(row.overtime_pay);
@@ -1205,6 +1208,9 @@ class PayrollService {
       }
       fields = normalizeRolePayrollFields(fields, role);
       fields.loan_deduction = await this.resolveLoanDeduction(emp.id, bounds.payroll_period);
+      if (usesDailyWagePayroll(role)) {
+        absenceForTotals = 0;
+      }
       if (isFieldOfficer(role)) {
         fields.bonus_omset = await this.sumFieldOfficerBonusForPeriod(
           emp.id,
@@ -1216,7 +1222,6 @@ class PayrollService {
           bounds.period_start,
           bounds.period_end
         );
-        absenceForTotals = 0;
       }
 
       const totals = computeTotals(
@@ -1623,7 +1628,7 @@ class PayrollService {
     if (payload.transport_eligible != null) {
       defaultsPayload.transport_eligible = fields.transport_eligible;
     }
-    if (isFieldOfficer(role)) {
+    if (usesDailyWagePayroll(role)) {
       defaultsPayload.upah_harian = upahHarian;
     }
     if (

@@ -1,5 +1,5 @@
 const { hasMonthlyBasicPayroll } = require('./payrollRoleRules');
-const { isHeadOfFinance, isFieldOfficer } = require('../constants/roles');
+const { isHeadOfFinance, usesDailyWagePayroll } = require('../constants/roles');
 
 function num(v) {
   const n = Number(v);
@@ -17,7 +17,7 @@ function resolveUpahHarian(payrollRow, employee, role, settings = null) {
     payrollRow?.upah_harian != null && payrollRow?.upah_harian !== ''
       ? num(payrollRow.upah_harian)
       : null;
-  const settingsDefault = isFieldOfficer(role) ? num(settings?.default_upah_harian) : 0;
+  const settingsDefault = usesDailyWagePayroll(role) ? num(settings?.default_upah_harian) : 0;
   if (fromPayroll != null && fromPayroll > 0) return fromPayroll;
   if (fromEmp > 0) return fromEmp;
   if (settingsDefault > 0) return settingsDefault;

@@ -3,10 +3,12 @@ const config = require('../config/env');
 const { CLOCK_SEGMENTS_PER_DAY } = require('../constants/attendance');
 const {
   isFieldOfficer,
+  isGeneralAffairs,
   isUmum,
   isStaffKantor,
   isAccounting,
   usesOncePerDayInOut,
+  usesDailyWagePayroll,
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
@@ -46,6 +48,7 @@ class EmployeePortalService {
     const dayStr = attendanceCalendarDayStr();
     const employee = await this.employeeRepository.findById(auth.employeeId);
     const fieldOfficer = isFieldOfficer(auth.role);
+    const generalAffairs = isGeneralAffairs(auth.role);
     const umum = isUmum(auth.role);
     const accounting = isAccounting(auth.role);
     const onceDailyInOut = usesOncePerDayInOut(auth.role);
@@ -154,6 +157,8 @@ class EmployeePortalService {
       check_in_gps_buffer_cap_meters: config.officeRadiusGpsBufferCapMeters,
       remote_work_allowed: remoteWorkAllowed,
       field_officer_mode: fieldOfficer,
+      general_affairs_mode: generalAffairs,
+      daily_wage_mode: usesDailyWagePayroll(auth.role),
       umum_mode: umum,
       accounting_mode: accounting,
       once_daily_in_out_mode: onceDailyInOut,

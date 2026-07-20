@@ -16,6 +16,7 @@ const {
   isUmum,
   isAccounting,
   usesOncePerDayInOut,
+  usesSimpleDailyCheckout,
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
 const { computeStaffKantorOvertimeMinutes } = require('../utils/staffKantorOvertime');
@@ -459,7 +460,7 @@ class AttendanceService {
     let overtimeMinutes = 0;
     let status;
     let checkoutCode = null;
-    if (fieldOfficer) {
+    if (usesSimpleDailyCheckout(auth.role)) {
       checkoutCode =
         checkoutCodeRaw != null && String(checkoutCodeRaw).trim() !== ''
           ? String(checkoutCodeRaw).trim()
@@ -627,7 +628,7 @@ class AttendanceService {
 
     if (remoteWork) {
       attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
-    } else if (isUmum(role) || isFieldOfficer(role)) {
+    } else if (isUmum(role) || usesSimpleDailyCheckout(role)) {
       // Umum / field officer: no standard late window on check-in edit.
       if (!nextCheckOut) {
         attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
@@ -651,7 +652,7 @@ class AttendanceService {
     if (nextCheckOut) {
       const checkInIso = nextCheckIn.toISOString();
       const checkOutIso = nextCheckOut.toISOString();
-      if (isFieldOfficer(role)) {
+      if (usesSimpleDailyCheckout(role)) {
         const rawHours = (nextCheckOut.getTime() - nextCheckIn.getTime()) / 3600000;
         workHours = Number(Math.max(0, rawHours).toFixed(2));
         overtimeHours = 0;

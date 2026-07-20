@@ -22,7 +22,8 @@ The Web-Based Attendance System is a **full-stack HR and attendance** applicatio
 |------|---------|
 | **admin** | Full admin console: users, attendance, payroll, leave, loans, field ops, exports, dashboard. |
 | **employee** | Staff kantor — clock in/out (two or four clocks per day), optional remote work, payslips, loans, leave. |
-| **field_officer** | Petugas lapangan — one in/out per day, multiple assigned locations, structured checkout with delivery codes. |
+| **field_officer** | Petugas lapangan — one in/out per day, factory assignments, delivery omset on payroll. |
+| **general_affairs** | Urusan umum — one in/out per day; gaji harian (days × upah harian) like petugas lapangan; no delivery omset. |
 | **umum** | One check-in per day (auto close); monthly payroll with absence deductions. |
 | **accounting** | Custom work hours; monthly payroll similar to staff kantor. |
 | **head_of_finance** | No attendance; admin enters payroll manually. Can open **Field omset** (`/finance/field-omset`). |

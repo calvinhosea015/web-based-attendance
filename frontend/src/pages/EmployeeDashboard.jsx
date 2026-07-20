@@ -18,6 +18,7 @@ import {
   ROLE_EMPLOYEE,
   ROLE_FIELD_OFFICER,
   isAccountingRole,
+  usesDailyWagePayrollRole,
 } from '../roles.js';
 import { fieldDeliveryDisplayFields } from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
@@ -271,6 +272,9 @@ export default function EmployeeDashboard() {
   const isFieldOfficer =
     summary?.field_officer_mode === true ||
     (!summary && localStorage.getItem('role') === ROLE_FIELD_OFFICER);
+  const isDailyWageSchedule =
+    summary?.daily_wage_mode === true ||
+    usesDailyWagePayrollRole(summary?.role || localStorage.getItem('role'));
   const isUmum = summary?.umum_mode === true;
   const isOnceDailyInOut = summary?.once_daily_in_out_mode === true;
   const isAccounting =
@@ -278,7 +282,7 @@ export default function EmployeeDashboard() {
   const isStaffKantor = summary?.role === ROLE_EMPLOYEE;
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
-  const shiftLabel = isFieldOfficer
+  const shiftLabel = isDailyWageSchedule
     ? t('fieldFlexibleSchedule')
     : isUmum
       ? t('umumFlexibleSchedule')
@@ -292,7 +296,7 @@ export default function EmployeeDashboard() {
 
   const primaryClockLabel =
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
-  const scheduleHint = isFieldOfficer
+  const scheduleHint = isDailyWageSchedule
     ? t('fieldOnceInOnceOut')
     : isUmum
       ? t('umumOncePerDay')
@@ -672,7 +676,7 @@ export default function EmployeeDashboard() {
       </Card>
       )}
 
-      {!isFieldOfficer && <PayrollCard payroll={payroll} />}
+      {!isDailyWageSchedule && <PayrollCard payroll={payroll} />}
 
       {isStaffKantor && <LeavePanel notify={notify} />}
 
@@ -757,7 +761,7 @@ export default function EmployeeDashboard() {
       />
       )}
 
-      {isFieldOfficer && <PayrollCard payroll={payroll} />}
+      {isDailyWageSchedule && <PayrollCard payroll={payroll} />}
     </div>
   );
 }

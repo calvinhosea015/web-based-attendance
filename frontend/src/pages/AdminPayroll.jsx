@@ -15,7 +15,7 @@ import {
 } from '../components/ui.jsx';
 import { api, paths, ensureCsrf, downloadBlobResponse } from '../api/client.js';
 import { translateApiMessage } from '../translateApi.js';
-import { isMonthlyPayrollMode } from '../roles.js';
+import { isMonthlyPayrollMode, usesDailyWagePayrollRole } from '../roles.js';
 import {
   currentPayrollPeriodKey,
   payrollCycleLabel,
@@ -229,14 +229,14 @@ export default function AdminPayroll() {
     const isMonthlyMode = isMonthlyPayrollMode(mode);
     const monthlyGross =
       row.monthly_basic_gross ?? row.employee_basic_salary ?? row.basic_salary ?? 0;
-    const isFieldOfficer = row.user_role === 'field_officer';
-    const expectedDefault = isFieldOfficer
+    const isDailyWage = usesDailyWagePayrollRole(row.user_role);
+    const expectedDefault = isDailyWage
       ? null
       : (row.expected_work_days ?? requiredWorkDays ?? countWorkingDaysMonSatInCycle(period));
     const daysAttended = row.days_attended ?? 0;
     const upah = resolveUpahHarianDisplay(row, settings);
-    let absenceDeduction = isFieldOfficer ? 0 : Number(row.absence_deduction ?? 0);
-    if (!isFieldOfficer && row.absence_deduction == null && isMonthlyMode) {
+    let absenceDeduction = isDailyWage ? 0 : Number(row.absence_deduction ?? 0);
+    if (!isDailyWage && row.absence_deduction == null && isMonthlyMode) {
       absenceDeduction =
         previewMonthlyStaffPayroll({
           monthlyBasic: monthlyGross,
@@ -253,7 +253,8 @@ export default function AdminPayroll() {
       upah_harian: upah,
       basic_salary: row.basic_salary ?? 0,
       absence_deduction: absenceDeduction,
-      tunjangan_masa_kerja: row.tunjangan_masa_kerja ?? 0,
+      tunjangan_masa_kerja:
+        row.user_role === 'employee' ? 0 : (row.tunjangan_masa_kerja ?? 0),
       transport_eligible: Boolean(row.transport_eligible),
       transport_allowance_amount: Number(row.transport_allowance ?? 0),
       overtime_pay: row.overtime_pay ?? 0,
@@ -295,12 +296,15 @@ export default function AdminPayroll() {
         delete payload.expected_work_days;
       }
       const rowRole = rows.find((r) => r.employee_id === editingId)?.user_role;
-      if (rowRole === 'field_officer') {
+      if (usesDailyWagePayrollRole(rowRole)) {
         delete payload.absence_deduction;
         delete payload.expected_work_days;
       } else if (!isMonthlyMode) {
         delete payload.absence_deduction;
         delete payload.expected_work_days;
+      }
+      if (rowRole === 'employee') {
+        payload.tunjangan_masa_kerja = 0;
       }
       const { data } = await api.put(paths.adminPayrollEntry(period, editingId), payload);
       setRows((prev) => prev.map((r) => (r.employee_id === data.employee_id ? { ...r, ...data } : r)));
@@ -346,7 +350,8 @@ export default function AdminPayroll() {
   const editingRow = rows.find((r) => r.employee_id === editingId);
   const editIsManual = editForm?.payroll_mode === 'manual';
   const editIsMonthly = isMonthlyPayrollMode(editForm?.payroll_mode);
-  const editIsFieldOfficer = editingRow?.user_role === 'field_officer';
+  const editIsDailyWage = usesDailyWagePayrollRole(editingRow?.user_role);
+  const editIsStaffKantor = editingRow?.user_role === 'employee';
   const editShowsExpectedDays = editIsMonthly;
 
   const deploySubtitle = apiBuildSha
@@ -799,7 +804,7 @@ export default function AdminPayroll() {
               <>
                 <CompactField
                   label={t('payrollSlipGaji')}
-                  hint={editIsFieldOfficer ? t('payrollUpahHarianHint') : undefined}
+                  hint={editIsDailyWage ? t('payrollUpahHarianHint') : undefined}
                 >
                   <input
                     type="number"
@@ -829,17 +834,19 @@ export default function AdminPayroll() {
             <p className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wide text-apple-label md:col-span-4">
               {t('payrollSlipEarnings')}
             </p>
-            <CompactField label={t('payrollTunjanganMasaKerja')}>
-              <input
-                type="number"
-                min="0"
-                className={inputClassCompact}
-                value={editForm.tunjangan_masa_kerja}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, tunjangan_masa_kerja: Number(e.target.value) }))
-                }
-              />
-            </CompactField>
+            {!editIsStaffKantor && (
+              <CompactField label={t('payrollTunjanganMasaKerja')}>
+                <input
+                  type="number"
+                  min="0"
+                  className={inputClassCompact}
+                  value={editForm.tunjangan_masa_kerja}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, tunjangan_masa_kerja: Number(e.target.value) }))
+                  }
+                />
+              </CompactField>
+            )}
             <CompactField label={t('payrollTransportAmount')}>
               <input
                 type="number"
@@ -897,7 +904,7 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            {!editIsFieldOfficer && (
+            {!editIsDailyWage && (
               <CompactField label={t('payrollBonusOmset')}>
                 <input
                   type="number"
@@ -910,7 +917,7 @@ export default function AdminPayroll() {
                 />
               </CompactField>
             )}
-            {editIsFieldOfficer && (
+            {editIsDailyWage && (
               <CompactField
                 label={t('payrollBonusOmset')}
                 hint={t('payrollBonusFieldOfficerHint')}

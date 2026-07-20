@@ -40,7 +40,7 @@ const SCHEMA_STATEMENTS = [
     id SERIAL PRIMARY KEY,
     username VARCHAR(128) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'head_of_finance')),
+    role VARCHAR(32) NOT NULL CHECK (role IN ('admin', 'employee', 'field_officer', 'general_affairs', 'umum', 'accounting', 'head_of_finance')),
     office_id INTEGER REFERENCES offices(id),
     employee_id INTEGER UNIQUE REFERENCES employees(id)
   )`,
@@ -422,23 +422,32 @@ async function migrateMergeGeneralAffairsIntoUmum() {
   await query(`UPDATE users SET role = 'umum' WHERE role = 'general_affairs'`);
 }
 
-/** Allow pegawai (employee) and petugas lapangan (field_officer) roles on existing DBs. */
-async function migrateUserRoleConstraint() {
+/** Re-allow general_affairs role (distinct from umum; daily wage like field officer). */
+async function migrateGeneralAffairsRole() {
   const r = await query(`
-    SELECT c.conname
+    SELECT c.conname, pg_get_constraintdef(c.oid) AS def
     FROM pg_constraint c
     JOIN pg_class rel ON rel.oid = c.conrelid
     WHERE rel.relname = 'users'
       AND c.contype = 'c'
       AND pg_get_constraintdef(c.oid) LIKE '%role%'
   `);
+  const needsUpdate = r.rows.some(
+    (row) => row.def && !row.def.includes("'general_affairs'")
+  );
+  if (!needsUpdate) return;
   for (const row of r.rows) {
     await query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS "${row.conname}"`);
   }
   await query(`
     ALTER TABLE users ADD CONSTRAINT users_role_check
-    CHECK (role IN ('admin', 'employee', 'field_officer', 'umum', 'accounting', 'head_of_finance'))
+    CHECK (role IN ('admin', 'employee', 'field_officer', 'general_affairs', 'umum', 'accounting', 'head_of_finance'))
   `);
+}
+
+/** Allow pegawai (employee) and petugas lapangan (field_officer) roles on existing DBs. */
+async function migrateUserRoleConstraint() {
+  await migrateGeneralAffairsRole();
 }
 
 /** All staff: one check-in and one check-out per day (no split-shift / four-clock mode). */

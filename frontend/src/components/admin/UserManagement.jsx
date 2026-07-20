@@ -18,6 +18,7 @@ import {
   isHeadOfFinanceRole,
   usesMultipleOfficesRole,
   requiresFullName,
+  usesDailyWagePayrollRole,
 } from '../../roles.js';
 
 function toDateInputValue(v) {
@@ -313,6 +314,7 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
             >
               <option value="employee">{t('roleEmployee')}</option>
               <option value="field_officer">{t('roleFieldOfficer')}</option>
+              <option value="general_affairs">{t('roleGeneralAffairs')}</option>
               <option value="umum">{t('roleUmum')}</option>
               <option value="accounting">{t('roleAccounting')}</option>
               <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
@@ -339,6 +341,12 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
             )}
             {newUser.role === 'employee' && (
               <p className="text-xs text-apple-label">{t('twoClockScheduleFixed')}</p>
+            )}
+            {usesDailyWagePayrollRole(newUser.role) && newUser.role !== 'field_officer' && (
+              <>
+                <p className="text-xs text-apple-label">{t('fieldOnceInOnceOut')}</p>
+                <p className="text-xs text-apple-label">{t('payrollGajiFormula')}</p>
+              </>
             )}
             {isUmumRole(newUser.role) && (
               <>
@@ -575,6 +583,7 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
                     >
                       <option value="employee">{t('roleEmployee')}</option>
                       <option value="field_officer">{t('roleFieldOfficer')}</option>
+                      <option value="general_affairs">{t('roleGeneralAffairs')}</option>
                       <option value="umum">{t('roleUmum')}</option>
                       <option value="accounting">{t('roleAccounting')}</option>
                       <option value="head_of_finance">{t('roleHeadOfFinance')}</option>
@@ -664,6 +673,13 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
                     {editingUser.role === 'employee' && (
                       <p className="text-xs text-apple-label">{t('twoClockScheduleFixed')}</p>
                     )}
+                    {usesDailyWagePayrollRole(editingUser.role) &&
+                      editingUser.role !== 'field_officer' && (
+                        <>
+                          <p className="text-xs text-apple-label">{t('fieldOnceInOnceOut')}</p>
+                          <p className="text-xs text-apple-label">{t('payrollGajiFormula')}</p>
+                        </>
+                      )}
                     {isUmumRole(editingUser.role) && (
                       <>
                         <p className="text-xs text-apple-label">{t('umumOncePerDay')}</p>
