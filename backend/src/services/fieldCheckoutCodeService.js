@@ -81,7 +81,7 @@ class FieldCheckoutCodeService {
       );
     }
     const omset_amount = computeLineOmset(0, parsed.berat_bersih, price_per_item);
-    const bonus_amount = computeLineBonus(0, parsed.berat_bersih, price_per_item);
+    const bonus_amount = computeLineBonus(0, parsed.berat_bersih, price_per_item, parsed.pabrik_code);
     return { tonase_per_item: 0, price_per_item, omset_amount, bonus_amount, rate };
   }
 
@@ -199,7 +199,7 @@ class FieldCheckoutCodeService {
 
     const selisih = Math.abs(kotor - berat_bersih);
     const omset_amount = computeLineOmset(0, berat_bersih, price_per_item);
-    const bonus_amount = computeLineBonus(0, berat_bersih, price_per_item);
+    const bonus_amount = computeLineBonus(0, berat_bersih, price_per_item, pabrik_code);
 
     const entry = await this.fieldDeliveryRepository.updateEntry(id, {
       pabrik_code,

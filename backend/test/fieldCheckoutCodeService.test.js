@@ -2,7 +2,11 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { FieldCheckoutCodeService } = require('../src/services/fieldCheckoutCodeService');
 const { validateFieldCheckoutCode } = require('../src/utils/fieldCheckoutPayload');
-const { computeLineOmset, computeLineBonus } = require('../src/utils/fieldOfficerBonus');
+const {
+  computeLineOmset,
+  computeLineBonus,
+  resolveFieldOfficerBonusRate,
+} = require('../src/utils/fieldOfficerBonus');
 const { AppError } = require('../src/utils/errors');
 
 describe('field officer omset = berat bersih × harga per item', () => {
@@ -14,6 +18,12 @@ describe('field officer omset = berat bersih × harga per item', () => {
   it('returns zero omset when no price is set', () => {
     assert.equal(computeLineOmset(5, 90, 0), 0);
     assert.equal(computeLineBonus(5, 90, 0), 0);
+  });
+
+  it('uses 1% bonus for PT Mega Surya Eratama (pabrik code 3)', () => {
+    assert.equal(resolveFieldOfficerBonusRate('3'), 0.01);
+    assert.equal(computeLineBonus(0, 90, 1000, '3'), 900); // 1% of 90000
+    assert.equal(resolveFieldOfficerBonusRate('2'), 0.02);
   });
 });
 
