@@ -57,7 +57,19 @@ const BASE_SHEET_LAST_ROW = 22;
 const FIELD_OFFICER_SECTION_LAST_ROW = 50;
 const FIELD_OFFICER_DETAIL_FIRST_ROW = 34;
 const SLIPS_PER_A4_PAGE = 2;
+/** A4 portrait height (inches) for print row-height math */
+const A4_HEIGHT_IN = 11.69;
 const SLIP_PAGE_MARGINS = { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
+
+function bulkSlipRowHeightPt() {
+  const marginIn =
+    SLIP_PAGE_MARGINS.top +
+    SLIP_PAGE_MARGINS.bottom +
+    SLIP_PAGE_MARGINS.header +
+    SLIP_PAGE_MARGINS.footer;
+  const printablePt = (A4_HEIGHT_IN - marginIn) * 72;
+  return printablePt / SLIPS_PER_A4_PAGE / BASE_SHEET_LAST_ROW;
+}
 
 function slipRowAt(startRow, relRow) {
   return startRow + relRow - 1;
@@ -324,10 +336,15 @@ function applyColumnWidths(ws) {
   ws.getColumn(COL.D).width = COL_WIDTHS.D;
 }
 
-function applyUniformRowHeights(ws, lastRelRow = BASE_SHEET_LAST_ROW, startRow = 1) {
+function applyUniformRowHeights(
+  ws,
+  lastRelRow = BASE_SHEET_LAST_ROW,
+  startRow = 1,
+  rowHeight = ROW_HEIGHT
+) {
   const end = slipRowAt(startRow, lastRelRow);
   for (let r = startRow; r <= end; r += 1) {
-    ws.getRow(r).height = ROW_HEIGHT;
+    ws.getRow(r).height = rowHeight;
   }
 }
 
@@ -485,7 +502,7 @@ function addFieldOfficerCalculationSection(
   fieldNetCell.alignment = { horizontal: 'center', vertical: 'middle' };
 }
 
-function writeSlipBlock(ws, row, period, startRow = 1, { compact = false } = {}) {
+function writeSlipBlock(ws, row, period, startRow = 1, { compact = false, a4HalfPage = false } = {}) {
   const R = (rel) => slipRowAt(startRow, rel);
   const amounts = slipAmounts(row);
   const dailyWageSlip = usesDailyWagePayroll(row.user_role);
@@ -653,7 +670,8 @@ function writeSlipBlock(ws, row, period, startRow = 1, { compact = false } = {})
   netAmount.font = FONT_NET_AMOUNT;
   netAmount.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  applyUniformRowHeights(ws, borderLastRel, startRow);
+  const slipRowHeight = a4HalfPage ? bulkSlipRowHeightPt() : ROW_HEIGHT;
+  applyUniformRowHeights(ws, borderLastRel, startRow, slipRowHeight);
 
   return slipRowAt(startRow, BASE_SHEET_LAST_ROW);
 }
@@ -679,13 +697,20 @@ function slipWorkbookFromRows(rows, period) {
   wb.creator = 'Web-Based Attendance';
   const ws = wb.addWorksheet('Slip Gaji', {
     views: [{ showGridLines: true }],
-    pageSetup: a4PortraitPageSetup(),
+    pageSetup: {
+      ...a4PortraitPageSetup(),
+      fitToPage: false,
+      scale: 100,
+    },
   });
   applyColumnWidths(ws);
 
   rows.forEach((row, i) => {
     const startRow = i * BASE_SHEET_LAST_ROW + 1;
-    const bottomRow = writeSlipBlock(ws, row, period, startRow, { compact: true });
+    const bottomRow = writeSlipBlock(ws, row, period, startRow, {
+      compact: true,
+      a4HalfPage: true,
+    });
     markSlipBlockBottom(ws, bottomRow);
 
     const slipsOnPage = (i % SLIPS_PER_A4_PAGE) + 1;
@@ -721,4 +746,5 @@ module.exports = {
   buildEmployeeSlipWorkbook,
   slipWorkbookFromRows,
   writeSlipBuffer,
+  bulkSlipRowHeightPt,
 };

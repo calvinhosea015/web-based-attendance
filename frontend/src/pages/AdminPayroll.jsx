@@ -284,7 +284,7 @@ export default function AdminPayroll() {
       bpjs_tk: row.bpjs_tk ?? 0,
       bpjs_kes: row.bpjs_kes ?? 0,
       pph_21: row.pph_21 ?? 0,
-      other_deductions: row.other_deductions ?? row.deductions ?? 0,
+      other_deductions: Number(row.other_deductions ?? 0),
       keterangan: row.keterangan ?? '',
     });
   };
@@ -740,6 +740,15 @@ export default function AdminPayroll() {
                 {t('payrollManualHint')}
               </p>
             )}
+            <div className="col-span-2 rounded-apple-lg border border-brand-200 bg-brand-50 px-3 py-3 md:col-span-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                {t('payrollFinal')}
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-brand-800">
+                Rp {formatIdr(editPreviewNetSalary)}
+              </p>
+              <p className="mt-1 text-[10px] text-apple-label">{t('payrollNetSalaryHint')}</p>
+            </div>
             <CompactField
               label={t('payrollDaysAttended')}
               hint={editIsManual ? t('payrollDaysManual') : t('payrollDaysEditableHint')}

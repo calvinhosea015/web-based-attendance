@@ -1,6 +1,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { slipWorkbookFromRows } = require('../src/utils/payrollSlipExport');
+const {
+  slipWorkbookFromRows,
+  bulkSlipRowHeightPt,
+} = require('../src/utils/payrollSlipExport');
 
 function mockSlipRow(name) {
   return {
@@ -27,4 +30,8 @@ test('export all slips: one worksheet, stacked blocks, page break every two slip
   assert.equal(wb.worksheets[0].getCell(1, 2).value, 'Alpha');
   assert.equal(wb.worksheets[0].getCell(23, 2).value, 'Beta');
   assert.equal(wb.worksheets[0].getCell(45, 2).value, 'Gamma');
+  assert.deepEqual(wb.worksheets[0].rowBreaks, [{ id: 44, max: 16838, man: 1 }]);
+  const halfPageHeight = bulkSlipRowHeightPt();
+  assert.ok(halfPageHeight > 15);
+  assert.equal(wb.worksheets[0].getRow(1).height, halfPageHeight);
 });

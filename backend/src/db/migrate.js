@@ -301,6 +301,20 @@ async function migratePayrollLoanColumns() {
   );
 }
 
+/** ponytail: idempotent — legacy backfill copied total `deductions` into other_deductions (often = absence only). */
+async function migratePayrollOtherDeductionsCleanup() {
+  await query(
+    `UPDATE payroll SET other_deductions = 0
+     WHERE other_deductions > 0
+       AND other_deductions = COALESCE(absence_deduction, 0)
+       AND COALESCE(loan_deduction, 0) = 0
+       AND COALESCE(late_deduction, 0) = 0
+       AND COALESCE(pph_21, 0) = 0
+       AND COALESCE(bpjs_tk, 0) = 0
+       AND COALESCE(bpjs_kes, 0) = 0`
+  );
+}
+
 async function migratePayrollKeteranganColumn() {
   await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS keterangan TEXT NOT NULL DEFAULT ''`);
 }
@@ -722,6 +736,7 @@ async function migrate() {
   await migrateLoanRequests();
   await migratePayrollLoanColumns();
   await migratePayrollKeteranganColumn();
+  await migratePayrollOtherDeductionsCleanup();
   await seed();
   await syncEmployeeCodeSequence();
   await ensureDefaultShift();
