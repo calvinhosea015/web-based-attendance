@@ -42,25 +42,27 @@ describe('slipWorkbookFromRows', () => {
     keterangan: '',
   });
 
-  it('creates one sheet per employee, each A5 landscape', async () => {
+  it('puts all employees on one sheet with A5 landscape page setup', async () => {
     const rows = [stubRow('Alpha', 'A01'), stubRow('Beta', 'B02'), stubRow('Gamma', 'C03')];
     const wb = slipWorkbookFromRows(rows, '2026-01');
-    assert.equal(wb.worksheets.length, 3);
+    assert.equal(wb.worksheets.length, 1, 'should be exactly 1 sheet');
 
-    for (const ws of wb.worksheets) {
-      assert.equal(ws.pageSetup.paperSize, 11);
-      assert.equal(ws.pageSetup.orientation, 'landscape');
-      assert.equal(ws.pageSetup.margins.top, 1);
-      assert.equal(ws.pageSetup.margins.left, 0);
-      assert.equal(ws.pageSetup.margins.right, 0);
-      assert.equal(ws.pageSetup.margins.bottom, 0);
-      assert.equal(ws.pageSetup.margins.header, 0.5);
-      assert.equal(ws.pageSetup.margins.footer, 0.5);
-    }
+    const ws = wb.worksheets[0];
+    assert.equal(ws.pageSetup.paperSize, 11);
+    assert.equal(ws.pageSetup.orientation, 'landscape');
+    assert.equal(ws.pageSetup.margins.top, 1);
+    assert.equal(ws.pageSetup.margins.left, 0);
+    assert.equal(ws.pageSetup.margins.right, 0);
+    assert.equal(ws.pageSetup.margins.bottom, 0);
 
     const buffer = await wb.xlsx.writeBuffer();
     const loaded = new ExcelJS.Workbook();
     await loaded.xlsx.load(buffer);
-    assert.equal(loaded.worksheets.length, 3);
+    assert.equal(loaded.worksheets.length, 1);
+
+    const reloaded = loaded.worksheets[0];
+    assert.ok(String(reloaded.getCell(1, 2).value).includes('Alpha'));
+    assert.ok(String(reloaded.getCell(23, 2).value).includes('Beta'));
+    assert.ok(String(reloaded.getCell(45, 2).value).includes('Gamma'));
   });
 });

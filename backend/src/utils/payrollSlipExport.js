@@ -657,63 +657,55 @@ function addFieldOfficerCalculationSection(
   fieldNetCell.alignment = { horizontal: 'center', vertical: 'middle' };
 }
 
-function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
-  const ws = wb.addWorksheet(sheetName, {
-    views: [{ showGridLines: true }],
-    pageSetup: {
-      paperSize: 11,
-      orientation: 'landscape',
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 1,
-      margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
-    },
-  });
-
-  applyColumnWidths(ws);
-
+/**
+ * Write one slip onto `ws` starting at row `offset + 1`.
+ * All row references are shifted by `offset`.
+ * Returns the number of rows consumed (for page-break placement).
+ */
+function writeSlipAtOffset(ws, row, period, offset) {
+  const o = offset;
   const amounts = slipAmounts(row);
   const { isDaily: isFieldOfficerSlip, totalPendapatan, totalPotongan, netPay } =
     slipTotals(row, amounts);
   const bAmt = colLetter(COL.B);
   const dAmt = colLetter(COL.D);
-  const totalRow = ROW.TABLE_TOTAL;
+  const totalRow = o + ROW.TABLE_TOTAL;
 
-  mergeCellsLeft(ws, 1, 2, COL.A, 'Nama');
-  mergeCellsLeft(ws, 1, 2, COL.B, `${row.full_name || ''}`, {
+  mergeCellsLeft(ws, o + 1, o + 2, COL.A, 'Nama');
+  mergeCellsLeft(ws, o + 1, o + 2, COL.B, `${row.full_name || ''}`, {
     alignment: { wrapText: true },
   });
 
-  ws.mergeCells(1, COL.C, 2, COL.D);
-  const titleCell = ws.getCell(1, COL.C);
+  ws.mergeCells(o + 1, COL.C, o + 2, COL.D);
+  const titleCell = ws.getCell(o + 1, COL.C);
   titleCell.value = 'SLIP GAJI';
   titleCell.font = FONT_TITLE;
   titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  mergeCellsLeft(ws, 3, 4, COL.A, 'Jabatan');
-  mergeCellsLeft(ws, 3, 4, COL.B, `${jabatanLabel(row)}`);
+  mergeCellsLeft(ws, o + 3, o + 4, COL.A, 'Jabatan');
+  mergeCellsLeft(ws, o + 3, o + 4, COL.B, `${jabatanLabel(row)}`);
 
-  ws.mergeCells(3, COL.C, 3, COL.D);
-  const companyCell = ws.getCell(3, COL.C);
+  ws.mergeCells(o + 3, COL.C, o + 3, COL.D);
+  const companyCell = ws.getCell(o + 3, COL.C);
   companyCell.value = companyName();
   companyCell.font = FONT_COMPANY;
   companyCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  setCell(ws, ROW.PERIODE, COL.C, 'Periode Gaji', {
+  setCell(ws, o + ROW.PERIODE, COL.C, 'Periode Gaji', {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
-  setCell(ws, ROW.PERIODE, COL.D, periodeLabel(period), {
+  setCell(ws, o + ROW.PERIODE, COL.D, periodeLabel(period), {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
 
-  ws.mergeCells(ROW.TABLE_HEAD, COL.A, ROW.TABLE_HEAD, COL.B);
-  const pendapatanHead = ws.getCell(ROW.TABLE_HEAD, COL.A);
+  ws.mergeCells(o + ROW.TABLE_HEAD, COL.A, o + ROW.TABLE_HEAD, COL.B);
+  const pendapatanHead = ws.getCell(o + ROW.TABLE_HEAD, COL.A);
   pendapatanHead.value = 'Pendapatan';
   pendapatanHead.font = FONT_TABLE_HEAD;
   pendapatanHead.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.mergeCells(ROW.TABLE_HEAD, COL.C, ROW.TABLE_HEAD, COL.D);
-  const potonganHead = ws.getCell(ROW.TABLE_HEAD, COL.C);
+  ws.mergeCells(o + ROW.TABLE_HEAD, COL.C, o + ROW.TABLE_HEAD, COL.D);
+  const potonganHead = ws.getCell(o + ROW.TABLE_HEAD, COL.C);
   potonganHead.value = 'Potongan';
   potonganHead.font = FONT_TABLE_HEAD;
   potonganHead.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -723,14 +715,11 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   }
 
   for (let i = 0; i < EARNINGS.length; i += 1) {
-    const r = ROW.TABLE_FIRST + i;
+    const r = o + ROW.TABLE_FIRST + i;
     if (isFieldOfficerSlip) {
-      const detailRow = FIELD_OFFICER_DETAIL_FIRST_ROW + i;
+      const detailRow = o + FIELD_OFFICER_DETAIL_FIRST_ROW + i;
       fillTableLineFormula(
-        ws,
-        r,
-        COL.A,
-        COL.B,
+        ws, r, COL.A, COL.B,
         EARNINGS[i].label,
         `D${detailRow}`,
         fieldOfficerEarningResult(row, amounts, EARNINGS[i].key)
@@ -749,7 +738,7 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   setLabelColon(ws, totalRow, COL.A, 'Total Pendapatan');
   const leftTotal = ws.getCell(totalRow, COL.B);
   leftTotal.value = {
-    formula: `SUM(${bAmt}${ROW.TABLE_FIRST}:${bAmt}${ROW.TABLE_LAST})`,
+    formula: `SUM(${bAmt}${o + ROW.TABLE_FIRST}:${bAmt}${o + ROW.TABLE_LAST})`,
     result: totalPendapatan,
   };
   leftTotal.numFmt = AMOUNT_NUMFMT;
@@ -759,63 +748,55 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   setLabelColon(ws, totalRow, COL.C, 'Total Potongan');
   const rightTotal = ws.getCell(totalRow, COL.D);
   rightTotal.value = {
-    formula: `SUM(${dAmt}${ROW.TABLE_FIRST}:${dAmt}${ROW.TABLE_LAST})`,
+    formula: `SUM(${dAmt}${o + ROW.TABLE_FIRST}:${dAmt}${o + ROW.TABLE_LAST})`,
     result: totalPotongan,
   };
   rightTotal.numFmt = AMOUNT_NUMFMT;
   rightTotal.font = FONT_TOTAL;
   rightTotal.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  applyTableBorders(
-    ws,
-    isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW
-  );
+  const lastRow = isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW;
 
   if (!isFieldOfficerSlip) {
-    setLabelColon(ws, ROW.JUMLAH_HARI, COL.A, 'Jumlah Hari');
-    setColonText(ws, ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period));
+    setLabelColon(ws, o + ROW.JUMLAH_HARI, COL.A, 'Jumlah Hari');
+    setColonText(ws, o + ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period));
   }
 
-  setLabelColon(ws, ROW.JUMLAH_HADIR, COL.A, 'Jumlah Hadir');
-  setColonText(ws, ROW.JUMLAH_HADIR, COL.B, num(row.days_attended));
+  setLabelColon(ws, o + ROW.JUMLAH_HADIR, COL.A, 'Jumlah Hadir');
+  setColonText(ws, o + ROW.JUMLAH_HADIR, COL.B, num(row.days_attended));
 
-  setCell(ws, ROW.JUMLAH_HARI, COL.C, 'Keterangan', {
+  setCell(ws, o + ROW.JUMLAH_HARI, COL.C, 'Keterangan', {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 
-  ws.mergeCells(
-    ROW.KETERANGAN_START,
-    COL.C,
-    ROW.KETERANGAN_END,
-    COL.D
-  );
-  const ketCell = ws.getCell(ROW.KETERANGAN_START, COL.C);
+  ws.mergeCells(o + ROW.KETERANGAN_START, COL.C, o + ROW.KETERANGAN_END, COL.D);
+  const ketCell = ws.getCell(o + ROW.KETERANGAN_START, COL.C);
   ketCell.value = row.keterangan || '';
   ketCell.font = FONT_KETERANGAN;
   ketCell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
 
-  ws.getCell(ROW.SIGN_TITLE, COL.A).value = 'Penerima';
-  ws.getCell(ROW.SIGN_TITLE, COL.A).font = FONT_BODY;
-  ws.getCell(ROW.SIGN_TITLE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(o + ROW.SIGN_TITLE, COL.A).value = 'Penerima';
+  ws.getCell(o + ROW.SIGN_TITLE, COL.A).font = FONT_BODY;
+  ws.getCell(o + ROW.SIGN_TITLE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(ROW.SIGN_TITLE, COL.B).value = 'Disetujui Oleh';
-  ws.getCell(ROW.SIGN_TITLE, COL.B).font = FONT_BODY;
-  ws.getCell(ROW.SIGN_TITLE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(o + ROW.SIGN_TITLE, COL.B).value = 'Disetujui Oleh';
+  ws.getCell(o + ROW.SIGN_TITLE, COL.B).font = FONT_BODY;
+  ws.getCell(o + ROW.SIGN_TITLE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(ROW.SIGN_LINE, COL.A).value = SIGNATURE_PLACEHOLDER;
-  ws.getCell(ROW.SIGN_LINE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(o + ROW.SIGN_LINE, COL.A).value = SIGNATURE_PLACEHOLDER;
+  ws.getCell(o + ROW.SIGN_LINE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(ROW.SIGN_LINE, COL.B).value = SIGNATURE_PLACEHOLDER;
-  ws.getCell(ROW.SIGN_LINE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(o + ROW.SIGN_LINE, COL.B).value = SIGNATURE_PLACEHOLDER;
+  ws.getCell(o + ROW.SIGN_LINE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.mergeCells(ROW.NET_LABEL_START, COL.C, ROW.NET_LABEL_END, COL.D);
-  const netLabel = ws.getCell(ROW.NET_LABEL_START, COL.C);
+  ws.mergeCells(o + ROW.NET_LABEL_START, COL.C, o + ROW.NET_LABEL_END, COL.D);
+  const netLabel = ws.getCell(o + ROW.NET_LABEL_START, COL.C);
   netLabel.value = 'Total Penerimaan Bulan ini';
   netLabel.font = FONT_NET_LABEL;
   netLabel.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.mergeCells(ROW.NET_AMOUNT_START, COL.C, ROW.NET_AMOUNT_END, COL.D);
-  const netAmount = ws.getCell(ROW.NET_AMOUNT_START, COL.C);
+  ws.mergeCells(o + ROW.NET_AMOUNT_START, COL.C, o + ROW.NET_AMOUNT_END, COL.D);
+  const netAmount = ws.getCell(o + ROW.NET_AMOUNT_START, COL.C);
   netAmount.value = {
     formula: `${bAmt}${totalRow}-${dAmt}${totalRow}`,
     result: netPay,
@@ -824,34 +805,58 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   netAmount.font = FONT_NET_AMOUNT;
   netAmount.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  applyUniformRowHeights(
-    ws,
-    isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW
-  );
+  for (let r = o + 1; r <= o + lastRow; r += 1) {
+    ws.getRow(r).height = ROW_HEIGHT;
+  }
 
-  return ws;
+  return lastRow;
 }
 
-function sheetNameFromRow(row, index) {
-  const base = String(row.employee_code || row.full_name || `Karyawan${index + 1}`)
-    .replace(/[\\/*?:\[\]]/g, '_')
-    .slice(0, 28);
-  return base || `Slip${index + 1}`;
+function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
+  const ws = wb.addWorksheet(sheetName, {
+    views: [{ showGridLines: true }],
+    pageSetup: {
+      paperSize: 11,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 1,
+      margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
+    },
+  });
+  applyColumnWidths(ws);
+  writeSlipAtOffset(ws, row, period, 0);
+  return ws;
 }
 
 function slipWorkbookFromRows(rows, period) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Web-Based Attendance';
-  const used = new Set();
-  rows.forEach((row, i) => {
-    let name = sheetNameFromRow(row, i);
-    let n = 1;
-    while (used.has(name)) {
-      name = `${sheetNameFromRow(row, i).slice(0, 25)}_${++n}`;
-    }
-    used.add(name);
-    addSlipSheet(wb, row, period, name);
+  if (!rows.length) return wb;
+
+  const ws = wb.addWorksheet('Slip Gaji', {
+    views: [{ showGridLines: true }],
+    pageSetup: {
+      paperSize: 11,
+      orientation: 'landscape',
+      fitToPage: false,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
+    },
   });
+  applyColumnWidths(ws);
+
+  let cursor = 0;
+  rows.forEach((row, i) => {
+    const usedRows = writeSlipAtOffset(ws, row, period, cursor);
+    cursor += usedRows;
+    // ponytail: page break after each slip so each prints on its own A5 page
+    if (i < rows.length - 1) {
+      ws.getRow(cursor + 1).addPageBreak();
+    }
+  });
+
   return wb;
 }
 
