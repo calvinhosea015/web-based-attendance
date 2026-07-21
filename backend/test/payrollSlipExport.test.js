@@ -56,4 +56,29 @@ describe('slipWorkbookFromRows', () => {
     await loaded.xlsx.load(buffer);
     assert.equal(loaded.worksheets.length, 1);
   });
+
+  it('field officer slip has no RINCIAN block (same layout as staff)', async () => {
+    const fieldRow = {
+      full_name: 'ARI KHRISTANTO',
+      user_role: 'field_officer',
+      payroll_mode: 'daily',
+      days_attended: 21,
+      upah_harian: 75000,
+      final_salary: 5_377_370,
+      bonus_omset: 2_252_370,
+      transport_allowance: 250_000,
+      tunjangan_masa_kerja: 1_300_000,
+      keterangan: '',
+    };
+    const wb = slipWorkbookFromRows([fieldRow], '2026-07');
+    const ws = wb.getWorksheet('Semua Slip');
+    let foundRincian = false;
+    ws.eachRow((row) => {
+      row.eachCell((cell) => {
+        if (String(cell.value || '').includes('RINCIAN PERHITUNGAN GAJI')) foundRincian = true;
+      });
+    });
+    assert.equal(foundRincian, false);
+    assert.equal(ws.lastRow.number, BASE_SHEET_LAST_ROW);
+  });
 });

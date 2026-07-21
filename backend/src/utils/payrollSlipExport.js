@@ -54,8 +54,6 @@ const ROW = {
 };
 
 const BASE_SHEET_LAST_ROW = 22;
-const FIELD_OFFICER_SECTION_LAST_ROW = 50;
-const FIELD_OFFICER_DETAIL_FIRST_ROW = 34;
 
 /** Rows × cols per employee panel on the combined A5 print sheet. */
 const PANEL_ROWS = 16;
@@ -80,8 +78,6 @@ const FONT_TOTAL = { name: 'Calibri', size: 11, bold: true };
 const FONT_NET_LABEL = { name: 'Calibri', size: 11, bold: true };
 const FONT_NET_AMOUNT = { name: 'Calibri', size: 12, bold: true };
 
-const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF000000' } };
-const BORDER_THICK = { style: 'thick', color: { argb: 'FF000000' } };
 const AMOUNT_NUMFMT = '#,##0';
 const NET_AMOUNT_NUMFMT = '"Rp "#,##0';
 
@@ -98,10 +94,8 @@ function slipRow(startRow, logicalRow) {
   return startRow + logicalRow - 1;
 }
 
-function slipContentLastRow(row) {
-  return usesDailyWagePayroll(row.user_role)
-    ? FIELD_OFFICER_SECTION_LAST_ROW
-    : BASE_SHEET_LAST_ROW;
+function slipContentLastRow() {
+  return BASE_SHEET_LAST_ROW;
 }
 
 function companyName() {
@@ -500,14 +494,6 @@ function setAmountCell(ws, row, col, amount) {
   cell.alignment = { horizontal: 'right', vertical: 'middle' };
 }
 
-function setAmountFormulaCell(ws, row, col, formula, result) {
-  const cell = ws.getCell(row, col);
-  cell.value = { formula, result: num(result) };
-  cell.numFmt = AMOUNT_NUMFMT;
-  cell.font = FONT_BODY;
-  cell.alignment = { horizontal: 'right', vertical: 'middle' };
-}
-
 function setLabelColon(ws, row, col, label) {
   setCell(ws, row, col, `${label}`, {
     alignment: { horizontal: 'left', vertical: 'middle' },
@@ -549,11 +535,6 @@ function fillTableLine(ws, row, labelCol, amountCol, label, amount) {
   setAmountCell(ws, row, amountCol, amount);
 }
 
-function fillTableLineFormula(ws, row, labelCol, amountCol, label, formula, result) {
-  setLabelColon(ws, row, labelCol, label);
-  setAmountFormulaCell(ws, row, amountCol, formula, result);
-}
-
 function fieldOfficerEarningResult(row, amounts, key) {
   if (key === 'gaji') {
     const hariKerja = Math.max(0, num(row.days_attended));
@@ -562,11 +543,11 @@ function fieldOfficerEarningResult(row, amounts, key) {
   return num(amounts[key]);
 }
 
-function setThickBottomBorderRow(ws, rowNumber) {
-  for (let c = COL.A; c <= COL.D; c += 1) {
-    const current = ws.getCell(rowNumber, c).border || {};
-    ws.getCell(rowNumber, c).border = { ...current, bottom: BORDER_THICK };
+function earningAmountForSlip(row, amounts, key) {
+  if (usesDailyWagePayroll(row.user_role) && key === 'gaji') {
+    return fieldOfficerEarningResult(row, amounts, key);
   }
+  return amounts[key];
 }
 
 function fieldOfficerEarningsTotal(row, amounts) {
@@ -581,101 +562,6 @@ function fieldOfficerEarningsTotal(row, amounts) {
     num(amounts.kerajinan) +
     num(amounts.bonus)
   );
-}
-
-function addFieldOfficerCalculationSection(
-  ws,
-  row,
-  period,
-  amounts,
-  totalPendapatan,
-  netPay,
-  startRow = 1
-) {
-  const hariKerja = Math.max(0, num(row.days_attended));
-  const gajiPerHari = num(row.upah_harian || 0);
-  const totalGaji = gajiPerHari * hariKerja;
-  const detailTotalPendapatan = fieldOfficerEarningsTotal(row, amounts);
-  const fieldOfficerNet = detailTotalPendapatan;
-  const sr = (n) => slipRow(startRow, n);
-
-  setCell(ws, sr(28), COL.A, 'Nama');
-  setCell(ws, sr(28), COL.B, row.full_name || '');
-  setCell(ws, sr(28), COL.C, 'Periode Gaji');
-  setCell(ws, sr(28), COL.D, periodeLabel(period));
-
-  setCell(ws, sr(29), COL.A, 'Jabatan');
-  setCell(ws, sr(29), COL.B, jabatanLabel(row) || '');
-  setCell(ws, sr(29), COL.C, 'Usia Kerja');
-  setCell(ws, sr(29), COL.D, computeUsiaKerja(row.join_date, slipAsOfDate(row, period)));
-
-  setCell(ws, sr(31), COL.A, 'RINCIAN PERHITUNGAN GAJI', { font: FONT_TABLE_HEAD });
-  setCell(ws, sr(32), COL.A, 'Hari Kerja');
-  setCell(ws, sr(32), COL.D, hariKerja, { alignment: { horizontal: 'right', vertical: 'middle' } });
-
-  setCell(ws, sr(33), COL.A, 'Gaji Per Hari');
-  setAmountCell(ws, sr(33), COL.D, gajiPerHari);
-  setThickBottomBorderRow(ws, sr(33));
-
-  ws.mergeCells(sr(34), COL.A, sr(34), COL.B);
-  setCell(ws, sr(34), COL.A, 'Total Gaji', {
-    font: FONT_TOTAL,
-    alignment: { horizontal: 'center', vertical: 'middle' },
-  });
-  setAmountCell(ws, sr(34), COL.D, totalGaji);
-  ws.getCell(sr(34), COL.D).font = FONT_TOTAL;
-
-  setLabelColon(ws, sr(35), COL.A, 'Tunjangan Masa Kerja');
-  setAmountCell(ws, sr(35), COL.D, amounts.tunjangan_masa_kerja);
-  setLabelColon(ws, sr(36), COL.A, 'Tunjangan Transport');
-  setAmountCell(ws, sr(36), COL.D, amounts.tunjangan_transport);
-  setLabelColon(ws, sr(37), COL.A, 'Lembur');
-  setAmountCell(ws, sr(37), COL.D, amounts.lembur);
-  setLabelColon(ws, sr(38), COL.A, 'Insentif');
-  setAmountCell(ws, sr(38), COL.D, amounts.insentif);
-  setLabelColon(ws, sr(39), COL.A, 'Kerajinan');
-  setAmountCell(ws, sr(39), COL.D, amounts.kerajinan);
-  setLabelColon(ws, sr(40), COL.A, 'Bonus');
-  setAmountCell(ws, sr(40), COL.D, amounts.bonus);
-  setThickBottomBorderRow(ws, sr(40));
-
-  ws.mergeCells(sr(41), COL.A, sr(41), COL.B);
-  setCell(ws, sr(41), COL.A, 'Total Gaji', {
-    font: FONT_TOTAL,
-    alignment: { horizontal: 'center', vertical: 'middle' },
-  });
-  setAmountCell(ws, sr(41), COL.D, detailTotalPendapatan);
-  ws.getCell(sr(41), COL.D).font = FONT_TOTAL;
-  ws.getCell(sr(41), COL.D).border = { top: BORDER_MEDIUM };
-
-  ws.mergeCells(sr(43), COL.A, sr(43), COL.B);
-  setCell(ws, sr(43), COL.A, 'Total Gaji yang diterima', { font: FONT_TOTAL });
-  setAmountCell(ws, sr(43), COL.D, fieldOfficerNet);
-  ws.getCell(sr(43), COL.D).font = FONT_TOTAL;
-
-  setLabelColon(ws, sr(45), COL.C, 'Jumlah Hadir');
-  setCell(ws, sr(45), COL.D, hariKerja, {
-    alignment: { horizontal: 'left', vertical: 'middle' },
-  });
-
-  setCell(ws, sr(47), COL.A, 'Keterangan :');
-  ws.mergeCells(sr(48), COL.A, sr(49), COL.B);
-  setCell(ws, sr(48), COL.A, row.keterangan || '', {
-    font: FONT_KETERANGAN,
-    alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
-  });
-
-  ws.mergeCells(sr(47), COL.C, sr(48), COL.D);
-  setCell(ws, sr(47), COL.C, 'Total Penerimaan Bulan ini', {
-    font: FONT_NET_LABEL,
-    alignment: { horizontal: 'center', vertical: 'middle' },
-  });
-  ws.mergeCells(sr(49), COL.C, sr(50), COL.D);
-  const fieldNetCell = ws.getCell(sr(49), COL.C);
-  fieldNetCell.value = { formula: `D${sr(41)}`, result: fieldOfficerNet };
-  fieldNetCell.numFmt = NET_AMOUNT_NUMFMT;
-  fieldNetCell.font = FONT_NET_AMOUNT;
-  fieldNetCell.alignment = { horizontal: 'center', vertical: 'middle' };
 }
 
 function applyTableBordersForBlock(ws, startRow, lastLogicalRow) {
@@ -701,12 +587,12 @@ function renderSlipOnWorksheet(ws, row, period, startRow = 1) {
   const sr = (n) => slipRow(startRow, n);
 
   const amounts = slipAmounts(row);
-  const { isDaily: isFieldOfficerSlip, totalPendapatan, totalPotongan, netPay } =
-    slipTotals(row, amounts);
+  const { totalPendapatan, totalPotongan, netPay } = slipTotals(row, amounts);
   const bAmt = colLetter(COL.B);
   const dAmt = colLetter(COL.D);
   const totalRow = ROW.TABLE_TOTAL;
-  const lastLogical = slipContentLastRow(row);
+  const lastLogical = slipContentLastRow();
+  const isDailyWage = usesDailyWagePayroll(row.user_role);
 
   mergeCellsLeft(ws, sr(1), sr(2), COL.A, 'Nama');
   mergeCellsLeft(ws, sr(1), sr(2), COL.B, `${row.full_name || ''}`, {
@@ -747,38 +633,20 @@ function renderSlipOnWorksheet(ws, row, period, startRow = 1) {
   potonganHead.font = FONT_TABLE_HEAD;
   potonganHead.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  if (isFieldOfficerSlip) {
-    addFieldOfficerCalculationSection(
-      ws,
-      row,
-      period,
-      amounts,
-      totalPendapatan,
-      netPay,
-      startRow
-    );
-  }
-
   for (let i = 0; i < EARNINGS.length; i += 1) {
     const r = ROW.TABLE_FIRST + i;
-    if (isFieldOfficerSlip) {
-      const detailRow = slipRow(startRow, FIELD_OFFICER_DETAIL_FIRST_ROW + i);
-      fillTableLineFormula(
-        ws,
-        sr(r),
-        COL.A,
-        COL.B,
-        EARNINGS[i].label,
-        `D${detailRow}`,
-        fieldOfficerEarningResult(row, amounts, EARNINGS[i].key)
-      );
-    } else {
-      fillTableLine(ws, sr(r), COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key]);
-    }
+    fillTableLine(
+      ws,
+      sr(r),
+      COL.A,
+      COL.B,
+      EARNINGS[i].label,
+      earningAmountForSlip(row, amounts, EARNINGS[i].key)
+    );
     if (i < DEDUCTIONS.length) {
       const deductionKey = DEDUCTIONS[i].key;
       const deductionAmount =
-        isFieldOfficerSlip && deductionKey === 'potongan_absen' ? 0 : amounts[deductionKey];
+        isDailyWage && deductionKey === 'potongan_absen' ? 0 : amounts[deductionKey];
       fillTableLine(ws, sr(r), COL.C, COL.D, DEDUCTIONS[i].label, deductionAmount);
     }
   }
@@ -805,7 +673,7 @@ function renderSlipOnWorksheet(ws, row, period, startRow = 1) {
 
   applyTableBordersForBlock(ws, startRow, lastLogical);
 
-  if (!isFieldOfficerSlip) {
+  if (!isDailyWage) {
     setLabelColon(ws, sr(ROW.JUMLAH_HARI), COL.A, 'Jumlah Hari');
     setColonText(ws, sr(ROW.JUMLAH_HARI), COL.B, expectedWorkDaysForSlip(row, period));
   }
