@@ -44,7 +44,9 @@ describe('slipWorkbookFromRows', () => {
     const ws = wb.getWorksheet('Semua Slip');
     assert.ok(ws);
     assert.equal(ws.pageSetup.paperSize, 11);
-    assert.equal(ws.pageSetup.orientation, 'landscape');
+    assert.equal(ws.pageSetup.orientation, 'portrait');
+    assert.equal(ws.pageSetup.fitToPage, false);
+    assert.equal(ws.pageSetup.printArea, undefined);
     assert.equal(ws.rowBreaks.length, 1);
     assert.equal(ws.rowBreaks[0].id, BASE_SHEET_LAST_ROW + 1);
 

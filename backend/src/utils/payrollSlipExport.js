@@ -90,6 +90,15 @@ const SLIP_PAGE_SETUP = {
   margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
 };
 
+/** Bulk sheet: one A5 page per slip via row breaks — no whole-sheet printArea or fitToPage. */
+const BULK_SLIP_PAGE_SETUP = {
+  paperSize: 11,
+  orientation: 'portrait',
+  fitToPage: false,
+  scale: 100,
+  margins: { top: 0.75, left: 0.5, right: 0.5, bottom: 0.75, header: 0.3, footer: 0.3 },
+};
+
 function slipRow(startRow, logicalRow) {
   return startRow + logicalRow - 1;
 }
@@ -748,7 +757,7 @@ function slipWorkbookFromRows(rows, period) {
 
   const ws = wb.addWorksheet('Semua Slip', {
     views: [{ showGridLines: true }],
-    pageSetup: { ...SLIP_PAGE_SETUP },
+    pageSetup: { ...BULK_SLIP_PAGE_SETUP },
   });
   applyColumnWidths(ws);
 
@@ -761,8 +770,6 @@ function slipWorkbookFromRows(rows, period) {
     }
   });
 
-  const lastRow = ws.lastRow?.number || 1;
-  ws.pageSetup.printArea = `A1:D${lastRow}`;
   return wb;
 }
 
@@ -794,4 +801,5 @@ module.exports = {
   PANEL_ROWS,
   PANEL_COLS,
   BASE_SHEET_LAST_ROW,
+  BULK_SLIP_PAGE_SETUP,
 };
