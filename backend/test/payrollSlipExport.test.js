@@ -23,7 +23,7 @@ describe('gridLayout', () => {
 describe('bulkSlipPrintArea', () => {
   it('lists one A5 block per employee (not one sheet-wide range)', () => {
     assert.equal(bulkSlipPrintArea(1), 'A1:D22');
-    assert.equal(bulkSlipPrintArea(2), 'A1:D22,A23:D44');
+    assert.equal(bulkSlipPrintArea(2), 'A1:D22&&A23:D44');
   });
 });
 

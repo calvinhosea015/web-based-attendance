@@ -109,7 +109,8 @@ function bulkSlipPrintArea(slipCount) {
     const end = start + BASE_SHEET_LAST_ROW - 1;
     parts.push(`A${start}:${lastCol}${end}`);
   }
-  return parts.join(',');
+  // ponytail: ExcelJS splits multi-area print regions on &&, not comma (comma breaks Excel Print_Area).
+  return parts.join('&&');
 }
 
 function slipRow(startRow, logicalRow) {
