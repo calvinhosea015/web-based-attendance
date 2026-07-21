@@ -7,6 +7,7 @@ const {
   PANEL_ROWS,
   PANEL_COLS,
   BASE_SHEET_LAST_ROW,
+  bulkSlipPrintArea,
 } = require('../src/utils/payrollSlipExport');
 
 describe('gridLayout', () => {
@@ -16,6 +17,13 @@ describe('gridLayout', () => {
 
   it('tiles four employees in a 2x2 grid', () => {
     assert.deepEqual(gridLayout(4), { cols: 2, rows: 2 });
+  });
+});
+
+describe('bulkSlipPrintArea', () => {
+  it('lists one A5 block per employee (not one sheet-wide range)', () => {
+    assert.equal(bulkSlipPrintArea(1), 'A1:D22');
+    assert.equal(bulkSlipPrintArea(2), 'A1:D22,A23:D44');
   });
 });
 
@@ -44,9 +52,9 @@ describe('slipWorkbookFromRows', () => {
     const ws = wb.getWorksheet('Semua Slip');
     assert.ok(ws);
     assert.equal(ws.pageSetup.paperSize, 11);
-    assert.equal(ws.pageSetup.orientation, 'portrait');
-    assert.equal(ws.pageSetup.fitToPage, false);
-    assert.equal(ws.pageSetup.printArea, undefined);
+    assert.equal(ws.pageSetup.orientation, 'landscape');
+    assert.equal(ws.pageSetup.fitToPage, true);
+    assert.equal(ws.pageSetup.printArea, bulkSlipPrintArea(2));
     assert.equal(ws.rowBreaks.length, 1);
     assert.equal(ws.rowBreaks[0].id, BASE_SHEET_LAST_ROW + 1);
 
