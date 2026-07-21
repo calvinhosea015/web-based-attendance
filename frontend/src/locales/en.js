@@ -173,15 +173,17 @@ export default {
   payrollTransport: 'Transport',
   payrollTransportEligible: 'Transport allowance (yes)',
   payrollLembur: 'Overtime',
-  payrollLateDeduction: 'Late deduction',
+  payrollLateDeduction: 'Late / early-leave deduction',
   payrollLemburPlaceholder: 'Auto from attendance for office staff and accounting, or enter manually.',
+  payrollLateDeductionHint:
+    'Staff Kantor: auto from late check-in and early leave minutes (same per-minute rate as overtime). Accounting: late minutes only.',
   payrollInsentif: 'Incentive',
   payrollUangKerajinan: 'Diligence bonus',
   payrollDiligenceEligible: 'Diligence bonus this month (yes)',
   payrollBonusOmset: 'Bonus',
-  payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (omset × 2%).',
+  payrollBonusOmsetPlaceholder: 'Auto from field officer delivery codes (omset × factory bonus %).',
   payrollBonusFieldOfficerHint:
-    'From delivery codes: omset = price per item × berat bersih; bonus = omset × 2%. Can override manually.',
+    'From delivery codes: omset = price per item × berat bersih; bonus = omset × that factory’s bonus rate. Can override manually.',
   fieldOpsDashboardTitle: 'Field operations',
   fieldOpsDashboardSubtitle:
     'Field officer omset and factory catalog — use the tabs to switch.',
@@ -189,7 +191,7 @@ export default {
   fieldOpsTabCatalog: 'Factories, items & tonase bonus',
   pabrikCatalogTitle: 'Factories, items & tonase bonus',
   pabrikCatalogHint:
-    'Manage factories, locations, and item codes. Expand a factory to add items with a name and edit price per item (saved on blur or Enter). Omset = price per item × berat bersih. Bonus = omset × 2%.',
+    'Manage factories, locations, and item codes. Expand a factory to add items with a name and edit price per item (saved on blur or Enter). Omset = price per item × berat bersih. Bonus = omset × each factory’s bonus rate.',
   pabrikCatalogStatFactories: 'Factories',
   pabrikCatalogStatItems: 'Item codes',
   pabrikCatalogStatPriced: 'With price set',
@@ -235,6 +237,10 @@ export default {
   pabrikRadiusDefault: 'Default',
   pabrikRadiusUpdated: 'Factory radius updated.',
   pabrikRadiusInvalid: 'Radius must be a whole number of meters (1 or more).',
+  pabrikBonusRate: 'Bonus %',
+  pabrikBonusRateHint: 'Omset bonus rate for this factory (e.g. 2 = 2%). Default 2%.',
+  pabrikBonusRateUpdated: 'Factory bonus rate updated.',
+  pabrikBonusRateInvalid: 'Bonus rate must be a number between 0 and 100.',
   pabrikGoogleMaps: 'Google Maps link',
   pabrikGoogleMapsPlaceholder: 'https://maps.google.com/...',
   pabrikSaveMaps: 'Save link',
@@ -248,7 +254,7 @@ export default {
   pabrikItemSaveTonase: 'Save tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per factory & item',
   pabrikItemRatesHint:
-    'Expand a factory above to edit price per item. Omset = price per item × berat bersih. Bonus = omset × 2%.',
+    'Expand a factory above to edit price per item. Omset = price per item × berat bersih. Bonus = omset × that factory’s bonus rate.',
   pabrikTonaseExportTitle: 'Download omset bonus report',
   pabrikTonaseExportHint:
     'Export delivery bonus totals per factory and item code for any date range (Excel: summary + detail sheets).',
@@ -278,10 +284,10 @@ export default {
   pabrikRateDeleted: 'Rate deleted.',
   fieldOmsetReportTitle: 'Field officer omset',
   fieldOmsetReportSubtitle:
-    'Omset from delivery codes submitted by petugas lapangan (price per item × berat bersih). Bonus on payroll is 2% of omset.',
+    'Omset from delivery codes submitted by petugas lapangan (price per item × berat bersih). Bonus on payroll uses each factory’s bonus rate.',
   fieldOmsetFromCodesHint: 'Sum of price per item × berat bersih per delivery line',
-  fieldOmsetBonusHint: '{{count}} delivery lines · bonus = omset × 2%',
-  fieldOmsetBonusTotal: 'Bonus (2%)',
+  fieldOmsetBonusHint: '{{count}} delivery lines · bonus = omset × factory bonus %',
+  fieldOmsetBonusTotal: 'Bonus',
   fieldOmsetTotal: 'Omset',
   fieldOmsetEmpty: 'No delivery codes in this payroll period.',
   fieldOmsetNoOfficers: 'No active field officers found.',

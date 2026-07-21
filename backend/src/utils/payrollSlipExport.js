@@ -23,7 +23,7 @@ const EARNINGS = [
 
 const DEDUCTIONS = [
   { key: 'potongan_absen', label: 'Potongan Absen' },
-  { key: 'potongan_terlambat', label: 'Potongan Datang Terlambat' },
+  { key: 'potongan_terlambat', label: 'Potongan Datang Terlambat / Pulang Awal' },
   { key: 'bpjs_tk', label: 'BPJS Ketenagakerjaan' },
   { key: 'bpjs_kes', label: 'BPJS Kesehatan' },
   { key: 'pph21', label: 'PPh 21' },

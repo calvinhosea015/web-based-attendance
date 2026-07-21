@@ -6,7 +6,7 @@ const {
   normalizeCode,
   normalizeFieldCheckoutCodes,
 } = require('../utils/fieldCheckoutPayload');
-const { computeLineBonus, computeLineOmset } = require('../utils/fieldOfficerBonus');
+const { computeLineBonus, computeLineOmset, FIELD_OFFICER_BONUS_RATE } = require('../utils/fieldOfficerBonus');
 
 class FieldCheckoutCodeService {
   constructor(
@@ -14,13 +14,15 @@ class FieldCheckoutCodeService {
     pabrikItemRateRepository,
     fieldCodeEntryRepository = null,
     employeePabrikRepository = null,
-    attendanceRepository = null
+    attendanceRepository = null,
+    pabrikRepository = null
   ) {
     this.fieldDeliveryRepository = fieldDeliveryRepository;
     this.pabrikItemRateRepository = pabrikItemRateRepository;
     this.fieldCodeEntryRepository = fieldCodeEntryRepository;
     this.employeePabrikRepository = employeePabrikRepository;
     this.attendanceRepository = attendanceRepository;
+    this.pabrikRepository = pabrikRepository;
   }
 
   async assertCheckedInToday(employeeId, validOn) {
@@ -60,6 +62,13 @@ class FieldCheckoutCodeService {
     }
   }
 
+  async resolveBonusOmsetRate(pabrikCode) {
+    if (!this.pabrikRepository || !pabrikCode) return FIELD_OFFICER_BONUS_RATE;
+    const pabrik = await this.pabrikRepository.findByCode(pabrikCode);
+    const rate = Number(pabrik?.bonus_omset_rate);
+    return Number.isFinite(rate) && rate >= 0 && rate <= 1 ? rate : FIELD_OFFICER_BONUS_RATE;
+  }
+
   async resolveLineBonus(parsed) {
     const rate = await this.pabrikItemRateRepository.findByPabrikAndBarang(
       parsed.pabrik_code,
@@ -80,8 +89,14 @@ class FieldCheckoutCodeService {
         'PABRIK_ITEM_NOT_FOUND'
       );
     }
+    const bonus_omset_rate = await this.resolveBonusOmsetRate(parsed.pabrik_code);
     const omset_amount = computeLineOmset(0, parsed.berat_bersih, price_per_item);
-    const bonus_amount = computeLineBonus(0, parsed.berat_bersih, price_per_item, parsed.pabrik_code);
+    const bonus_amount = computeLineBonus(
+      0,
+      parsed.berat_bersih,
+      price_per_item,
+      bonus_omset_rate
+    );
     return { tonase_per_item: 0, price_per_item, omset_amount, bonus_amount, rate };
   }
 
@@ -198,8 +213,9 @@ class FieldCheckoutCodeService {
     }
 
     const selisih = Math.abs(kotor - berat_bersih);
+    const bonus_omset_rate = await this.resolveBonusOmsetRate(pabrik_code);
     const omset_amount = computeLineOmset(0, berat_bersih, price_per_item);
-    const bonus_amount = computeLineBonus(0, berat_bersih, price_per_item, pabrik_code);
+    const bonus_amount = computeLineBonus(0, berat_bersih, price_per_item, bonus_omset_rate);
 
     const entry = await this.fieldDeliveryRepository.updateEntry(id, {
       pabrik_code,

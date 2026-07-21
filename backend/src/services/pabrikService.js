@@ -1,5 +1,6 @@
 const { AppError } = require('../utils/errors');
 const { normalizePabrikCode, normalizeNamaPabrik } = require('../utils/pabrikNormalize');
+const { FIELD_OFFICER_BONUS_RATE } = require('../utils/fieldOfficerBonus');
 
 function normalizeGoogleMapsUrl(value) {
   if (value == null || value === '') return null;
@@ -30,6 +31,24 @@ function normalizeRadiusMeters(value) {
     throw new AppError('Radius must be a whole number of meters between 1 and 100000.', 400, 'VALIDATION');
   }
   return radius;
+}
+
+/** Fraction 0–1 (e.g. 0.02 = 2%). Empty on create uses the global default. */
+function normalizeBonusOmsetRate(value, { required = false } = {}) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') {
+    if (required) return FIELD_OFFICER_BONUS_RATE;
+    return undefined;
+  }
+  const rate = Number(value);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+    throw new AppError(
+      'Bonus omset rate must be between 0 and 1 (e.g. 0.02 for 2%).',
+      400,
+      'VALIDATION'
+    );
+  }
+  return Math.round(rate * 10000) / 10000;
 }
 
 class PabrikService {
@@ -63,6 +82,9 @@ class PabrikService {
     const nama_pabrik = normalizeNamaPabrik(payload.nama_pabrik);
     const office_id = normalizeOfficeId(payload.office_id);
     const radius_meters = normalizeRadiusMeters(payload.radius_meters);
+    const bonus_omset_rate = normalizeBonusOmsetRate(payload.bonus_omset_rate, {
+      required: true,
+    });
     let google_maps_url = null;
     if (office_id != null) {
       await this.assertOfficeExists(office_id);
@@ -80,6 +102,7 @@ class PabrikService {
       google_maps_url,
       office_id: office_id ?? null,
       radius_meters: radius_meters ?? null,
+      bonus_omset_rate: bonus_omset_rate ?? FIELD_OFFICER_BONUS_RATE,
       sort_order,
     });
   }
@@ -96,6 +119,10 @@ class PabrikService {
     const radius_meters = normalizeRadiusMeters(payload.radius_meters);
     if (radius_meters !== undefined) {
       updates.radius_meters = radius_meters;
+    }
+    const bonus_omset_rate = normalizeBonusOmsetRate(payload.bonus_omset_rate);
+    if (bonus_omset_rate !== undefined) {
+      updates.bonus_omset_rate = bonus_omset_rate;
     }
     const office_id = normalizeOfficeId(payload.office_id);
     if (office_id !== undefined) {

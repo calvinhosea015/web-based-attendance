@@ -285,10 +285,7 @@ async function migratePayrollLoanColumns() {
   await query(
     `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS bpjs_kes NUMERIC(14,2) NOT NULL DEFAULT 0`
   );
-  await query(
-    `UPDATE payroll SET other_deductions = deductions
-     WHERE other_deductions = 0 AND deductions > 0`
-  );
+  // other_deductions stays DEFAULT 0 — never backfill from total `deductions`.
   await query(
     `CREATE TABLE IF NOT EXISTS loan_payroll_deductions (
       id SERIAL PRIMARY KEY,
@@ -301,17 +298,24 @@ async function migratePayrollLoanColumns() {
   );
 }
 
-/** ponytail: idempotent — legacy backfill copied total `deductions` into other_deductions (often = absence only). */
+/**
+ * ponytail: idempotent — old migrate copied total `deductions` into other_deductions.
+ * Reset when potongan lain equals the sum of structured lines (real other was 0).
+ */
 async function migratePayrollOtherDeductionsCleanup() {
   await query(
-    `UPDATE payroll SET other_deductions = 0
+    `UPDATE payroll SET
+       deductions = GREATEST(0, deductions - other_deductions),
+       other_deductions = 0
      WHERE other_deductions > 0
-       AND other_deductions = COALESCE(absence_deduction, 0)
-       AND COALESCE(loan_deduction, 0) = 0
-       AND COALESCE(late_deduction, 0) = 0
-       AND COALESCE(pph_21, 0) = 0
-       AND COALESCE(bpjs_tk, 0) = 0
-       AND COALESCE(bpjs_kes, 0) = 0`
+       AND other_deductions = (
+         COALESCE(absence_deduction, 0)
+         + COALESCE(loan_deduction, 0)
+         + COALESCE(late_deduction, 0)
+         + COALESCE(pph_21, 0)
+         + COALESCE(bpjs_tk, 0)
+         + COALESCE(bpjs_kes, 0)
+       )`
   );
 }
 
@@ -480,6 +484,9 @@ async function migrateAttendanceCheckoutCode() {
   await query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS checkout_code TEXT`);
   await query(
     `ALTER TABLE attendance ADD COLUMN IF NOT EXISTS overtime_minutes INTEGER NOT NULL DEFAULT 0`
+  );
+  await query(
+    `ALTER TABLE attendance ADD COLUMN IF NOT EXISTS early_minutes INTEGER NOT NULL DEFAULT 0`
   );
 }
 
@@ -650,6 +657,20 @@ async function migratePabrikCatalog() {
   // Per-pabrik check-in radius (meters). NULL = use global OFFICE_RADIUS_METERS default.
   await query(
     `ALTER TABLE pabriks ADD COLUMN IF NOT EXISTS radius_meters INTEGER CHECK (radius_meters IS NULL OR radius_meters > 0)`
+  );
+  // Per-pabrik omset bonus rate (fraction, e.g. 0.02 = 2%). Default 2%.
+  await query(
+    `ALTER TABLE pabriks ADD COLUMN IF NOT EXISTS bonus_omset_rate NUMERIC(6,4) NOT NULL DEFAULT 0.02`
+  );
+  await query(`ALTER TABLE pabriks DROP CONSTRAINT IF EXISTS pabriks_bonus_omset_rate_check`);
+  await query(
+    `ALTER TABLE pabriks ADD CONSTRAINT pabriks_bonus_omset_rate_check
+     CHECK (bonus_omset_rate >= 0 AND bonus_omset_rate <= 1)`
+  );
+  // Preserve historical Mega Surya (code 3) 1% when still at the column default.
+  await query(
+    `UPDATE pabriks SET bonus_omset_rate = 0.01
+     WHERE pabrik_code = '3' AND bonus_omset_rate = 0.02`
   );
 
   for (const row of PABRIK_CATALOG) {

@@ -1,8 +1,11 @@
 const config = require('../config/env');
+const { ATTENDANCE_STATUS_BUFFER_MINUTES } = require('../constants/attendance');
 
 /** Overtime counts from 16:00 when checkout is after 16:30 (office calendar day, Asia/Jakarta). */
 const OVERTIME_START_TIME = '16:00:00';
 const OVERTIME_THRESHOLD_TIME = '16:30:00';
+const STAFF_KANTOR_END_TIME = '16:00:00';
+const EARLY_LEAVE_BUFFER_MS = ATTENDANCE_STATUS_BUFFER_MINUTES * 60 * 1000;
 
 function tzDateParts(baseDate, timeZone = config.attendanceCalendarTz) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -69,6 +72,21 @@ function computeStaffKantorOvertimeMinutes(checkOutIso) {
   return Math.max(0, Math.floor((co.getTime() - overtimeStart.getTime()) / 60000));
 }
 
+/**
+ * Minutes before shift end (0 within grace buffer). Same buffer as EARLY_LEAVE status.
+ * @param {string|Date} checkOutIso
+ * @param {string} [endTime] default Staff Kantor 16:00
+ */
+function computeEarlyLeaveMinutes(checkOutIso, endTime = STAFF_KANTOR_END_TIME) {
+  if (!checkOutIso || !endTime) return 0;
+  const co = new Date(checkOutIso);
+  if (Number.isNaN(co.getTime())) return 0;
+  const end = parseTimeOnCalendarDay(co, endTime);
+  const diffMs = end.getTime() - co.getTime();
+  if (diffMs <= EARLY_LEAVE_BUFFER_MS) return 0;
+  return Math.max(0, Math.floor(diffMs / 60000));
+}
+
 /** gaji / required_days / 8 / 60 (per minute). */
 function staffKantorPerMinuteRate(gaji, requiredWorkDays) {
   const days = Math.max(1, Math.floor(Number(requiredWorkDays) || 0));
@@ -94,7 +112,7 @@ function computeLemburPay({ gaji, requiredWorkDays, overtimeMinutes }) {
   });
 }
 
-/** Potongan datang terlambat = gaji / required_days / 8 / 60 × late_minutes */
+/** Potongan datang terlambat (and Staff Kantor early leave) = gaji / required_days / 8 / 60 × minutes */
 function computeLateDeductionPay({ gaji, requiredWorkDays, lateMinutes }) {
   return computeStaffKantorPerMinuteAmount({
     gaji,
@@ -106,7 +124,9 @@ function computeLateDeductionPay({ gaji, requiredWorkDays, lateMinutes }) {
 module.exports = {
   OVERTIME_START_TIME,
   OVERTIME_THRESHOLD_TIME,
+  STAFF_KANTOR_END_TIME,
   computeStaffKantorOvertimeMinutes,
+  computeEarlyLeaveMinutes,
   computeStaffKantorPerMinuteAmount,
   computeLemburPay,
   computeLateDeductionPay,

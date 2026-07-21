@@ -174,15 +174,17 @@ export default {
   payrollTransport: 'Transport',
   payrollTransportEligible: 'Tunjangan transport (ya)',
   payrollLembur: 'Lembur',
-  payrollLateDeduction: 'Potongan terlambat',
+  payrollLateDeduction: 'Potongan terlambat / pulang awal',
   payrollLemburPlaceholder: 'Otomatis dari kehadiran untuk staf kantor dan accounting, atau isi manual.',
+  payrollLateDeductionHint:
+    'Staff Kantor: otomatis dari menit terlambat dan pulang awal (tarif per menit sama dengan lembur). Accounting: hanya menit terlambat.',
   payrollInsentif: 'Insentif',
   payrollUangKerajinan: 'Uang kerajinan',
   payrollDiligenceEligible: 'Uang kerajinan bulan ini (ya)',
   payrollBonusOmset: 'Bonus',
-  payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (omset × 2%).',
+  payrollBonusOmsetPlaceholder: 'Otomatis dari data pengiriman petugas lapangan (omset × % bonus pabrik).',
   payrollBonusFieldOfficerHint:
-    'Dari kode pengiriman: omset = harga per item × berat bersih; bonus = omset × 2%. Bisa di-override manual.',
+    'Dari kode pengiriman: omset = harga per item × berat bersih; bonus = omset × tarif bonus pabrik tersebut. Bisa di-override manual.',
   fieldOpsDashboardTitle: 'Operasi lapangan',
   fieldOpsDashboardSubtitle:
     'Omset petugas lapangan dan katalog pabrik — gunakan tab untuk berpindah.',
@@ -190,7 +192,7 @@ export default {
   fieldOpsTabCatalog: 'Pabrik, barang & tonase bonus',
   pabrikCatalogTitle: 'Pabrik, barang & tonase bonus',
   pabrikCatalogHint:
-    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item beserta nama dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga per item × berat bersih. Bonus = omset × 2%.',
+    'Kelola pabrik, lokasi, dan kode barang. Buka baris pabrik untuk menambah item beserta nama dan mengedit harga per item (tersimpan saat blur atau Enter). Omset = harga per item × berat bersih. Bonus = omset × tarif bonus masing-masing pabrik.',
   pabrikCatalogStatFactories: 'Pabrik',
   pabrikCatalogStatItems: 'Kode barang',
   pabrikCatalogStatPriced: 'Sudah ada harga',
@@ -237,6 +239,10 @@ export default {
   pabrikRadiusDefault: 'Default',
   pabrikRadiusUpdated: 'Radius pabrik diperbarui.',
   pabrikRadiusInvalid: 'Radius harus berupa angka bulat meter (minimal 1).',
+  pabrikBonusRate: 'Bonus %',
+  pabrikBonusRateHint: 'Tarif bonus omset untuk pabrik ini (mis. 2 = 2%). Default 2%.',
+  pabrikBonusRateUpdated: 'Tarif bonus pabrik diperbarui.',
+  pabrikBonusRateInvalid: 'Tarif bonus harus angka antara 0 dan 100.',
   pabrikGoogleMaps: 'Link Google Maps',
   pabrikGoogleMapsPlaceholder: 'https://maps.google.com/...',
   pabrikSaveMaps: 'Simpan link',
@@ -250,7 +256,7 @@ export default {
   pabrikItemSaveTonase: 'Simpan tonase',
   pabrikItemRatesTitle: 'Tonase bonus — per pabrik & kode barang',
   pabrikItemRatesHint:
-    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga per item × berat bersih. Bonus = omset × 2%.',
+    'Buka baris pabrik di atas untuk mengedit harga per item. Omset = harga per item × berat bersih. Bonus = omset × tarif bonus pabrik tersebut.',
   pabrikTonaseExportTitle: 'Unduh laporan bonus omset',
   pabrikTonaseExportHint:
     'Ekspor total bonus pengiriman per pabrik dan kode barang untuk rentang tanggal bebas (Excel: ringkasan + detail).',
@@ -280,10 +286,10 @@ export default {
   pabrikRateDeleted: 'Tarif dihapus.',
   fieldOmsetReportTitle: 'Omset petugas lapangan',
   fieldOmsetReportSubtitle:
-    'Omset dari kode pengiriman petugas lapangan (harga per item × berat bersih). Bonus di gaji = 2% dari omset.',
+    'Omset dari kode pengiriman petugas lapangan (harga per item × berat bersih). Bonus di gaji memakai tarif bonus masing-masing pabrik.',
   fieldOmsetFromCodesHint: 'Jumlah harga per item × berat bersih per baris kode',
-  fieldOmsetBonusHint: '{{count}} baris kode · bonus = omset × 2%',
-  fieldOmsetBonusTotal: 'Bonus (2%)',
+  fieldOmsetBonusHint: '{{count}} baris kode · bonus = omset × % bonus pabrik',
+  fieldOmsetBonusTotal: 'Bonus',
   fieldOmsetTotal: 'Omset',
   fieldOmsetEmpty: 'Belum ada kode pengiriman pada periode gaji ini.',
   fieldOmsetNoOfficers: 'Tidak ada petugas lapangan aktif.',

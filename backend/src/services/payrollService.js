@@ -24,6 +24,7 @@ const {
   isUmum,
   isHeadOfFinance,
   isFieldOfficer,
+  isStaffKantor,
   usesDailyWagePayroll,
 } = require('../constants/roles');
 const {
@@ -767,17 +768,25 @@ class PayrollService {
     });
   }
 
-  /** Potongan terlambat = (gaji / required days / 8 / 60) × sum(late_minutes) in period. */
-  async computeLateDeductionForPeriod(employeeId, bounds, employee, requiredWorkDays) {
+  /** Potongan terlambat (+ pulang awal for Staff Kantor) = rate × minutes in period. */
+  async computeLateDeductionForPeriod(employeeId, bounds, employee, requiredWorkDays, role = null) {
     const lateMinutes = await this.attendanceRepository.sumLateMinutesInPeriod(
       employeeId,
       bounds.period_start,
       bounds.period_end
     );
+    let earlyMinutes = 0;
+    if (isStaffKantor(role)) {
+      earlyMinutes = await this.attendanceRepository.sumEarlyMinutesInPeriod(
+        employeeId,
+        bounds.period_start,
+        bounds.period_end
+      );
+    }
     return computeLateDeductionPay({
       gaji: num(employee.basic_salary),
       requiredWorkDays,
-      lateMinutes,
+      lateMinutes: lateMinutes + earlyMinutes,
     });
   }
 
@@ -847,7 +856,8 @@ class PayrollService {
         empId,
         bounds,
         employee,
-        expectedDays
+        expectedDays,
+        role
       );
     }
 
@@ -1114,7 +1124,8 @@ class PayrollService {
             emp.id,
             bounds,
             emp,
-            expectedDays
+            expectedDays,
+            role
           );
         }
       }
@@ -1423,7 +1434,8 @@ class PayrollService {
         empId,
         bounds,
         employee,
-        expectedDaysForLate
+        expectedDaysForLate,
+        role
       );
     }
 

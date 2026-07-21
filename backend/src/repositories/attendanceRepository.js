@@ -96,9 +96,10 @@ class AttendanceRepository {
         work_hours = $8,
         overtime_hours = $9,
         overtime_minutes = $10,
-        attendance_status = $11,
-        checkout_code = $12,
-        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $13::jsonb
+        early_minutes = $11,
+        attendance_status = $12,
+        checkout_code = $13,
+        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $14::jsonb
       WHERE id = $1 AND check_out IS NULL
       RETURNING *`,
       [
@@ -112,6 +113,7 @@ class AttendanceRepository {
         row.workHours,
         row.overtimeHours,
         row.overtimeMinutes ?? 0,
+        row.earlyMinutes ?? 0,
         row.attendanceStatus,
         row.checkoutCode ?? null,
         JSON.stringify(row.validationFlagsOut || {}),
@@ -133,6 +135,7 @@ class AttendanceRepository {
         work_hours = ROUND(GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - check_in)) / 3600.0)::numeric, 2),
         overtime_hours = 0,
         overtime_minutes = 0,
+        early_minutes = 0,
         validation_flags = COALESCE(validation_flags, '{}'::jsonb)
           || jsonb_build_object('auto_checkout', true, 'auto_checkout_at', $1::text)
       WHERE check_out IS NULL
@@ -168,8 +171,9 @@ class AttendanceRepository {
         work_hours = $5,
         overtime_hours = $6,
         overtime_minutes = $7,
-        attendance_status = $8,
-        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $9::jsonb
+        early_minutes = $8,
+        attendance_status = $9,
+        validation_flags = COALESCE(validation_flags, '{}'::jsonb) || $10::jsonb
       WHERE id = $1
       RETURNING *`,
       [
@@ -180,6 +184,7 @@ class AttendanceRepository {
         row.workHours,
         row.overtimeHours,
         row.overtimeMinutes ?? 0,
+        row.earlyMinutes ?? 0,
         row.attendanceStatus,
         JSON.stringify(row.validationFlagsPatch || {}),
       ]
@@ -316,6 +321,20 @@ class AttendanceRepository {
        WHERE employee_id = $1
          AND (check_in AT TIME ZONE $4)::date >= $2::date
          AND (check_in AT TIME ZONE $4)::date <= $3::date`,
+      [employeeId, periodStart, periodEnd, tz]
+    );
+    return r.rows[0]?.total ?? 0;
+  }
+
+  async sumEarlyMinutesInPeriod(employeeId, periodStart, periodEnd) {
+    const tz = config.attendanceCalendarTz || 'Asia/Jakarta';
+    const r = await query(
+      `SELECT COALESCE(SUM(GREATEST(COALESCE(early_minutes, 0), 0)), 0)::int AS total
+       FROM attendance
+       WHERE employee_id = $1
+         AND check_out IS NOT NULL
+         AND (check_out AT TIME ZONE $4)::date >= $2::date
+         AND (check_out AT TIME ZONE $4)::date <= $3::date`,
       [employeeId, periodStart, periodEnd, tz]
     );
     return r.rows[0]?.total ?? 0;

@@ -1,15 +1,10 @@
 const FIELD_OFFICER_BONUS_RATE = 0.02;
 
-/** PT Mega Surya Eratama (pabrik catalog code "3") — 1%; all other pabrik stay at 2%. */
-const PABRIK_BONUS_RATE_OVERRIDES = {
-  3: 0.01,
-};
-
-function resolveFieldOfficerBonusRate(pabrikCode) {
-  const code = String(pabrikCode ?? '').trim();
-  if (!code) return FIELD_OFFICER_BONUS_RATE;
-  const override = PABRIK_BONUS_RATE_OVERRIDES[code];
-  return override != null ? override : FIELD_OFFICER_BONUS_RATE;
+/** Use stored pabrik rate when valid; otherwise the global default (2%). */
+function resolveFieldOfficerBonusRate(bonusRate) {
+  const n = Number(bonusRate);
+  if (Number.isFinite(n) && n >= 0 && n <= 1) return n;
+  return FIELD_OFFICER_BONUS_RATE;
 }
 
 function num(v) {
@@ -33,16 +28,15 @@ function computeLineOmset(_tonasePerItem, beratBersih, pricePerItem = 0) {
   return Math.round(price * num(beratBersih) * 100) / 100;
 }
 
-/** Bonus per baris = omset × pabrik rate (default 2%). */
-function computeLineBonus(tonasePerItem, beratBersih, pricePerItem = 0, pabrikCode) {
-  const bonusRate = resolveFieldOfficerBonusRate(pabrikCode);
-  const amount = computeLineOmset(tonasePerItem, beratBersih, pricePerItem) * bonusRate;
+/** Bonus per baris = omset × pabrik bonus_omset_rate (default 2%). */
+function computeLineBonus(tonasePerItem, beratBersih, pricePerItem = 0, bonusRate) {
+  const rate = resolveFieldOfficerBonusRate(bonusRate);
+  const amount = computeLineOmset(tonasePerItem, beratBersih, pricePerItem) * rate;
   return Math.round(amount * 100) / 100;
 }
 
 module.exports = {
   FIELD_OFFICER_BONUS_RATE,
-  PABRIK_BONUS_RATE_OVERRIDES,
   resolveFieldOfficerBonusRate,
   computeSelisih,
   computeLineOmset,

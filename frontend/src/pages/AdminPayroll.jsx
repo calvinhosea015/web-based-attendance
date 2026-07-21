@@ -1018,7 +1018,10 @@ export default function AdminPayroll() {
                 />
               </CompactField>
             )}
-            <CompactField label={t('payrollLateDeduction')}>
+            <CompactField
+              label={t('payrollLateDeduction')}
+              hint={t('payrollLateDeductionHint')}
+            >
               <input
                 type="number"
                 min="0"

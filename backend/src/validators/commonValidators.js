@@ -99,6 +99,17 @@ const radiusMetersBodyValidator = body('radius_meters')
     return true;
   });
 
+const bonusOmsetRateBodyValidator = body('bonus_omset_rate')
+  .optional({ nullable: true })
+  .custom((value) => {
+    if (value === null || value === '') return true;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0 || n > 1) {
+      throw new Error('bonus_omset_rate must be between 0 and 1 (e.g. 0.02 for 2%)');
+    }
+    return true;
+  });
+
 const pabrikCreateValidators = [
   body('pabrik_code').trim().notEmpty().isString().isLength({ max: 32 }),
   body('nama_pabrik').trim().notEmpty().isString().isLength({ max: 255 }),
@@ -112,6 +123,7 @@ const pabrikCreateValidators = [
       return true;
     }),
   radiusMetersBodyValidator,
+  bonusOmsetRateBodyValidator,
 ];
 
 const pabrikUpdateValidators = [
@@ -127,6 +139,7 @@ const pabrikUpdateValidators = [
       return true;
     }),
   radiusMetersBodyValidator,
+  bonusOmsetRateBodyValidator,
 ];
 
 function passwordPolicyValidator() {

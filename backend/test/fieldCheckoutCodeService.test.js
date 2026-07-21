@@ -12,7 +12,7 @@ const { AppError } = require('../src/utils/errors');
 describe('field officer omset = berat bersih × harga per item', () => {
   it('uses price per item × berat bersih', () => {
     assert.equal(computeLineOmset(0, 90, 1000), 90000);
-    assert.equal(computeLineBonus(0, 90, 1000), 1800); // 2% of 90000
+    assert.equal(computeLineBonus(0, 90, 1000), 1800); // default 2% of 90000
   });
 
   it('returns zero omset when no price is set', () => {
@@ -20,10 +20,11 @@ describe('field officer omset = berat bersih × harga per item', () => {
     assert.equal(computeLineBonus(5, 90, 0), 0);
   });
 
-  it('uses 1% bonus for PT Mega Surya Eratama (pabrik code 3)', () => {
-    assert.equal(resolveFieldOfficerBonusRate('3'), 0.01);
-    assert.equal(computeLineBonus(0, 90, 1000, '3'), 900); // 1% of 90000
-    assert.equal(resolveFieldOfficerBonusRate('2'), 0.02);
+  it('uses the pabrik bonus_omset_rate when provided', () => {
+    assert.equal(resolveFieldOfficerBonusRate(0.01), 0.01);
+    assert.equal(computeLineBonus(0, 90, 1000, 0.01), 900); // 1% of 90000
+    assert.equal(resolveFieldOfficerBonusRate(0.02), 0.02);
+    assert.equal(resolveFieldOfficerBonusRate(undefined), 0.02);
   });
 });
 
@@ -103,9 +104,16 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
         nama_barang: 'Test item',
       }),
     };
+    const pabrikRepository = {
+      findByCode: async () => ({ bonus_omset_rate: 0.02 }),
+    };
     const service = new FieldCheckoutCodeService(
       fieldDeliveryRepository,
-      pabrikItemRateRepository
+      pabrikItemRateRepository,
+      null,
+      null,
+      null,
+      pabrikRepository
     );
 
     const res = await service.updateDeliveryAsAdmin({ role: 'admin' }, 7, { berat_bersih: 80 });
@@ -118,6 +126,49 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     assert.equal(saved.omset_amount, 80000); // 1000 × 80
     assert.equal(saved.bonus_amount, 1600); // 2% of 80000
     assert.equal(res.code, 'DELIVERY_UPDATED');
+  });
+
+  it('uses the factory bonus_omset_rate when recomputing bonus', async () => {
+    let saved = null;
+    const service = new FieldCheckoutCodeService(
+      {
+        findById: async () => ({
+          id: 8,
+          pabrik_code: '3',
+          kode_barang: 'ITEM',
+          norek: '00000',
+          nomor_tanda_terima: 'A',
+          nomor_surat_jalan: 'B',
+          nopol: 'L 1 AB',
+          no_bs: '0',
+          kotor: 100,
+          berat_bersih: 90,
+          selisih: 10,
+          tonase_per_item: 0,
+          price_per_item: 1000,
+          omset_amount: 90000,
+          bonus_amount: 1800,
+        }),
+        updateEntry: async (id, fields) => {
+          saved = { id, ...fields };
+          return saved;
+        },
+      },
+      {
+        findByPabrikAndBarang: async () => ({
+          tonase_per_item: 0,
+          price_per_item: 1000,
+        }),
+      },
+      null,
+      null,
+      null,
+      { findByCode: async () => ({ bonus_omset_rate: 0.01 }) }
+    );
+
+    await service.updateDeliveryAsAdmin({ role: 'admin' }, 8, { berat_bersih: 90 });
+    assert.equal(saved.omset_amount, 90000);
+    assert.equal(saved.bonus_amount, 900); // 1% of 90000
   });
 
   it('rejects non-admin callers', async () => {

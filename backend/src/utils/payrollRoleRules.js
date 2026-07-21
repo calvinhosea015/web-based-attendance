@@ -9,7 +9,8 @@ function receivesMonthlyAbsenceDeduction(role) {
   return isStaffKantor(role) || isUmum(role) || isAccounting(role);
 }
 
-/** Staff Kantor & Accounting — auto lembur, auto potongan terlambat (custom jam masuk). */
+/** Staff Kantor & Accounting — auto lembur, auto potongan terlambat (custom jam masuk).
+ * Staff Kantor only also folds early-leave minutes into the same potongan rate. */
 function receivesStaffKantorAttendancePayroll(role) {
   return isStaffKantor(role) || isAccounting(role);
 }

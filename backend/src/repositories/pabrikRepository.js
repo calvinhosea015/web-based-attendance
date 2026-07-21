@@ -12,6 +12,7 @@ const PABRIK_SELECT = `
     ELSE p.google_maps_url
   END AS google_maps_url,
   p.radius_meters,
+  p.bonus_omset_rate,
   p.sort_order,
   p.created_at,
   p.updated_at`;
@@ -59,7 +60,7 @@ class PabrikRepository {
 
   async findByCode(pabrikCode) {
     const r = await query(
-      `SELECT p.id, p.pabrik_code, p.nama_pabrik, p.office_id, p.sort_order,
+      `SELECT p.id, p.pabrik_code, p.nama_pabrik, p.office_id, p.bonus_omset_rate, p.sort_order,
               CASE WHEN p.office_id IS NOT NULL THEN o.link ELSE p.google_maps_url END AS google_maps_url
        FROM pabriks p
        LEFT JOIN offices o ON o.id = p.office_id
@@ -74,17 +75,33 @@ class PabrikRepository {
     return Number(r.rows[0]?.n) || 1;
   }
 
-  async create({ pabrik_code, nama_pabrik, google_maps_url, office_id, radius_meters, sort_order }) {
+  async create({
+    pabrik_code,
+    nama_pabrik,
+    google_maps_url,
+    office_id,
+    radius_meters,
+    bonus_omset_rate,
+    sort_order,
+  }) {
     const r = await query(
-      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, office_id, radius_meters, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO pabriks (pabrik_code, nama_pabrik, google_maps_url, office_id, radius_meters, bonus_omset_rate, sort_order)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, 0.02), $7)
        RETURNING id`,
-      [pabrik_code, nama_pabrik, google_maps_url, office_id ?? null, radius_meters ?? null, sort_order]
+      [
+        pabrik_code,
+        nama_pabrik,
+        google_maps_url,
+        office_id ?? null,
+        radius_meters ?? null,
+        bonus_omset_rate ?? null,
+        sort_order,
+      ]
     );
     return this.findById(r.rows[0].id);
   }
 
-  async updateById(id, { nama_pabrik, google_maps_url, office_id, radius_meters }) {
+  async updateById(id, { nama_pabrik, google_maps_url, office_id, radius_meters, bonus_omset_rate }) {
     const sets = [];
     const params = [id];
     let idx = 2;
@@ -96,6 +113,11 @@ class PabrikRepository {
     if (radius_meters !== undefined) {
       sets.push(`radius_meters = $${idx}`);
       params.push(radius_meters);
+      idx += 1;
+    }
+    if (bonus_omset_rate !== undefined) {
+      sets.push(`bonus_omset_rate = $${idx}`);
+      params.push(bonus_omset_rate);
       idx += 1;
     }
     if (office_id !== undefined) {

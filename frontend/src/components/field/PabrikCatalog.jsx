@@ -22,9 +22,12 @@ export default function PabrikCatalog() {
     nama_pabrik: '',
     office_id: '',
     radius_meters: '',
+    bonus_omset_percent: '2',
   });
   const [radiusDraft, setRadiusDraft] = useState({});
   const [radiusSavingId, setRadiusSavingId] = useState(null);
+  const [bonusRateDraft, setBonusRateDraft] = useState({});
+  const [bonusRateSavingId, setBonusRateSavingId] = useState(null);
   const [itemAddDraft, setItemAddDraft] = useState({});
   const [itemNameAddDraft, setItemNameAddDraft] = useState({});
   const [priceDraft, setPriceDraft] = useState({});
@@ -57,6 +60,15 @@ export default function PabrikCatalog() {
       const { data } = await api.get(paths.adminPabriks);
       const list = Array.isArray(data?.pabriks) ? data.pabriks : [];
       setPabriks(list);
+      setBonusRateDraft(
+        Object.fromEntries(
+          list.map((p) => {
+            const rate = Number(p.bonus_omset_rate);
+            const pct = Number.isFinite(rate) ? Math.round(rate * 10000) / 100 : 2;
+            return [p.id, String(pct)];
+          })
+        )
+      );
       const items = list.flatMap((p) => p.items || []);
       setPriceDraft(
         Object.fromEntries(
@@ -73,6 +85,7 @@ export default function PabrikCatalog() {
       setPabriks([]);
       setPriceDraft({});
       setNameDraft({});
+      setBonusRateDraft({});
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
       setPabrikLoading(false);
@@ -155,11 +168,13 @@ export default function PabrikCatalog() {
     dismiss();
     try {
       await ensureCsrf();
+      const pct = Number(newFactoryForm.bonus_omset_percent);
       await api.post(paths.adminPabriks, {
         pabrik_code: newFactoryForm.pabrik_code.trim(),
         nama_pabrik: newFactoryForm.nama_pabrik.trim(),
         office_id: Number(newFactoryForm.office_id),
         radius_meters: newFactoryForm.radius_meters.trim() || null,
+        bonus_omset_rate: Number.isFinite(pct) ? pct / 100 : 0.02,
       });
       const defaultOffice = offices.find((o) => o.link);
       setNewFactoryForm({
@@ -167,6 +182,7 @@ export default function PabrikCatalog() {
         nama_pabrik: '',
         office_id: defaultOffice ? String(defaultOffice.id) : '',
         radius_meters: '',
+        bonus_omset_percent: '2',
       });
       setShowAddFactoryForm(false);
       await loadPabriks();
@@ -259,6 +275,35 @@ export default function PabrikCatalog() {
       setRadiusDraft((d) => ({ ...d, [pabrik.id]: current }));
     } finally {
       setRadiusSavingId(null);
+    }
+  };
+
+  const handleSaveBonusRate = async (pabrik, rawValue) => {
+    const trimmed = String(rawValue ?? '').trim();
+    const rate = Number(pabrik.bonus_omset_rate);
+    const currentPct = Number.isFinite(rate) ? Math.round(rate * 10000) / 100 : 2;
+    const current = String(currentPct);
+    if (trimmed === current) return;
+    const pct = Number(trimmed);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      notify(t('pabrikBonusRateInvalid'), 'error');
+      setBonusRateDraft((d) => ({ ...d, [pabrik.id]: current }));
+      return;
+    }
+    setBonusRateSavingId(pabrik.id);
+    dismiss();
+    try {
+      await ensureCsrf();
+      await api.put(paths.adminPabrik(pabrik.id), {
+        bonus_omset_rate: Math.round(pct * 100) / 10000,
+      });
+      await loadPabriks();
+      notify(t('pabrikBonusRateUpdated'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+      setBonusRateDraft((d) => ({ ...d, [pabrik.id]: current }));
+    } finally {
+      setBonusRateSavingId(null);
     }
   };
 
@@ -434,7 +479,7 @@ export default function PabrikCatalog() {
                 {t('pabrikLocationManageLink')}
               </a>
             </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_auto]">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_auto]">
               <Field label={t('pabrikItemPabrikCode')}>
                 <input
                   className={inputClass}
@@ -486,6 +531,24 @@ export default function PabrikCatalog() {
                     setNewFactoryForm((f) => ({ ...f, radius_meters: e.target.value }))
                   }
                   placeholder={t('pabrikRadiusDefault')}
+                />
+              </Field>
+              <Field label={t('pabrikBonusRate')} hint={t('pabrikBonusRateHint')}>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  inputMode="decimal"
+                  className={inputClass}
+                  value={newFactoryForm.bonus_omset_percent}
+                  onChange={(e) =>
+                    setNewFactoryForm((f) => ({
+                      ...f,
+                      bonus_omset_percent: e.target.value,
+                    }))
+                  }
+                  placeholder="2"
                 />
               </Field>
               <div className="flex items-end gap-2">
@@ -564,6 +627,7 @@ export default function PabrikCatalog() {
                       <th>{t('pabrikNama')}</th>
                       <th>{t('pabrikLocation')}</th>
                       <th>{t('pabrikRadius')}</th>
+                      <th>{t('pabrikBonusRate')}</th>
                       <th className="text-center">{t('pabrikCatalogItemsCol')}</th>
                       <th className="text-right">{t('pabrikCatalogActions')}</th>
                     </tr>
@@ -645,6 +709,36 @@ export default function PabrikCatalog() {
                                 }
                                 onBlur={(e) => handleSaveRadius(pabrik, e.target.value)}
                               />
+                            </td>
+                            <td>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  inputMode="decimal"
+                                  className="w-20 rounded-apple border border-apple-border bg-apple-fill px-3 py-2 text-[14px] tabular-nums text-apple-text focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:opacity-60"
+                                  value={
+                                    bonusRateDraft[pabrik.id] ??
+                                    String(
+                                      Number.isFinite(Number(pabrik.bonus_omset_rate))
+                                        ? Math.round(Number(pabrik.bonus_omset_rate) * 10000) /
+                                            100
+                                        : 2
+                                    )
+                                  }
+                                  disabled={bonusRateSavingId === pabrik.id}
+                                  onChange={(e) =>
+                                    setBonusRateDraft((d) => ({
+                                      ...d,
+                                      [pabrik.id]: e.target.value,
+                                    }))
+                                  }
+                                  onBlur={(e) => handleSaveBonusRate(pabrik, e.target.value)}
+                                />
+                                <span className="text-[12px] text-apple-muted">%</span>
+                              </div>
                             </td>
                             <td className="text-center">
                               <Badge variant="neutral">{pabrik.items?.length ?? 0}</Badge>

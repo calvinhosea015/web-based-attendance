@@ -19,7 +19,7 @@ const {
   usesSimpleDailyCheckout,
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
-const { computeStaffKantorOvertimeMinutes } = require('../utils/staffKantorOvertime');
+const { computeStaffKantorOvertimeMinutes, computeEarlyLeaveMinutes } = require('../utils/staffKantorOvertime');
 const config = require('../config/env');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 
@@ -134,8 +134,8 @@ function computeSegmentCheckout(checkInIso, checkOutIso, segmentStartTime, segme
   const rawHours = (co.getTime() - ci.getTime()) / 3600000;
   const workHours = Math.max(0, rawHours);
   let status = previousStatus || ATTENDANCE_STATUSES.PRESENT;
-  const end = parseShiftTimeOnDate(co, segmentEndTime);
-  if (co.getTime() < end.getTime() - STATUS_BUFFER_MS) {
+  const earlyMinutes = computeEarlyLeaveMinutes(checkOutIso, segmentEndTime);
+  if (earlyMinutes > 0) {
     status = ATTENDANCE_STATUSES.EARLY_LEAVE;
   }
   const scheduledMs =
@@ -146,6 +146,7 @@ function computeSegmentCheckout(checkInIso, checkOutIso, segmentStartTime, segme
   return {
     workHours: Number(workHours.toFixed(2)),
     overtimeHours: Number(overtimeHours.toFixed(2)),
+    earlyMinutes,
     status,
   };
 }
@@ -158,11 +159,9 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
   const breakH = opts.skipBreakDeduction ? 0 : shift ? lunchH : 1;
   const workHours = Math.max(0, rawHours - breakH);
   let status = previousStatus || ATTENDANCE_STATUSES.PRESENT;
-  if (shift) {
-    const end = parseShiftTimeOnDate(co, shift.end_time);
-    if (co.getTime() < end.getTime() - STATUS_BUFFER_MS) {
-      status = ATTENDANCE_STATUSES.EARLY_LEAVE;
-    }
+  const earlyMinutes = shift ? computeEarlyLeaveMinutes(checkOutIso, shift.end_time) : 0;
+  if (earlyMinutes > 0) {
+    status = ATTENDANCE_STATUSES.EARLY_LEAVE;
   }
   const fullSpanH = shift
     ? (parseShiftTimeOnDate(ci, shift.end_time).getTime() - parseShiftTimeOnDate(ci, shift.start_time).getTime()) /
@@ -174,7 +173,12 @@ function computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, previousSt
       ? fullSpanH - lunchH
       : 8;
   const overtimeHours = Math.max(0, workHours - Math.max(scheduledHours, 0));
-  return { workHours: Number(workHours.toFixed(2)), overtimeHours: Number(overtimeHours.toFixed(2)), status };
+  return {
+    workHours: Number(workHours.toFixed(2)),
+    overtimeHours: Number(overtimeHours.toFixed(2)),
+    earlyMinutes,
+    status,
+  };
 }
 
 /** Staff Kantor checkout: standard work hours + lembur minutes (from 16:00 if out after 16:30). */
@@ -458,6 +462,7 @@ class AttendanceService {
     let workHours;
     let overtimeHours;
     let overtimeMinutes = 0;
+    let earlyMinutes = 0;
     let status;
     let checkoutCode = null;
     if (usesSimpleDailyCheckout(auth.role)) {
@@ -478,12 +483,14 @@ class AttendanceService {
       workHours = w.workHours;
       overtimeHours = 0;
       overtimeMinutes = 0;
+      earlyMinutes = w.earlyMinutes || 0;
       status = w.status;
     } else {
       const w = computeStaffKantorCheckout(checkInIso, nowIso, open.attendance_status);
       workHours = w.workHours;
       overtimeHours = w.overtimeHours;
       overtimeMinutes = w.overtimeMinutes;
+      earlyMinutes = w.earlyMinutes || 0;
       status = w.status;
     }
 
@@ -497,6 +504,7 @@ class AttendanceService {
       workHours,
       overtimeHours,
       overtimeMinutes,
+      earlyMinutes,
       attendanceStatus: status,
       checkoutCode,
       validationFlagsOut: {
@@ -648,6 +656,7 @@ class AttendanceService {
     let workHours = null;
     let overtimeHours = null;
     let overtimeMinutes = 0;
+    let earlyMinutes = 0;
 
     if (nextCheckOut) {
       const checkInIso = nextCheckIn.toISOString();
@@ -664,6 +673,7 @@ class AttendanceService {
         });
         workHours = w.workHours;
         overtimeHours = 0;
+        earlyMinutes = w.earlyMinutes || 0;
         attendanceStatus = w.status;
       } else if (isUmum(role)) {
         workHours = Number(row.work_hours) || 0;
@@ -673,6 +683,7 @@ class AttendanceService {
         workHours = w.workHours;
         overtimeHours = w.overtimeHours;
         overtimeMinutes = w.overtimeMinutes;
+        earlyMinutes = w.earlyMinutes || 0;
         attendanceStatus = w.status;
       }
     }
@@ -684,6 +695,7 @@ class AttendanceService {
       workHours,
       overtimeHours,
       overtimeMinutes,
+      earlyMinutes,
       attendanceStatus,
       validationFlagsPatch: {
         admin_time_edit: true,
