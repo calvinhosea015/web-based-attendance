@@ -304,7 +304,7 @@ export default {
   payrollExportSlip: 'Unduh Excel',
   payrollExportAllSlips: 'Ekspor semua slip (Excel)',
   payrollSlipExported: 'Slip gaji diunduh.',
-  payrollAllSlipsExported: 'Semua slip gaji diunduh (satu lembar, dua slip per halaman A4).',
+  payrollAllSlipsExported: 'Semua slip gaji diunduh (satu lembar A5, semua karyawan).',
   payrollEmployeeTitle: 'Gaji saya',
   payrollEmployeeHint:
     'Rekap gaji bulanan yang dibuat admin. Potongan pinjaman muncul setelah gaji untuk bulan tersebut dibuat.',

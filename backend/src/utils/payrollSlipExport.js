@@ -56,34 +56,16 @@ const ROW = {
 const BASE_SHEET_LAST_ROW = 22;
 const FIELD_OFFICER_SECTION_LAST_ROW = 50;
 const FIELD_OFFICER_DETAIL_FIRST_ROW = 34;
-const SLIPS_PER_A4_PAGE = 2;
-/** A4 portrait height (inches) for print row-height math */
-const A4_HEIGHT_IN = 11.69;
-const SLIP_PAGE_MARGINS = { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
 
-function bulkSlipRowHeightPt() {
-  const marginIn =
-    SLIP_PAGE_MARGINS.top +
-    SLIP_PAGE_MARGINS.bottom +
-    SLIP_PAGE_MARGINS.header +
-    SLIP_PAGE_MARGINS.footer;
-  const printablePt = (A4_HEIGHT_IN - marginIn) * 72;
-  return printablePt / SLIPS_PER_A4_PAGE / BASE_SHEET_LAST_ROW;
-}
+/** Rows × cols per employee panel on the combined A5 print sheet. */
+const PANEL_ROWS = 16;
+const PANEL_COLS = 4;
 
-function slipRowAt(startRow, relRow) {
-  return startRow + relRow - 1;
-}
-
-function a4PortraitPageSetup() {
-  return {
-    paperSize: 9,
-    orientation: 'portrait',
-    fitToPage: false,
-    scale: 100,
-    margins: SLIP_PAGE_MARGINS,
-  };
-}
+const FONT_COMPACT_BODY = { name: 'Calibri', size: 7 };
+const FONT_COMPACT_TITLE = { name: 'Calibri', size: 9, bold: true };
+const FONT_COMPACT_HEAD = { name: 'Calibri', size: 7, bold: true };
+const FONT_COMPACT_NET = { name: 'Calibri', size: 8, bold: true };
+const PANEL_ROW_HEIGHT = 11;
 
 const COL_WIDTHS = { A: 19, B: 16, C: 25, D: 16 };
 const ROW_HEIGHT = 15;
@@ -284,6 +266,199 @@ function gajiBulanLabel(period) {
   return periodLabelCalendar(period).toUpperCase();
 }
 
+function absCell(ws, originRow, originCol, relRow, relCol) {
+  return ws.getCell(originRow + relRow - 1, originCol + relCol - 1);
+}
+
+function setCellAt(ws, originRow, originCol, relRow, relCol, value, opts = {}) {
+  const cell = absCell(ws, originRow, originCol, relRow, relCol);
+  cell.value = value ?? '';
+  cell.font = { ...(opts.font || FONT_COMPACT_BODY), ...opts.font };
+  if (opts.alignment) cell.alignment = opts.alignment;
+  if (opts.numFmt) cell.numFmt = opts.numFmt;
+}
+
+function setAmountAt(ws, originRow, originCol, relRow, relCol, amount, font = FONT_COMPACT_BODY) {
+  const cell = absCell(ws, originRow, originCol, relRow, relCol);
+  cell.value = num(amount);
+  cell.numFmt = AMOUNT_NUMFMT;
+  cell.font = font;
+  cell.alignment = { horizontal: 'right', vertical: 'middle' };
+}
+
+function gridLayout(employeeCount) {
+  const n = Math.max(1, employeeCount);
+  let cols = Math.ceil(Math.sqrt(n));
+  while (cols > 1 && Math.ceil(n / (cols - 1)) <= Math.ceil(n / cols)) {
+    cols -= 1;
+  }
+  const rows = Math.ceil(n / cols);
+  return { cols, rows };
+}
+
+function panelPrintArea(gridCols, gridRows) {
+  const lastRow = gridRows * PANEL_ROWS;
+  const lastCol = gridCols * PANEL_COLS;
+  return `A1:${colLetter(lastCol)}${lastRow}`;
+}
+
+function applyPanelOuterBorder(ws, originRow, originCol) {
+  const r0 = originRow;
+  const c0 = originCol;
+  const r1 = originRow + PANEL_ROWS - 1;
+  const c1 = originCol + PANEL_COLS - 1;
+  const thin = { style: 'thin', color: { argb: 'FF000000' } };
+  for (let c = c0; c <= c1; c += 1) {
+    const top = ws.getCell(r0, c).border || {};
+    const bottom = ws.getCell(r1, c).border || {};
+    ws.getCell(r0, c).border = { ...top, top: thin };
+    ws.getCell(r1, c).border = { ...bottom, bottom: thin };
+  }
+  for (let r = r0; r <= r1; r += 1) {
+    const left = ws.getCell(r, c0).border || {};
+    const right = ws.getCell(r, c1).border || {};
+    ws.getCell(r, c0).border = { ...left, left: thin };
+    ws.getCell(r, c1).border = { ...right, right: thin };
+  }
+}
+
+function applyPanelColumnWidths(ws, originCol) {
+  const widths = [11, 9, 11, 9];
+  widths.forEach((w, i) => {
+    const col = ws.getColumn(originCol + i);
+    if (!col.width || col.width < w) col.width = w;
+  });
+}
+
+function slipTotals(row, amounts) {
+  const isDaily = usesDailyWagePayroll(row.user_role);
+  const totalPendapatan = isDaily
+    ? fieldOfficerEarningsTotal(row, amounts)
+    : sumAmountKeys(amounts, EARNINGS);
+  const totalPotongan = isDaily
+    ? sumAmountKeys(amounts, DEDUCTIONS.filter((d) => d.key !== 'potongan_absen'))
+    : sumAmountKeys(amounts, DEDUCTIONS);
+  const netPay =
+    num(row.final_salary) || Math.max(0, totalPendapatan - totalPotongan);
+  return { isDaily, totalPendapatan, totalPotongan, netPay };
+}
+
+function addCompactSlipPanel(ws, row, period, originRow, originCol) {
+  const amounts = slipAmounts(row);
+  const { isDaily, totalPendapatan, totalPotongan, netPay } = slipTotals(row, amounts);
+
+  applyPanelColumnWidths(ws, originCol);
+  for (let r = 0; r < PANEL_ROWS; r += 1) {
+    ws.getRow(originRow + r).height = PANEL_ROW_HEIGHT;
+  }
+
+  ws.mergeCells(originRow, originCol, originRow + 1, originCol);
+  setCellAt(ws, originRow, originCol, 1, 1, row.full_name || '', {
+    font: { ...FONT_COMPACT_BODY, bold: true },
+    alignment: { vertical: 'middle', wrapText: true },
+  });
+
+  ws.mergeCells(originRow, originCol + 2, originRow + 1, originCol + 3);
+  setCellAt(ws, originRow, originCol, 1, 3, 'SLIP GAJI', {
+    font: FONT_COMPACT_TITLE,
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+
+  ws.mergeCells(originRow + 2, originCol, originRow + 2, originCol + 1);
+  setCellAt(ws, originRow, originCol, 3, 1, jabatanLabel(row) || '', {
+    alignment: { vertical: 'middle', wrapText: true },
+  });
+
+  ws.mergeCells(originRow + 2, originCol + 2, originRow + 2, originCol + 3);
+  setCellAt(ws, originRow, originCol, 3, 3, periodeLabel(period), {
+    font: FONT_COMPACT_BODY,
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+
+  ws.mergeCells(originRow + 3, originCol, originRow + 3, originCol + 3);
+  setCellAt(ws, originRow, originCol, 4, 1, companyName(), {
+    font: FONT_COMPACT_BODY,
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+
+  ws.mergeCells(originRow + 4, originCol, originRow + 4, originCol + 1);
+  setCellAt(ws, originRow, originCol, 5, 1, 'Pendapatan', {
+    font: FONT_COMPACT_HEAD,
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+  ws.mergeCells(originRow + 4, originCol + 2, originRow + 4, originCol + 3);
+  setCellAt(ws, originRow, originCol, 5, 3, 'Potongan', {
+    font: FONT_COMPACT_HEAD,
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+
+  const lineCount = Math.min(EARNINGS.length, DEDUCTIONS.length);
+  for (let i = 0; i < lineCount; i += 1) {
+    const rel = 6 + i;
+    let earnAmount = amounts[EARNINGS[i].key];
+    if (isDaily && EARNINGS[i].key === 'gaji') {
+      earnAmount = fieldOfficerEarningResult(row, amounts, 'gaji');
+    }
+    setCellAt(ws, originRow, originCol, rel, 1, EARNINGS[i].label, {
+      alignment: { vertical: 'middle' },
+    });
+    setAmountAt(ws, originRow, originCol, rel, 2, earnAmount);
+    const dedKey = DEDUCTIONS[i].key;
+    const dedAmount =
+      isDaily && dedKey === 'potongan_absen' ? 0 : amounts[dedKey];
+    setCellAt(ws, originRow, originCol, rel, 3, DEDUCTIONS[i].label, {
+      alignment: { vertical: 'middle' },
+    });
+    setAmountAt(ws, originRow, originCol, rel, 4, dedAmount);
+  }
+
+  const totalRel = 6 + lineCount;
+  setCellAt(ws, originRow, originCol, totalRel, 1, 'Total', { font: FONT_COMPACT_HEAD });
+  setAmountAt(ws, originRow, originCol, totalRel, 2, totalPendapatan, FONT_COMPACT_HEAD);
+  setCellAt(ws, originRow, originCol, totalRel, 3, 'Total', { font: FONT_COMPACT_HEAD });
+  setAmountAt(ws, originRow, originCol, totalRel, 4, totalPotongan, FONT_COMPACT_HEAD);
+
+  const infoRel = totalRel + 1;
+  setCellAt(ws, originRow, originCol, infoRel, 1, 'Hadir');
+  setCellAt(ws, originRow, originCol, infoRel, 2, String(num(row.days_attended)), {
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+  if (!isDaily) {
+    setCellAt(ws, originRow, originCol, infoRel, 3, 'Hari');
+    setCellAt(
+      ws,
+      originRow,
+      originCol,
+      infoRel,
+      4,
+      String(expectedWorkDaysForSlip(row, period)),
+      { alignment: { horizontal: 'right', vertical: 'middle' } }
+    );
+  }
+
+  const netRel = infoRel + 1;
+  ws.mergeCells(originRow + netRel - 1, originCol, originRow + netRel - 1, originCol + 1);
+  setCellAt(ws, originRow, originCol, netRel, 1, 'Total diterima', { font: FONT_COMPACT_NET });
+  ws.mergeCells(originRow + netRel - 1, originCol + 2, originRow + netRel - 1, originCol + 3);
+  const netCell = absCell(ws, originRow, originCol, netRel, 3);
+  netCell.value = netPay;
+  netCell.numFmt = NET_AMOUNT_NUMFMT;
+  netCell.font = FONT_COMPACT_NET;
+  netCell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+  const signRel = netRel + 1;
+  ws.mergeCells(originRow + signRel - 1, originCol, originRow + signRel - 1, originCol + 1);
+  setCellAt(ws, originRow, originCol, signRel, 1, 'Penerima', {
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+  ws.mergeCells(originRow + signRel - 1, originCol + 2, originRow + signRel - 1, originCol + 3);
+  setCellAt(ws, originRow, originCol, signRel, 3, 'Disetujui', {
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+
+  applyPanelOuterBorder(ws, originRow, originCol);
+}
+
 function setCell(ws, row, col, value, opts = {}) {
   const cell = ws.getCell(row, col);
   cell.value = value ?? '';
@@ -336,35 +511,21 @@ function applyColumnWidths(ws) {
   ws.getColumn(COL.D).width = COL_WIDTHS.D;
 }
 
-function applyUniformRowHeights(
-  ws,
-  lastRelRow = BASE_SHEET_LAST_ROW,
-  startRow = 1,
-  rowHeight = ROW_HEIGHT
-) {
-  const end = slipRowAt(startRow, lastRelRow);
-  for (let r = startRow; r <= end; r += 1) {
-    ws.getRow(r).height = rowHeight;
+function applyUniformRowHeights(ws, lastRow = BASE_SHEET_LAST_ROW) {
+  for (let r = 1; r <= lastRow; r += 1) {
+    ws.getRow(r).height = ROW_HEIGHT;
   }
 }
 
-function applyTableBorders(ws, lastRelRow = BASE_SHEET_LAST_ROW, startRow = 1) {
-  const end = slipRowAt(startRow, lastRelRow);
-  for (let r = startRow; r <= end; r += 1) {
+function applyTableBorders(ws, lastRow = BASE_SHEET_LAST_ROW) {
+  for (let r = 1; r <= lastRow; r += 1) {
     for (let c = COL.A; c <= COL.D; c += 1) {
       ws.getCell(r, c).border = {};
     }
   }
 
-  const tableLast = slipRowAt(startRow, ROW.TABLE_LAST);
   for (let c = COL.A; c <= COL.D; c += 1) {
-    ws.getCell(tableLast, c).border = { bottom: BORDER_MEDIUM };
-  }
-}
-
-function markSlipBlockBottom(ws, bottomRow) {
-  for (let c = COL.A; c <= COL.D; c += 1) {
-    ws.getCell(bottomRow, c).border = { bottom: BORDER_MEDIUM };
+    ws.getCell(ROW.TABLE_LAST, c).border = { bottom: BORDER_MEDIUM };
   }
 }
 
@@ -413,161 +574,162 @@ function addFieldOfficerCalculationSection(
   period,
   amounts,
   totalPendapatan,
-  netPay,
-  startRow = 1
+  netPay
 ) {
-  const R = (rel) => slipRowAt(startRow, rel);
   const hariKerja = Math.max(0, num(row.days_attended));
   const gajiPerHari = num(row.upah_harian || 0);
   const totalGaji = gajiPerHari * hariKerja;
   const detailTotalPendapatan = fieldOfficerEarningsTotal(row, amounts);
   const fieldOfficerNet = detailTotalPendapatan;
 
-  setCell(ws, R(28), COL.A, 'Nama');
-  setCell(ws, R(28), COL.B, row.full_name || '');
-  setCell(ws, R(28), COL.C, 'Periode Gaji');
-  setCell(ws, R(28), COL.D, periodeLabel(period));
+  setCell(ws, 28, COL.A, 'Nama');
+  setCell(ws, 28, COL.B, row.full_name || '');
+  setCell(ws, 28, COL.C, 'Periode Gaji');
+  setCell(ws, 28, COL.D, periodeLabel(period));
 
-  setCell(ws, R(29), COL.A, 'Jabatan');
-  setCell(ws, R(29), COL.B, jabatanLabel(row) || '');
-  setCell(ws, R(29), COL.C, 'Usia Kerja');
-  setCell(ws, R(29), COL.D, computeUsiaKerja(row.join_date, slipAsOfDate(row, period)));
+  setCell(ws, 29, COL.A, 'Jabatan');
+  setCell(ws, 29, COL.B, jabatanLabel(row) || '');
+  setCell(ws, 29, COL.C, 'Usia Kerja');
+  setCell(ws, 29, COL.D, computeUsiaKerja(row.join_date, slipAsOfDate(row, period)));
 
-  setCell(ws, R(31), COL.A, 'RINCIAN PERHITUNGAN GAJI', { font: FONT_TABLE_HEAD });
-  setCell(ws, R(32), COL.A, 'Hari Kerja');
-  setCell(ws, R(32), COL.D, hariKerja, { alignment: { horizontal: 'right', vertical: 'middle' } });
+  setCell(ws, 31, COL.A, 'RINCIAN PERHITUNGAN GAJI', { font: FONT_TABLE_HEAD });
+  setCell(ws, 32, COL.A, 'Hari Kerja');
+  setCell(ws, 32, COL.D, hariKerja, { alignment: { horizontal: 'right', vertical: 'middle' } });
 
-  setCell(ws, R(33), COL.A, 'Gaji Per Hari');
-  setAmountCell(ws, R(33), COL.D, gajiPerHari);
-  setThickBottomBorderRow(ws, R(33));
+  setCell(ws, 33, COL.A, 'Gaji Per Hari');
+  setAmountCell(ws, 33, COL.D, gajiPerHari);
+  setThickBottomBorderRow(ws, 33);
 
-  ws.mergeCells(R(34), COL.A, R(34), COL.B);
-  setCell(ws, R(34), COL.A, 'Total Gaji', {
+  ws.mergeCells(34, COL.A, 34, COL.B);
+  setCell(ws, 34, COL.A, 'Total Gaji', {
     font: FONT_TOTAL,
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  setAmountCell(ws, R(34), COL.D, totalGaji);
-  ws.getCell(R(34), COL.D).font = FONT_TOTAL;
+  setAmountCell(ws, 34, COL.D, totalGaji);
+  ws.getCell(34, COL.D).font = FONT_TOTAL;
 
-  setLabelColon(ws, R(35), COL.A, 'Tunjangan Masa Kerja');
-  setAmountCell(ws, R(35), COL.D, amounts.tunjangan_masa_kerja);
-  setLabelColon(ws, R(36), COL.A, 'Tunjangan Transport');
-  setAmountCell(ws, R(36), COL.D, amounts.tunjangan_transport);
-  setLabelColon(ws, R(37), COL.A, 'Lembur');
-  setAmountCell(ws, R(37), COL.D, amounts.lembur);
-  setLabelColon(ws, R(38), COL.A, 'Insentif');
-  setAmountCell(ws, R(38), COL.D, amounts.insentif);
-  setLabelColon(ws, R(39), COL.A, 'Kerajinan');
-  setAmountCell(ws, R(39), COL.D, amounts.kerajinan);
-  setLabelColon(ws, R(40), COL.A, 'Bonus');
-  setAmountCell(ws, R(40), COL.D, amounts.bonus);
-  setThickBottomBorderRow(ws, R(40));
+  setLabelColon(ws, 35, COL.A, 'Tunjangan Masa Kerja');
+  setAmountCell(ws, 35, COL.D, amounts.tunjangan_masa_kerja);
+  setLabelColon(ws, 36, COL.A, 'Tunjangan Transport');
+  setAmountCell(ws, 36, COL.D, amounts.tunjangan_transport);
+  setLabelColon(ws, 37, COL.A, 'Lembur');
+  setAmountCell(ws, 37, COL.D, amounts.lembur);
+  setLabelColon(ws, 38, COL.A, 'Insentif');
+  setAmountCell(ws, 38, COL.D, amounts.insentif);
+  setLabelColon(ws, 39, COL.A, 'Kerajinan');
+  setAmountCell(ws, 39, COL.D, amounts.kerajinan);
+  setLabelColon(ws, 40, COL.A, 'Bonus');
+  setAmountCell(ws, 40, COL.D, amounts.bonus);
+  setThickBottomBorderRow(ws, 40);
 
-  ws.mergeCells(R(41), COL.A, R(41), COL.B);
-  setCell(ws, R(41), COL.A, 'Total Gaji', {
+  ws.mergeCells(41, COL.A, 41, COL.B);
+  setCell(ws, 41, COL.A, 'Total Gaji', {
     font: FONT_TOTAL,
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  setAmountCell(ws, R(41), COL.D, detailTotalPendapatan);
-  ws.getCell(R(41), COL.D).font = FONT_TOTAL;
-  ws.getCell(R(41), COL.D).border = { top: BORDER_MEDIUM };
+  setAmountCell(ws, 41, COL.D, detailTotalPendapatan);
+  ws.getCell(41, COL.D).font = FONT_TOTAL;
+  ws.getCell(41, COL.D).border = { top: BORDER_MEDIUM };
 
-  ws.mergeCells(R(43), COL.A, R(43), COL.B);
-  setCell(ws, R(43), COL.A, 'Total Gaji yang diterima', { font: FONT_TOTAL });
-  setAmountCell(ws, R(43), COL.D, fieldOfficerNet);
-  ws.getCell(R(43), COL.D).font = FONT_TOTAL;
+  ws.mergeCells(43, COL.A, 43, COL.B);
+  setCell(ws, 43, COL.A, 'Total Gaji yang diterima', { font: FONT_TOTAL });
+  setAmountCell(ws, 43, COL.D, fieldOfficerNet);
+  ws.getCell(43, COL.D).font = FONT_TOTAL;
 
-  setLabelColon(ws, R(45), COL.C, 'Jumlah Hadir');
-  setCell(ws, R(45), COL.D, hariKerja, {
+  setLabelColon(ws, 45, COL.C, 'Jumlah Hadir');
+  setCell(ws, 45, COL.D, hariKerja, {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 
-  setCell(ws, R(47), COL.A, 'Keterangan :');
-  ws.mergeCells(R(48), COL.A, R(49), COL.B);
-  setCell(ws, R(48), COL.A, row.keterangan || '', {
+  setCell(ws, 47, COL.A, 'Keterangan :');
+  ws.mergeCells(48, COL.A, 49, COL.B);
+  setCell(ws, 48, COL.A, row.keterangan || '', {
     font: FONT_KETERANGAN,
     alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
   });
 
-  ws.mergeCells(R(47), COL.C, R(48), COL.D);
-  setCell(ws, R(47), COL.C, 'Total Penerimaan Bulan ini', {
+  ws.mergeCells(47, COL.C, 48, COL.D);
+  setCell(ws, 47, COL.C, 'Total Penerimaan Bulan ini', {
     font: FONT_NET_LABEL,
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  ws.mergeCells(R(49), COL.C, R(50), COL.D);
-  const fieldNetCell = ws.getCell(R(49), COL.C);
-  fieldNetCell.value = { formula: `D${R(41)}`, result: fieldOfficerNet };
+  ws.mergeCells(49, COL.C, 50, COL.D);
+  const fieldNetCell = ws.getCell(49, COL.C);
+  fieldNetCell.value = { formula: 'D41', result: fieldOfficerNet };
   fieldNetCell.numFmt = NET_AMOUNT_NUMFMT;
   fieldNetCell.font = FONT_NET_AMOUNT;
   fieldNetCell.alignment = { horizontal: 'center', vertical: 'middle' };
 }
 
-function writeSlipBlock(ws, row, period, startRow = 1, { compact = false, a4HalfPage = false } = {}) {
-  const R = (rel) => slipRowAt(startRow, rel);
+function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
+  const ws = wb.addWorksheet(sheetName, {
+    views: [{ showGridLines: true }],
+    pageSetup: {
+      paperSize: 9,
+      orientation: 'portrait',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
+    },
+  });
+
+  applyColumnWidths(ws);
+
   const amounts = slipAmounts(row);
-  const dailyWageSlip = usesDailyWagePayroll(row.user_role);
-  const isFieldOfficerSlip = dailyWageSlip && !compact;
-  const useDailyWageAmounts = dailyWageSlip && compact;
-  const totalPendapatan = isFieldOfficerSlip || useDailyWageAmounts
-    ? fieldOfficerEarningsTotal(row, amounts)
-    : sumAmountKeys(amounts, EARNINGS);
-  const totalPotongan = isFieldOfficerSlip || useDailyWageAmounts
-    ? sumAmountKeys(amounts, DEDUCTIONS.filter((d) => d.key !== 'potongan_absen'))
-    : sumAmountKeys(amounts, DEDUCTIONS);
-  const netPay =
-    num(row.final_salary) ||
-    Math.max(0, totalPendapatan - totalPotongan);
+  const { isDaily: isFieldOfficerSlip, totalPendapatan, totalPotongan, netPay } =
+    slipTotals(row, amounts);
   const bAmt = colLetter(COL.B);
   const dAmt = colLetter(COL.D);
-  const totalRow = R(ROW.TABLE_TOTAL);
+  const totalRow = ROW.TABLE_TOTAL;
 
-  mergeCellsLeft(ws, R(1), R(2), COL.A, 'Nama');
-  mergeCellsLeft(ws, R(1), R(2), COL.B, `${row.full_name || ''}`, {
+  mergeCellsLeft(ws, 1, 2, COL.A, 'Nama');
+  mergeCellsLeft(ws, 1, 2, COL.B, `${row.full_name || ''}`, {
     alignment: { wrapText: true },
   });
 
-  ws.mergeCells(R(1), COL.C, R(2), COL.D);
-  const titleCell = ws.getCell(R(1), COL.C);
+  ws.mergeCells(1, COL.C, 2, COL.D);
+  const titleCell = ws.getCell(1, COL.C);
   titleCell.value = 'SLIP GAJI';
   titleCell.font = FONT_TITLE;
   titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  mergeCellsLeft(ws, R(3), R(4), COL.A, 'Jabatan');
-  mergeCellsLeft(ws, R(3), R(4), COL.B, `${jabatanLabel(row)}`);
+  mergeCellsLeft(ws, 3, 4, COL.A, 'Jabatan');
+  mergeCellsLeft(ws, 3, 4, COL.B, `${jabatanLabel(row)}`);
 
-  ws.mergeCells(R(3), COL.C, R(3), COL.D);
-  const companyCell = ws.getCell(R(3), COL.C);
+  ws.mergeCells(3, COL.C, 3, COL.D);
+  const companyCell = ws.getCell(3, COL.C);
   companyCell.value = companyName();
   companyCell.font = FONT_COMPANY;
   companyCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  setCell(ws, R(ROW.PERIODE), COL.C, 'Periode Gaji', {
+  setCell(ws, ROW.PERIODE, COL.C, 'Periode Gaji', {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
-  setCell(ws, R(ROW.PERIODE), COL.D, periodeLabel(period), {
+  setCell(ws, ROW.PERIODE, COL.D, periodeLabel(period), {
     alignment: { horizontal: 'right', vertical: 'middle' },
   });
 
-  ws.mergeCells(R(ROW.TABLE_HEAD), COL.A, R(ROW.TABLE_HEAD), COL.B);
-  const pendapatanHead = ws.getCell(R(ROW.TABLE_HEAD), COL.A);
+  ws.mergeCells(ROW.TABLE_HEAD, COL.A, ROW.TABLE_HEAD, COL.B);
+  const pendapatanHead = ws.getCell(ROW.TABLE_HEAD, COL.A);
   pendapatanHead.value = 'Pendapatan';
   pendapatanHead.font = FONT_TABLE_HEAD;
   pendapatanHead.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.mergeCells(R(ROW.TABLE_HEAD), COL.C, R(ROW.TABLE_HEAD), COL.D);
-  const potonganHead = ws.getCell(R(ROW.TABLE_HEAD), COL.C);
+  ws.mergeCells(ROW.TABLE_HEAD, COL.C, ROW.TABLE_HEAD, COL.D);
+  const potonganHead = ws.getCell(ROW.TABLE_HEAD, COL.C);
   potonganHead.value = 'Potongan';
   potonganHead.font = FONT_TABLE_HEAD;
   potonganHead.alignment = { horizontal: 'center', vertical: 'middle' };
 
   if (isFieldOfficerSlip) {
-    addFieldOfficerCalculationSection(ws, row, period, amounts, totalPendapatan, netPay, startRow);
+    addFieldOfficerCalculationSection(ws, row, period, amounts, totalPendapatan, netPay);
   }
 
   for (let i = 0; i < EARNINGS.length; i += 1) {
-    const r = R(ROW.TABLE_FIRST + i);
+    const r = ROW.TABLE_FIRST + i;
     if (isFieldOfficerSlip) {
-      const detailRow = R(FIELD_OFFICER_DETAIL_FIRST_ROW + i);
+      const detailRow = FIELD_OFFICER_DETAIL_FIRST_ROW + i;
       fillTableLineFormula(
         ws,
         r,
@@ -577,24 +739,13 @@ function writeSlipBlock(ws, row, period, startRow = 1, { compact = false, a4Half
         `D${detailRow}`,
         fieldOfficerEarningResult(row, amounts, EARNINGS[i].key)
       );
-    } else if (useDailyWageAmounts) {
-      fillTableLine(
-        ws,
-        r,
-        COL.A,
-        COL.B,
-        EARNINGS[i].label,
-        fieldOfficerEarningResult(row, amounts, EARNINGS[i].key)
-      );
     } else {
       fillTableLine(ws, r, COL.A, COL.B, EARNINGS[i].label, amounts[EARNINGS[i].key]);
     }
     if (i < DEDUCTIONS.length) {
       const deductionKey = DEDUCTIONS[i].key;
       const deductionAmount =
-        (isFieldOfficerSlip || useDailyWageAmounts) && deductionKey === 'potongan_absen'
-          ? 0
-          : amounts[deductionKey];
+        isFieldOfficerSlip && deductionKey === 'potongan_absen' ? 0 : amounts[deductionKey];
       fillTableLine(ws, r, COL.C, COL.D, DEDUCTIONS[i].label, deductionAmount);
     }
   }
@@ -602,7 +753,7 @@ function writeSlipBlock(ws, row, period, startRow = 1, { compact = false, a4Half
   setLabelColon(ws, totalRow, COL.A, 'Total Pendapatan');
   const leftTotal = ws.getCell(totalRow, COL.B);
   leftTotal.value = {
-    formula: `SUM(${bAmt}${R(ROW.TABLE_FIRST)}:${bAmt}${R(ROW.TABLE_LAST)})`,
+    formula: `SUM(${bAmt}${ROW.TABLE_FIRST}:${bAmt}${ROW.TABLE_LAST})`,
     result: totalPendapatan,
   };
   leftTotal.numFmt = AMOUNT_NUMFMT;
@@ -612,56 +763,63 @@ function writeSlipBlock(ws, row, period, startRow = 1, { compact = false, a4Half
   setLabelColon(ws, totalRow, COL.C, 'Total Potongan');
   const rightTotal = ws.getCell(totalRow, COL.D);
   rightTotal.value = {
-    formula: `SUM(${dAmt}${R(ROW.TABLE_FIRST)}:${dAmt}${R(ROW.TABLE_LAST)})`,
+    formula: `SUM(${dAmt}${ROW.TABLE_FIRST}:${dAmt}${ROW.TABLE_LAST})`,
     result: totalPotongan,
   };
   rightTotal.numFmt = AMOUNT_NUMFMT;
   rightTotal.font = FONT_TOTAL;
   rightTotal.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  const borderLastRel = isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW;
-  applyTableBorders(ws, borderLastRel, startRow);
+  applyTableBorders(
+    ws,
+    isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW
+  );
 
-  if (!isFieldOfficerSlip && !useDailyWageAmounts) {
-    setLabelColon(ws, R(ROW.JUMLAH_HARI), COL.A, 'Jumlah Hari');
-    setColonText(ws, R(ROW.JUMLAH_HARI), COL.B, expectedWorkDaysForSlip(row, period));
+  if (!isFieldOfficerSlip) {
+    setLabelColon(ws, ROW.JUMLAH_HARI, COL.A, 'Jumlah Hari');
+    setColonText(ws, ROW.JUMLAH_HARI, COL.B, expectedWorkDaysForSlip(row, period));
   }
 
-  setLabelColon(ws, R(ROW.JUMLAH_HADIR), COL.A, 'Jumlah Hadir');
-  setColonText(ws, R(ROW.JUMLAH_HADIR), COL.B, num(row.days_attended));
+  setLabelColon(ws, ROW.JUMLAH_HADIR, COL.A, 'Jumlah Hadir');
+  setColonText(ws, ROW.JUMLAH_HADIR, COL.B, num(row.days_attended));
 
-  setCell(ws, R(ROW.JUMLAH_HARI), COL.C, 'Keterangan', {
+  setCell(ws, ROW.JUMLAH_HARI, COL.C, 'Keterangan', {
     alignment: { horizontal: 'left', vertical: 'middle' },
   });
 
-  ws.mergeCells(R(ROW.KETERANGAN_START), COL.C, R(ROW.KETERANGAN_END), COL.D);
-  const ketCell = ws.getCell(R(ROW.KETERANGAN_START), COL.C);
+  ws.mergeCells(
+    ROW.KETERANGAN_START,
+    COL.C,
+    ROW.KETERANGAN_END,
+    COL.D
+  );
+  const ketCell = ws.getCell(ROW.KETERANGAN_START, COL.C);
   ketCell.value = row.keterangan || '';
   ketCell.font = FONT_KETERANGAN;
   ketCell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
 
-  ws.getCell(R(ROW.SIGN_TITLE), COL.A).value = 'Penerima';
-  ws.getCell(R(ROW.SIGN_TITLE), COL.A).font = FONT_BODY;
-  ws.getCell(R(ROW.SIGN_TITLE), COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(ROW.SIGN_TITLE, COL.A).value = 'Penerima';
+  ws.getCell(ROW.SIGN_TITLE, COL.A).font = FONT_BODY;
+  ws.getCell(ROW.SIGN_TITLE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(R(ROW.SIGN_TITLE), COL.B).value = 'Disetujui Oleh';
-  ws.getCell(R(ROW.SIGN_TITLE), COL.B).font = FONT_BODY;
-  ws.getCell(R(ROW.SIGN_TITLE), COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(ROW.SIGN_TITLE, COL.B).value = 'Disetujui Oleh';
+  ws.getCell(ROW.SIGN_TITLE, COL.B).font = FONT_BODY;
+  ws.getCell(ROW.SIGN_TITLE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(R(ROW.SIGN_LINE), COL.A).value = SIGNATURE_PLACEHOLDER;
-  ws.getCell(R(ROW.SIGN_LINE), COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(ROW.SIGN_LINE, COL.A).value = SIGNATURE_PLACEHOLDER;
+  ws.getCell(ROW.SIGN_LINE, COL.A).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.getCell(R(ROW.SIGN_LINE), COL.B).value = SIGNATURE_PLACEHOLDER;
-  ws.getCell(R(ROW.SIGN_LINE), COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell(ROW.SIGN_LINE, COL.B).value = SIGNATURE_PLACEHOLDER;
+  ws.getCell(ROW.SIGN_LINE, COL.B).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.mergeCells(R(ROW.NET_LABEL_START), COL.C, R(ROW.NET_LABEL_END), COL.D);
-  const netLabel = ws.getCell(R(ROW.NET_LABEL_START), COL.C);
+  ws.mergeCells(ROW.NET_LABEL_START, COL.C, ROW.NET_LABEL_END, COL.D);
+  const netLabel = ws.getCell(ROW.NET_LABEL_START, COL.C);
   netLabel.value = 'Total Penerimaan Bulan ini';
   netLabel.font = FONT_NET_LABEL;
   netLabel.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  ws.mergeCells(R(ROW.NET_AMOUNT_START), COL.C, R(ROW.NET_AMOUNT_END), COL.D);
-  const netAmount = ws.getCell(R(ROW.NET_AMOUNT_START), COL.C);
+  ws.mergeCells(ROW.NET_AMOUNT_START, COL.C, ROW.NET_AMOUNT_END, COL.D);
+  const netAmount = ws.getCell(ROW.NET_AMOUNT_START, COL.C);
   netAmount.value = {
     formula: `${bAmt}${totalRow}-${dAmt}${totalRow}`,
     result: netPay,
@@ -670,55 +828,60 @@ function writeSlipBlock(ws, row, period, startRow = 1, { compact = false, a4Half
   netAmount.font = FONT_NET_AMOUNT;
   netAmount.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  const slipRowHeight = a4HalfPage ? bulkSlipRowHeightPt() : ROW_HEIGHT;
-  applyUniformRowHeights(ws, borderLastRel, startRow, slipRowHeight);
+  applyUniformRowHeights(
+    ws,
+    isFieldOfficerSlip ? FIELD_OFFICER_SECTION_LAST_ROW : BASE_SHEET_LAST_ROW
+  );
 
-  return slipRowAt(startRow, BASE_SHEET_LAST_ROW);
-}
-
-function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
-  const ws = wb.addWorksheet(sheetName, {
-    views: [{ showGridLines: true }],
-    pageSetup: {
-      ...a4PortraitPageSetup(),
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 0,
-    },
-  });
-
-  applyColumnWidths(ws);
-  writeSlipBlock(ws, row, period, 1, { compact: false });
   return ws;
 }
 
 function slipWorkbookFromRows(rows, period) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Web-Based Attendance';
-  const ws = wb.addWorksheet('Slip Gaji', {
-    views: [{ showGridLines: true }],
+
+  if (!rows.length) return wb;
+
+  if (rows.length === 1) {
+    addSlipSheet(wb, rows[0], period, 'Slip Gaji');
+    const ws = wb.getWorksheet('Slip Gaji');
+    ws.pageSetup.paperSize = 11;
+    ws.pageSetup.orientation = 'landscape';
+    ws.pageSetup.fitToWidth = 1;
+    ws.pageSetup.fitToHeight = 1;
+    ws.pageSetup.margins = {
+      top: 1,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      header: 0.5,
+      footer: 0.5,
+    };
+    return wb;
+  }
+
+  const { cols: gridCols, rows: gridRows } = gridLayout(rows.length);
+  const ws = wb.addWorksheet('Semua Slip', {
+    views: [{ showGridLines: false }],
     pageSetup: {
-      ...a4PortraitPageSetup(),
-      fitToPage: false,
-      scale: 100,
+      paperSize: 11,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 1,
+      margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
     },
   });
-  applyColumnWidths(ws);
 
-  rows.forEach((row, i) => {
-    const startRow = i * BASE_SHEET_LAST_ROW + 1;
-    const bottomRow = writeSlipBlock(ws, row, period, startRow, {
-      compact: true,
-      a4HalfPage: true,
-    });
-    markSlipBlockBottom(ws, bottomRow);
-
-    const slipsOnPage = (i % SLIPS_PER_A4_PAGE) + 1;
-    if (slipsOnPage === SLIPS_PER_A4_PAGE && i + 1 < rows.length) {
-      ws.getRow(bottomRow).addPageBreak();
-    }
+  rows.forEach((row, index) => {
+    const panelRow = Math.floor(index / gridCols);
+    const panelCol = index % gridCols;
+    const originRow = panelRow * PANEL_ROWS + 1;
+    const originCol = panelCol * PANEL_COLS + 1;
+    addCompactSlipPanel(ws, row, period, originRow, originCol);
   });
 
+  ws.pageSetup.printArea = panelPrintArea(gridCols, gridRows);
   return wb;
 }
 
@@ -746,5 +909,7 @@ module.exports = {
   buildEmployeeSlipWorkbook,
   slipWorkbookFromRows,
   writeSlipBuffer,
-  bulkSlipRowHeightPt,
+  gridLayout,
+  PANEL_ROWS,
+  PANEL_COLS,
 };

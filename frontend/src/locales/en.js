@@ -302,7 +302,7 @@ export default {
   payrollExportSlip: 'Download Excel',
   payrollExportAllSlips: 'Export all slips (Excel)',
   payrollSlipExported: 'Salary slip downloaded.',
-  payrollAllSlipsExported: 'All salary slips downloaded (one sheet, two slips per A4 page).',
+  payrollAllSlipsExported: 'All salary slips downloaded (one A5 sheet, all employees).',
   payrollEmployeeTitle: 'My payroll',
   payrollEmployeeHint:
     'Monthly salary records created by your administrator. Loan deductions appear after payroll is generated for that month.',

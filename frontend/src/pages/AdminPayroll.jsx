@@ -716,6 +716,9 @@ export default function AdminPayroll() {
               >
                 {t('cancel')}
               </Button>
+              <Button type="submit" form="payroll-edit-form" variant="primary" size="sm">
+                {t('saveUser')}
+              </Button>
               <Button
                 variant="success"
                 size="sm"
@@ -723,9 +726,6 @@ export default function AdminPayroll() {
                 onClick={() => handleExportSlip(editingId, editingRow?.full_name)}
               >
                 {t('payrollExportSlip')}
-              </Button>
-              <Button type="submit" form="payroll-edit-form" variant="primary" size="sm">
-                {t('saveUser')}
               </Button>
             </>
           }
