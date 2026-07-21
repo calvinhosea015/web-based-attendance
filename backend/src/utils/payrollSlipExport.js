@@ -661,12 +661,12 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   const ws = wb.addWorksheet(sheetName, {
     views: [{ showGridLines: true }],
     pageSetup: {
-      paperSize: 9,
-      orientation: 'portrait',
+      paperSize: 11,
+      orientation: 'landscape',
       fitToPage: true,
       fitToWidth: 1,
-      fitToHeight: 0,
-      margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
+      fitToHeight: 1,
+      margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
     },
   });
 
@@ -832,52 +832,26 @@ function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
   return ws;
 }
 
+function sheetNameFromRow(row, index) {
+  const base = String(row.employee_code || row.full_name || `Karyawan${index + 1}`)
+    .replace(/[\\/*?:\[\]]/g, '_')
+    .slice(0, 28);
+  return base || `Slip${index + 1}`;
+}
+
 function slipWorkbookFromRows(rows, period) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Web-Based Attendance';
-
-  if (!rows.length) return wb;
-
-  if (rows.length === 1) {
-    addSlipSheet(wb, rows[0], period, 'Slip Gaji');
-    const ws = wb.getWorksheet('Slip Gaji');
-    ws.pageSetup.paperSize = 11;
-    ws.pageSetup.orientation = 'landscape';
-    ws.pageSetup.fitToWidth = 1;
-    ws.pageSetup.fitToHeight = 1;
-    ws.pageSetup.margins = {
-      top: 1,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      header: 0.5,
-      footer: 0.5,
-    };
-    return wb;
-  }
-
-  const { cols: gridCols, rows: gridRows } = gridLayout(rows.length);
-  const ws = wb.addWorksheet('Semua Slip', {
-    views: [{ showGridLines: false }],
-    pageSetup: {
-      paperSize: 11,
-      orientation: 'landscape',
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 1,
-      margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
-    },
+  const used = new Set();
+  rows.forEach((row, i) => {
+    let name = sheetNameFromRow(row, i);
+    let n = 1;
+    while (used.has(name)) {
+      name = `${sheetNameFromRow(row, i).slice(0, 25)}_${++n}`;
+    }
+    used.add(name);
+    addSlipSheet(wb, row, period, name);
   });
-
-  rows.forEach((row, index) => {
-    const panelRow = Math.floor(index / gridCols);
-    const panelCol = index % gridCols;
-    const originRow = panelRow * PANEL_ROWS + 1;
-    const originCol = panelCol * PANEL_COLS + 1;
-    addCompactSlipPanel(ws, row, period, originRow, originCol);
-  });
-
-  ws.pageSetup.printArea = panelPrintArea(gridCols, gridRows);
   return wb;
 }
 
