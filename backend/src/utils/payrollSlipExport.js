@@ -523,10 +523,6 @@ function applyTableBorders(ws, lastRow = BASE_SHEET_LAST_ROW) {
       ws.getCell(r, c).border = {};
     }
   }
-
-  for (let c = COL.A; c <= COL.D; c += 1) {
-    ws.getCell(ROW.TABLE_LAST, c).border = { bottom: BORDER_MEDIUM };
-  }
 }
 
 function fillTableLine(ws, row, labelCol, amountCol, label, amount) {
