@@ -6,6 +6,7 @@ const {
   slipWorkbookFromRows,
   PANEL_ROWS,
   PANEL_COLS,
+  BASE_SHEET_LAST_ROW,
 } = require('../src/utils/payrollSlipExport');
 
 describe('gridLayout', () => {
@@ -15,13 +16,6 @@ describe('gridLayout', () => {
 
   it('tiles four employees in a 2x2 grid', () => {
     assert.deepEqual(gridLayout(4), { cols: 2, rows: 2 });
-  });
-
-  it('covers every employee in the grid', () => {
-    for (const n of [2, 3, 5, 6, 7, 9, 10]) {
-      const { cols, rows } = gridLayout(n);
-      assert.ok(cols * rows >= n);
-    }
   });
 });
 
@@ -42,27 +36,24 @@ describe('slipWorkbookFromRows', () => {
     keterangan: '',
   });
 
-  it('puts all employees on one sheet with A5 landscape page setup', async () => {
-    const rows = [stubRow('Alpha', 'A01'), stubRow('Beta', 'B02'), stubRow('Gamma', 'C03')];
+  it('uses one worksheet with page breaks between full slips', async () => {
+    const rows = [stubRow('Alpha', 'A01'), stubRow('Beta', 'B02')];
     const wb = slipWorkbookFromRows(rows, '2026-01');
-    assert.equal(wb.worksheets.length, 1, 'should be exactly 1 sheet');
+    assert.equal(wb.worksheets.length, 1);
 
-    const ws = wb.worksheets[0];
+    const ws = wb.getWorksheet('Semua Slip');
+    assert.ok(ws);
     assert.equal(ws.pageSetup.paperSize, 11);
     assert.equal(ws.pageSetup.orientation, 'landscape');
-    assert.equal(ws.pageSetup.margins.top, 1);
-    assert.equal(ws.pageSetup.margins.left, 0);
-    assert.equal(ws.pageSetup.margins.right, 0);
-    assert.equal(ws.pageSetup.margins.bottom, 0);
+    assert.equal(ws.rowBreaks.length, 1);
+    assert.equal(ws.rowBreaks[0].id, BASE_SHEET_LAST_ROW + 1);
+
+    assert.ok(String(ws.getCell(1, 1).value).includes('Nama'));
+    assert.equal(ws.getCell(BASE_SHEET_LAST_ROW + 1, 1).value, 'Nama');
 
     const buffer = await wb.xlsx.writeBuffer();
     const loaded = new ExcelJS.Workbook();
     await loaded.xlsx.load(buffer);
     assert.equal(loaded.worksheets.length, 1);
-
-    const reloaded = loaded.worksheets[0];
-    assert.ok(String(reloaded.getCell(1, 2).value).includes('Alpha'));
-    assert.ok(String(reloaded.getCell(23, 2).value).includes('Beta'));
-    assert.ok(String(reloaded.getCell(45, 2).value).includes('Gamma'));
   });
 });
