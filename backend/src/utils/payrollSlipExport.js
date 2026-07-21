@@ -87,30 +87,39 @@ const SLIP_PAGE_SETUP = {
   fitToPage: true,
   fitToWidth: 1,
   fitToHeight: 1,
+  horizontalCentered: true,
+  verticalCentered: true,
   margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
 };
 
-/** Same A5 landscape slip as single export; fit applies per print-area block, not the whole sheet. */
+/** One A5 landscape page per employee: fixed row frame + manual breaks (no multi print-area; Excel fits only the first). */
+const BULK_ROW_HEIGHT = 14;
+const BULK_ROWS_PER_PAGE = 24;
+const BULK_SLIP_PAD_TOP = 1;
+const BULK_SLIP_PAD_BOTTOM = BULK_ROWS_PER_PAGE - BASE_SHEET_LAST_ROW - BULK_SLIP_PAD_TOP;
+
 const BULK_SLIP_PAGE_SETUP = {
   paperSize: 11,
   orientation: 'landscape',
-  fitToPage: true,
-  fitToWidth: 1,
-  fitToHeight: 1,
-  margins: { top: 1, left: 0, right: 0, bottom: 0, header: 0.5, footer: 0.5 },
+  fitToPage: false,
+  scale: 100,
+  horizontalCentered: true,
+  verticalCentered: true,
+  margins: { top: 0.5, left: 0.5, right: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
 };
 
-function bulkSlipPrintArea(slipCount) {
-  if (slipCount < 1) return undefined;
-  const lastCol = colLetter(COL.D);
-  const parts = [];
-  for (let i = 0; i < slipCount; i += 1) {
-    const start = i * BASE_SHEET_LAST_ROW + 1;
-    const end = start + BASE_SHEET_LAST_ROW - 1;
-    parts.push(`A${start}:${lastCol}${end}`);
+function bulkSlipFrameStart(slipIndex) {
+  return slipIndex * BULK_ROWS_PER_PAGE + 1;
+}
+
+function bulkSlipFrameEnd(slipIndex) {
+  return bulkSlipFrameStart(slipIndex) + BULK_ROWS_PER_PAGE - 1;
+}
+
+function setBlankRowHeights(ws, startRow, count, height) {
+  for (let i = 0; i < count; i += 1) {
+    ws.getRow(startRow + i).height = height;
   }
-  // ponytail: ExcelJS splits multi-area print regions on &&, not comma (comma breaks Excel Print_Area).
-  return parts.join('&&');
 }
 
 function slipRow(startRow, logicalRow) {
@@ -597,16 +606,16 @@ function applyTableBordersForBlock(ws, startRow, lastLogicalRow) {
   }
 }
 
-function applyUniformRowHeightsForBlock(ws, startRow, lastLogicalRow) {
+function applyUniformRowHeightsForBlock(ws, startRow, lastLogicalRow, rowHeight = ROW_HEIGHT) {
   const first = slipRow(startRow, 1);
   const last = slipRow(startRow, lastLogicalRow);
   for (let r = first; r <= last; r += 1) {
-    ws.getRow(r).height = ROW_HEIGHT;
+    ws.getRow(r).height = rowHeight;
   }
 }
 
 /** Renders one full slip starting at startRow; returns absolute last row of the block. */
-function renderSlipOnWorksheet(ws, row, period, startRow = 1) {
+function renderSlipOnWorksheet(ws, row, period, startRow = 1, rowHeight = ROW_HEIGHT) {
   const sr = (n) => slipRow(startRow, n);
 
   const amounts = slipAmounts(row);
@@ -744,7 +753,7 @@ function renderSlipOnWorksheet(ws, row, period, startRow = 1) {
   netAmount.font = FONT_NET_AMOUNT;
   netAmount.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  applyUniformRowHeightsForBlock(ws, startRow, lastLogical);
+  applyUniformRowHeightsForBlock(ws, startRow, lastLogical, rowHeight);
 
   return slipRow(startRow, lastLogical);
 }
@@ -775,16 +784,22 @@ function slipWorkbookFromRows(rows, period) {
   });
   applyColumnWidths(ws);
 
-  let startRow = 1;
   rows.forEach((row, index) => {
-    const blockEnd = renderSlipOnWorksheet(ws, row, period, startRow);
+    const frameStart = bulkSlipFrameStart(index);
+    const slipStart = frameStart + BULK_SLIP_PAD_TOP;
+    if (BULK_SLIP_PAD_TOP > 0) {
+      setBlankRowHeights(ws, frameStart, BULK_SLIP_PAD_TOP, BULK_ROW_HEIGHT);
+    }
+    const blockEnd = renderSlipOnWorksheet(ws, row, period, slipStart, BULK_ROW_HEIGHT);
+    if (BULK_SLIP_PAD_BOTTOM > 0) {
+      setBlankRowHeights(ws, blockEnd + 1, BULK_SLIP_PAD_BOTTOM, BULK_ROW_HEIGHT);
+    }
+    const frameEnd = bulkSlipFrameEnd(index);
     if (index < rows.length - 1) {
-      addHorizontalPageBreak(ws, blockEnd);
-      startRow = blockEnd + 1;
+      addHorizontalPageBreak(ws, frameEnd);
     }
   });
 
-  ws.pageSetup.printArea = bulkSlipPrintArea(rows.length);
   return wb;
 }
 
@@ -817,5 +832,8 @@ module.exports = {
   PANEL_COLS,
   BASE_SHEET_LAST_ROW,
   BULK_SLIP_PAGE_SETUP,
-  bulkSlipPrintArea,
+  BULK_ROWS_PER_PAGE,
+  BULK_SLIP_PAD_TOP,
+  bulkSlipFrameStart,
+  bulkSlipFrameEnd,
 };

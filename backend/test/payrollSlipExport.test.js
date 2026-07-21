@@ -7,7 +7,9 @@ const {
   PANEL_ROWS,
   PANEL_COLS,
   BASE_SHEET_LAST_ROW,
-  bulkSlipPrintArea,
+  BULK_ROWS_PER_PAGE,
+  BULK_SLIP_PAD_TOP,
+  bulkSlipFrameEnd,
 } = require('../src/utils/payrollSlipExport');
 
 describe('gridLayout', () => {
@@ -17,13 +19,6 @@ describe('gridLayout', () => {
 
   it('tiles four employees in a 2x2 grid', () => {
     assert.deepEqual(gridLayout(4), { cols: 2, rows: 2 });
-  });
-});
-
-describe('bulkSlipPrintArea', () => {
-  it('lists one A5 block per employee (not one sheet-wide range)', () => {
-    assert.equal(bulkSlipPrintArea(1), 'A1:D22');
-    assert.equal(bulkSlipPrintArea(2), 'A1:D22&&A23:D44');
   });
 });
 
@@ -44,7 +39,7 @@ describe('slipWorkbookFromRows', () => {
     keterangan: '',
   });
 
-  it('uses one worksheet with page breaks between full slips', async () => {
+  it('uses one worksheet with page breaks between fixed A5 frames', async () => {
     const rows = [stubRow('Alpha', 'A01'), stubRow('Beta', 'B02')];
     const wb = slipWorkbookFromRows(rows, '2026-01');
     assert.equal(wb.worksheets.length, 1);
@@ -53,18 +48,23 @@ describe('slipWorkbookFromRows', () => {
     assert.ok(ws);
     assert.equal(ws.pageSetup.paperSize, 11);
     assert.equal(ws.pageSetup.orientation, 'landscape');
-    assert.equal(ws.pageSetup.fitToPage, true);
-    assert.equal(ws.pageSetup.printArea, bulkSlipPrintArea(2));
+    assert.equal(ws.pageSetup.fitToPage, false);
+    assert.equal(ws.pageSetup.horizontalCentered, true);
+    assert.equal(ws.pageSetup.verticalCentered, true);
+    assert.equal(ws.pageSetup.printArea, undefined);
     assert.equal(ws.rowBreaks.length, 1);
-    assert.equal(ws.rowBreaks[0].id, BASE_SHEET_LAST_ROW + 1);
+    assert.equal(ws.rowBreaks[0].id, bulkSlipFrameEnd(0) + 1);
 
-    assert.ok(String(ws.getCell(1, 1).value).includes('Nama'));
-    assert.equal(ws.getCell(BASE_SHEET_LAST_ROW + 1, 1).value, 'Nama');
+    const slip1Start = 1 + BULK_SLIP_PAD_TOP;
+    const slip2Start = BULK_ROWS_PER_PAGE + 1 + BULK_SLIP_PAD_TOP;
+    assert.ok(String(ws.getCell(slip1Start, 1).value).includes('Nama'));
+    assert.equal(ws.getCell(slip2Start, 1).value, 'Nama');
 
     const buffer = await wb.xlsx.writeBuffer();
     const loaded = new ExcelJS.Workbook();
     await loaded.xlsx.load(buffer);
     assert.equal(loaded.worksheets.length, 1);
+    assert.equal(ws.lastRow.number, BULK_ROWS_PER_PAGE * 2);
   });
 
   it('field officer slip has no RINCIAN block (same layout as staff)', async () => {
@@ -89,6 +89,6 @@ describe('slipWorkbookFromRows', () => {
       });
     });
     assert.equal(foundRincian, false);
-    assert.equal(ws.lastRow.number, BASE_SHEET_LAST_ROW);
+    assert.equal(ws.lastRow.number, BULK_ROWS_PER_PAGE);
   });
 });
