@@ -36,6 +36,10 @@ const {
   resolveOtherDeductionsAmount,
   resolveOtherDeductionsFromPayload,
 } = require('../utils/payrollOtherDeductions');
+const {
+  computeTotals,
+  num,
+} = require('../utils/payrollTotals');
 const { countEffectiveDaysAttended } = require('../utils/leavePayrollDays');
 const {
   computeStaffKantorOvertimeMinutes,
@@ -52,6 +56,7 @@ const {
   resolveAllowanceRateFields,
 } = require('../utils/payrollAllowances');
 const { resolveUpahHarian } = require('../utils/payrollUpahHarian');
+const { computeMonthlyStaffPayroll } = require('../utils/payrollMonthlyBasic');
 
 function parsePeriod(period) {
   const bounds = payrollCycleBounds(period);
@@ -61,11 +66,6 @@ function parsePeriod(period) {
     period_start: bounds.period_start,
     period_end: bounds.period_end,
   };
-}
-
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }
 
 function normalizeKeterangan(value) {
@@ -118,26 +118,6 @@ function buildManualPayrollFields({ prev, emp, settings }) {
     loan_deduction: num(prev?.loan_deduction ?? 0),
     late_deduction: num(prev?.late_deduction ?? 0),
     pph_21: num(prev?.pph_21 ?? 0),
-  };
-}
-
-/** Staff Kantor: monthly basic minus absence (Mon–Sat expected days in pay cycle). */
-function computeMonthlyStaffPayroll({ monthlyBasic, expectedDays, daysAttended }) {
-  const basic = Math.max(0, num(monthlyBasic));
-  const expected = Math.max(0, Math.floor(num(expectedDays)));
-  const attended = Math.max(0, Math.floor(num(daysAttended)));
-  const absent = Math.max(0, expected - attended);
-  const perDay = expected > 0 ? basic / expected : 0;
-  const absenceDeduction = Math.round(perDay * absent);
-  const netBasic = Math.max(0, Math.round(basic) - absenceDeduction);
-  return {
-    monthly_basic_gross: basic,
-    expected_work_days: expected,
-    days_attended: attended,
-    days_absent: absent,
-    absence_deduction: absenceDeduction,
-    basic_salary: netBasic,
-    upah_harian: 0,
   };
 }
 
@@ -253,74 +233,6 @@ function attachPayrollMode(row) {
     days_absent: calc.days_absent,
     absence_deduction: absenceDeduction,
     basic_salary: row.basic_salary != null ? num(row.basic_salary) : calc.basic_salary,
-  };
-}
-
-function resolveAllowanceAmounts(fields, employee, settings) {
-  const transportAmount =
-    fields.transport_allowance_amount != null
-      ? num(fields.transport_allowance_amount)
-      : num(employee?.transport_allowance_amount ?? settings.transport_amount);
-  const diligenceAmount =
-    fields.diligence_allowance_amount != null
-      ? num(fields.diligence_allowance_amount)
-      : num(employee?.diligence_allowance_amount ?? settings.diligence_amount);
-  return { transportAmount, diligenceAmount };
-}
-
-function computeTotals(fields, employee, settings, role = null) {
-  const { transportAmount, diligenceAmount } = resolveAllowanceAmounts(fields, employee, settings);
-  const transportAllowance = fields.transport_eligible ? transportAmount : 0;
-  const diligenceBonus = fields.diligence_eligible ? diligenceAmount : 0;
-  const tunjangan = num(fields.tunjangan_masa_kerja);
-  const overtime = num(fields.overtime_pay);
-  const insentif = num(fields.insentif);
-  const bonusOmset = num(fields.bonus_omset);
-  const loanDeduction = num(fields.loan_deduction);
-  const lateDeduction = num(fields.late_deduction);
-  const pph21 = num(fields.pph_21);
-  const otherDeductions = num(fields.other_deductions);
-  const bpjsTk = num(fields.bpjs_tk);
-  const bpjsKes = num(fields.bpjs_kes);
-  const absenceDeduction = num(fields.absence_deduction);
-  const monthlyGross = num(fields.monthly_basic_gross);
-  const isMonthly = role && receivesMonthlyAbsenceDeduction(role);
-
-  let earningsBase = num(fields.basic_salary);
-  let basicSalary = earningsBase;
-  if (isMonthly) {
-    const gross = monthlyGross > 0 ? monthlyGross : earningsBase + absenceDeduction;
-    earningsBase = gross;
-    basicSalary = Math.max(0, gross - absenceDeduction);
-  }
-
-  const deductions =
-    absenceDeduction +
-    loanDeduction +
-    lateDeduction +
-    pph21 +
-    otherDeductions +
-    bpjsTk +
-    bpjsKes;
-  const allowances =
-    tunjangan + transportAllowance + overtime + insentif + diligenceBonus + bonusOmset;
-  const finalSalary = earningsBase + allowances - deductions;
-  return {
-    transport_allowance: transportAllowance,
-    diligence_bonus: diligenceBonus,
-    loan_deduction: loanDeduction,
-    late_deduction: lateDeduction,
-    pph_21: pph21,
-    other_deductions: otherDeductions,
-    bpjs_tk: bpjsTk,
-    bpjs_kes: bpjsKes,
-    absence_deduction: absenceDeduction,
-    deductions,
-    allowances,
-    final_salary: finalSalary,
-    basic_salary: basicSalary,
-    transport_allowance_amount: transportAmount,
-    diligence_allowance_amount: diligenceAmount,
   };
 }
 

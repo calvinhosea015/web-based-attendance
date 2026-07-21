@@ -26,6 +26,20 @@ import {
 import { resolveUpahHarianDisplay, formatIdr } from '../utils/payrollDisplay.js';
 import PayrollWorkflowBar from '../components/payroll/PayrollWorkflowBar.jsx';
 import { payrollRowNeedsAttention, payrollWorkflowStep } from '../utils/payrollRowUtils.js';
+import { previewPayrollNetSalary } from '../utils/payrollTotals.js';
+
+function withMonthlyAttendancePreview(form) {
+  const preview = previewMonthlyStaffPayroll({
+    monthlyBasic: form.monthly_basic_gross,
+    expectedDays: form.expected_work_days,
+    daysAttended: form.days_attended,
+  });
+  return {
+    ...form,
+    absence_deduction: preview.absenceDeduction,
+    basic_salary: preview.netBasic,
+  };
+}
 
 function apiHostForHealth() {
   const base = String(import.meta.env.VITE_API_BASE || '/api').replace(/\/+$/, '');
@@ -308,8 +322,6 @@ export default function AdminPayroll() {
       }
       const { data } = await api.put(paths.adminPayrollEntry(period, editingId), payload);
       setRows((prev) => prev.map((r) => (r.employee_id === data.employee_id ? { ...r, ...data } : r)));
-      setEditingId(null);
-      setEditForm(null);
       notify(t('payrollRowSaved'), 'success');
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
@@ -350,6 +362,13 @@ export default function AdminPayroll() {
   const editingRow = rows.find((r) => r.employee_id === editingId);
   const editIsManual = editForm?.payroll_mode === 'manual';
   const editIsMonthly = isMonthlyPayrollMode(editForm?.payroll_mode);
+  const editPreviewNetSalary = useMemo(() => {
+    if (!editForm) return 0;
+    return previewPayrollNetSalary(editForm, {
+      isMonthly: editIsMonthly,
+      isManual: editIsManual,
+    });
+  }, [editForm, editIsMonthly, editIsManual]);
   const editIsDailyWage = usesDailyWagePayrollRole(editingRow?.user_role);
   const editIsStaffKantor = editingRow?.user_role === 'employee';
   const editShowsExpectedDays = editIsMonthly;
@@ -680,6 +699,7 @@ export default function AdminPayroll() {
           fitScreen
           title={t('payrollEditRow')}
           subtitle={editingRow?.full_name}
+          closeLabel={t('close')}
           onClose={() => {
             setEditingId(null);
             setEditForm(null);
@@ -696,18 +716,16 @@ export default function AdminPayroll() {
               >
                 {t('cancel')}
               </Button>
-              <Button type="submit" form="payroll-edit-form" variant="primary" size="sm">
-                {t('saveUser')}
-              </Button>
               <Button
                 variant="success"
                 size="sm"
                 type="button"
-                onClick={() =>
-                  handleExportSlip(editingId, editingRow?.full_name)
-                }
+                onClick={() => handleExportSlip(editingId, editingRow?.full_name)}
               >
                 {t('payrollExportSlip')}
+              </Button>
+              <Button type="submit" form="payroll-edit-form" variant="primary" size="sm">
+                {t('saveUser')}
               </Button>
             </>
           }
@@ -732,7 +750,14 @@ export default function AdminPayroll() {
                 className={inputClassCompact}
                 value={editForm.days_attended}
                 onChange={(e) =>
-                  setEditForm((f) => ({ ...f, days_attended: Number(e.target.value) }))
+                  setEditForm((f) =>
+                    editIsMonthly
+                      ? withMonthlyAttendancePreview({
+                          ...f,
+                          days_attended: Number(e.target.value),
+                        })
+                      : { ...f, days_attended: Number(e.target.value) }
+                  )
                 }
               />
             </CompactField>
@@ -744,10 +769,12 @@ export default function AdminPayroll() {
                   className={inputClassCompact}
                   value={editForm.expected_work_days ?? ''}
                   onChange={(e) =>
-                    setEditForm((f) => ({
-                      ...f,
-                      expected_work_days: Number(e.target.value),
-                    }))
+                    setEditForm((f) =>
+                      withMonthlyAttendancePreview({
+                        ...f,
+                        expected_work_days: Number(e.target.value),
+                      })
+                    )
                   }
                 />
               </CompactField>
@@ -773,10 +800,12 @@ export default function AdminPayroll() {
                     className={inputClassCompact}
                     value={editForm.monthly_basic_gross}
                     onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        monthly_basic_gross: Number(e.target.value),
-                      }))
+                      setEditForm((f) =>
+                        withMonthlyAttendancePreview({
+                          ...f,
+                          monthly_basic_gross: Number(e.target.value),
+                        })
+                      )
                     }
                   />
                 </CompactField>
@@ -798,7 +827,9 @@ export default function AdminPayroll() {
                 <p className="col-span-2 text-[10px] text-apple-label md:col-span-4">
                   {editForm.payroll_mode === 'accounting'
                     ? t('payrollAccountingHint')
-                    : t('payrollMonthlyFormula')}
+                    : editForm.payroll_mode === 'umum'
+                      ? t('payrollUmumFormula')
+                      : t('payrollMonthlyFormula')}
                 </p>
               </>
             ) : (
@@ -1003,7 +1034,10 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
-            <CompactField label={t('payrollOtherDeductions')}>
+            <CompactField
+              label={t('payrollOtherDeductions')}
+              hint={t('payrollOtherDeductionsHint')}
+            >
               <input
                 type="number"
                 min="0"
@@ -1070,6 +1104,15 @@ export default function AdminPayroll() {
                 })}
               </p>
             )}
+            <div className="col-span-2 rounded-apple-lg border border-brand-200 bg-brand-50 px-3 py-3 md:col-span-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                {t('payrollFinal')}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-brand-800">
+                Rp {formatIdr(editPreviewNetSalary)}
+              </p>
+              <p className="mt-1 text-[10px] text-apple-label">{t('payrollNetSalaryHint')}</p>
+            </div>
             <CompactField label={t('payrollKeterangan')} className="col-span-2 md:col-span-4">
               <input
                 type="text"

@@ -139,6 +139,8 @@ export default {
   payrollActiveLoanHint: 'Pinjaman aktif — {{monthly}}/bln · sisa Rp {{remaining}}',
   payrollLoanPreview: 'Akan dipotong Rp {{amount}} saat simpan/generate',
   payrollOtherDeductions: 'Potongan lainnya',
+  payrollOtherDeductionsHint:
+    'Nominal kustom yang Anda isi (bukan hasil hitung absen atau pinjaman).',
   payrollPph21: 'PPh 21',
   payrollDaysAttended: 'Hari hadir',
   payrollDaysFromAttendance: 'Dihitung dari data absen masuk dalam periode gaji ini (tidak dapat diubah manual).',
@@ -159,7 +161,9 @@ export default {
   payrollSlipKasbon: 'Kasbon',
   payrollDaysEditableHint: 'Ubah bila tidak sesuai data absen.',
   payrollExpectedWorkDaysSlip: 'Jumlah hari (slip)',
-  payrollMonthlyNetBasic: 'Gaji bersih (setelah potongan)',
+  payrollMonthlyNetBasic: 'Gaji pokok setelah absen',
+  payrollNetSalaryHint:
+    'Gaji bersih adalah total yang diterima karyawan: pendapatan dan tunjangan dikurangi semua potongan.',
   payrollMonthlyFormula:
     'Potongan = gaji bulanan ÷ hari wajib × hari tidak hadir. Gaji penuh jika hadir semua hari wajib. Hari wajib = Sen–Sab dikurangi libur nasional Indonesia dalam periode gaji ini.',
   payrollHolidaysExcluded:
@@ -290,17 +294,17 @@ export default {
   fieldOmsetShowLines: 'Detail',
   fieldOmsetHideLines: 'Tutup',
   fieldOmsetLineAmounts: 'Omset Rp {{omset}} · bonus Rp {{bonus}}',
-  payrollFinal: 'Total gaji karyawan',
+  payrollFinal: 'Gaji bersih',
   payrollDeductions: 'Potongan',
   payrollEditRow: 'Ubah baris gaji',
   payrollKeterangan: 'Keterangan',
   payrollKeteranganHint: 'Catatan opsional pada slip gaji (maks. 500 karakter).',
   payrollRowSaved: 'Baris gaji disimpan.',
   payrollNoRows: 'Belum ada gaji untuk bulan ini. Klik Buat untuk membuat baris.',
-  payrollExportSlip: 'Slip',
+  payrollExportSlip: 'Unduh Excel',
   payrollExportAllSlips: 'Ekspor semua slip (Excel)',
   payrollSlipExported: 'Slip gaji diunduh.',
-  payrollAllSlipsExported: 'Semua slip gaji diunduh (satu lembar per karyawan).',
+  payrollAllSlipsExported: 'Semua slip gaji diunduh (satu lembar, dua slip per halaman A4).',
   payrollEmployeeTitle: 'Gaji saya',
   payrollEmployeeHint:
     'Rekap gaji bulanan yang dibuat admin. Potongan pinjaman muncul setelah gaji untuk bulan tersebut dibuat.',
@@ -495,7 +499,9 @@ export default {
   umumFlexibleSchedule: 'Jam fleksibel (hanya absen masuk)',
   umumBasicSalary: 'Gaji bulanan (Rp)',
   umumAbsenceHint:
-    'Payroll: gaji bulanan dikurangi potongan absen (gaji ÷ hari kerja × hari absen).',
+    'Payroll: gaji bulanan × hari hadir ÷ hari wajib masuk (Sen–Sab dikurangi libur nasional dalam periode gaji).',
+  payrollUmumFormula:
+    'Gaji cleaning = gaji bulanan × hari hadir ÷ hari wajib masuk.',
   fieldFlexibleSchedule: 'Jam fleksibel (tanpa jadwal tetap)',
   fieldOnceInOnceOut:
     'Satu absen masuk per hari, lalu absen keluar dengan data pengiriman (9 field dengan *).',

@@ -302,13 +302,22 @@ const modalSizes = {
   xl: 'max-w-5xl',
 };
 
-export function Modal({ title, subtitle, onClose, children, footer, size = 'md', fitScreen = false }) {
+export function Modal({
+  title,
+  subtitle,
+  onClose,
+  closeLabel = 'Close',
+  children,
+  footer,
+  size = 'md',
+  fitScreen = false,
+}) {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6">
       <button
         type="button"
         className="absolute inset-0 bg-black/25 backdrop-blur-glass transition-opacity duration-premium ease-premium"
-        aria-label="Close"
+        aria-label={closeLabel}
         onClick={onClose}
       />
       <div
@@ -317,15 +326,46 @@ export function Modal({ title, subtitle, onClose, children, footer, size = 'md',
         }`}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="modal-title"
       >
         <div className="bezel-inner flex max-h-full flex-col overflow-hidden">
           <div className="shrink-0 border-b border-black/[0.05] px-5 py-4 sm:px-6">
-            <h3 className="font-display text-[18px] font-semibold tracking-tight text-apple-text">
-              {title}
-            </h3>
-            {subtitle && (
-              <p className="mt-0.5 truncate text-[14px] text-apple-label">{subtitle}</p>
-            )}
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <h3
+                  id="modal-title"
+                  className="font-display text-[18px] font-semibold tracking-tight text-apple-text"
+                >
+                  {title}
+                </h3>
+                {subtitle && (
+                  <p className="mt-0.5 truncate text-[14px] text-apple-label">{subtitle}</p>
+                )}
+              </div>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label={closeLabel}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-apple-label ring-1 ring-black/[0.06] transition-all duration-300 ease-premium hover:bg-apple-fill hover:text-apple-text active:scale-[0.98]"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M1 1l12 12M13 1L1 13"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
           <div
             className={`shrink-0 px-5 py-5 sm:px-6 ${fitScreen ? 'overflow-hidden' : 'flex-1 overflow-y-auto'}`}

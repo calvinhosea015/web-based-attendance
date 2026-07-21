@@ -139,6 +139,7 @@ export default {
   payrollActiveLoanHint: 'Active loan — {{monthly}}/mo · remaining Rp {{remaining}}',
   payrollLoanPreview: 'Will deduct Rp {{amount}} on save/generate',
   payrollOtherDeductions: 'Other deductions',
+  payrollOtherDeductionsHint: 'Custom amount you enter (not calculated from attendance or loans).',
   payrollPph21: 'PPh 21',
   payrollDaysAttended: 'Days attended',
   payrollDaysFromAttendance: 'Counted from check-in records in this pay period (not editable).',
@@ -159,7 +160,9 @@ export default {
   payrollSlipKasbon: 'Salary advance (kasbon)',
   payrollDaysEditableHint: 'Override if attendance data is wrong.',
   payrollExpectedWorkDaysSlip: 'Work days (slip)',
-  payrollMonthlyNetBasic: 'Net salary (after absence)',
+  payrollMonthlyNetBasic: 'Base salary after absence',
+  payrollNetSalaryHint:
+    'Net salary is the total paid to the employee: earnings and allowances minus all deductions.',
   payrollMonthlyFormula:
     'Deduction = monthly wage ÷ required days × absent days. Full wage when all required days are attended. Required days are Mon–Sat minus Indonesian national holidays in this pay cycle.',
   payrollHolidaysExcluded:
@@ -289,17 +292,17 @@ export default {
   fieldOmsetShowLines: 'Details',
   fieldOmsetHideLines: 'Hide',
   fieldOmsetLineAmounts: 'Omset Rp {{omset}} · bonus Rp {{bonus}}',
-  payrollFinal: 'Total employee salary',
+  payrollFinal: 'Net salary',
   payrollDeductions: 'Deductions',
   payrollEditRow: 'Edit payroll row',
   payrollKeterangan: 'Notes (keterangan)',
   payrollKeteranganHint: 'Optional note on the salary slip (max 500 characters).',
   payrollRowSaved: 'Payroll row saved.',
   payrollNoRows: 'No payroll for this month. Click Generate to create rows.',
-  payrollExportSlip: 'Slip',
+  payrollExportSlip: 'Download Excel',
   payrollExportAllSlips: 'Export all slips (Excel)',
   payrollSlipExported: 'Salary slip downloaded.',
-  payrollAllSlipsExported: 'All salary slips downloaded (one sheet per employee).',
+  payrollAllSlipsExported: 'All salary slips downloaded (one sheet, two slips per A4 page).',
   payrollEmployeeTitle: 'My payroll',
   payrollEmployeeHint:
     'Monthly salary records created by your administrator. Loan deductions appear after payroll is generated for that month.',
@@ -490,7 +493,9 @@ export default {
   umumFlexibleSchedule: 'Flexible hours (check-in only)',
   umumBasicSalary: 'Monthly salary (Rp)',
   umumAbsenceHint:
-    'Payroll: monthly salary minus absence deduction (salary ÷ working days × absent days).',
+    'Payroll: salary × days attended ÷ required work days (Mon–Sat minus national holidays in the pay cycle).',
+  payrollUmumFormula:
+    'Cleaning salary = monthly salary × days attended ÷ required work days.',
   fieldFlexibleSchedule: 'Flexible hours (no fixed schedule)',
   fieldOnceInOnceOut:
     'One check-in per day, then check-out with delivery data (9 fields with *).',

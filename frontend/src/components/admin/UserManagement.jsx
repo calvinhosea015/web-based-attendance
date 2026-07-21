@@ -831,6 +831,7 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
         <Modal
           title={t('delete')}
           subtitle={deletingUser.full_name || deletingUser.username}
+          closeLabel={t('close')}
           onClose={() => setDeletingUser(null)}
           footer={
             <>

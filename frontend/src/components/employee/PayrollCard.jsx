@@ -25,9 +25,14 @@ export default function PayrollCard({ payroll }) {
                   <span className="font-semibold text-apple-text">
                     {payrollCycleLabel(row.payroll_period)}
                   </span>
-                  <span className="font-semibold text-brand-700">
-                    Rp {formatIdr(row.final_salary)}
-                  </span>
+                  <div className="text-right">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                      {t('payrollFinal')}
+                    </div>
+                    <div className="font-semibold text-brand-700">
+                      Rp {formatIdr(row.final_salary)}
+                    </div>
+                  </div>
                 </div>
                 <dl className="mt-3 grid gap-1 text-apple-label sm:grid-cols-2">
                   <div>

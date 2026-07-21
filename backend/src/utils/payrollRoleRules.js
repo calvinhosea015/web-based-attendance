@@ -4,7 +4,7 @@ function hasMonthlyBasicPayroll(role) {
   return isStaffKantor(role) || isUmum(role) || isAccounting(role);
 }
 
-/** Monthly gaji with potongan absen = gaji / hari kerja × hari absen. */
+/** Monthly gaji prorated: gaji × hari hadir ÷ hari wajib (Staff Kantor, Cleaning, Accounting). */
 function receivesMonthlyAbsenceDeduction(role) {
   return isStaffKantor(role) || isUmum(role) || isAccounting(role);
 }

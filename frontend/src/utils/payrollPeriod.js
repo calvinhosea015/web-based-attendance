@@ -80,9 +80,10 @@ export function previewMonthlyStaffPayroll({ monthlyBasic, expectedDays, daysAtt
   const expected = Math.max(0, Math.floor(Number(expectedDays) || 0));
   const attended = Math.max(0, Math.floor(Number(daysAttended) || 0));
   const absent = Math.max(0, expected - attended);
-  const perDay = expected > 0 ? basic / expected : 0;
-  const absenceDeduction = Math.round(perDay * absent);
-  const netBasic = Math.max(0, Math.round(basic) - absenceDeduction);
+  const attendedForPay = expected > 0 ? Math.min(attended, expected) : 0;
+  const netBasic =
+    expected > 0 ? Math.max(0, Math.round((basic * attendedForPay) / expected)) : 0;
+  const absenceDeduction = Math.max(0, Math.round(basic) - netBasic);
   return { absent, absenceDeduction, netBasic, expected };
 }
 
