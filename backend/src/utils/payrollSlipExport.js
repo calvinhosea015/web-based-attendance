@@ -15,6 +15,7 @@ const EARNINGS = [
   { key: 'gaji', label: 'Gaji' },
   { key: 'tunjangan_masa_kerja', label: 'Tunjangan Masa Kerja' },
   { key: 'tunjangan_transport', label: 'Tunjangan Transport' },
+  { key: 'tunjangan_pph_21', label: 'Tunjangan PPh 21' },
   { key: 'lembur', label: 'Lembur' },
   { key: 'insentif', label: 'Insentif' },
   { key: 'kerajinan', label: 'Kerajinan' },
@@ -23,7 +24,8 @@ const EARNINGS = [
 
 const DEDUCTIONS = [
   { key: 'potongan_absen', label: 'Potongan Absen' },
-  { key: 'potongan_terlambat', label: 'Potongan Datang Terlambat / Pulang Awal' },
+  { key: 'potongan_terlambat', label: 'Potongan Datang Terlambat' },
+  { key: 'potongan_pulang_awal', label: 'Potongan Pulang Awal' },
   { key: 'bpjs_tk', label: 'BPJS Ketenagakerjaan' },
   { key: 'bpjs_kes', label: 'BPJS Kesehatan' },
   { key: 'pph21', label: 'PPh 21' },
@@ -39,24 +41,24 @@ const ROW = {
   PERIODE: 4,
   TABLE_HEAD: 6,
   TABLE_FIRST: 7,
-  TABLE_LAST: 13,
-  TABLE_TOTAL: 14,
-  JUMLAH_HARI: 16,
-  JUMLAH_HADIR: 17,
-  KETERANGAN_START: 17,
-  KETERANGAN_END: 18,
-  SIGN_TITLE: 19,
-  NET_LABEL_START: 19,
-  NET_LABEL_END: 20,
-  NET_AMOUNT_START: 21,
-  NET_AMOUNT_END: 22,
-  SIGN_LINE: 22,
+  TABLE_LAST: 14,
+  TABLE_TOTAL: 15,
+  JUMLAH_HARI: 17,
+  JUMLAH_HADIR: 18,
+  KETERANGAN_START: 18,
+  KETERANGAN_END: 19,
+  SIGN_TITLE: 20,
+  NET_LABEL_START: 20,
+  NET_LABEL_END: 21,
+  NET_AMOUNT_START: 22,
+  NET_AMOUNT_END: 23,
+  SIGN_LINE: 23,
 };
 
-const BASE_SHEET_LAST_ROW = 22;
+const BASE_SHEET_LAST_ROW = 23;
 
 /** Rows × cols per employee panel on the combined A5 print sheet. */
-const PANEL_ROWS = 16;
+const PANEL_ROWS = 17;
 const PANEL_COLS = 4;
 
 const FONT_COMPACT_BODY = { name: 'Calibri', size: 7 };
@@ -94,7 +96,7 @@ const SLIP_PAGE_SETUP = {
 
 /** One A5 landscape page per employee: fixed row frame + manual breaks (no multi print-area; Excel fits only the first). */
 const BULK_ROW_HEIGHT = 14;
-const BULK_ROWS_PER_PAGE = 24;
+const BULK_ROWS_PER_PAGE = 25;
 const BULK_SLIP_PAD_TOP = 1;
 const BULK_SLIP_PAD_BOTTOM = BULK_ROWS_PER_PAGE - BASE_SHEET_LAST_ROW - BULK_SLIP_PAD_TOP;
 
@@ -262,12 +264,14 @@ function slipAmounts(row) {
     gaji: gajiLine,
     tunjangan_masa_kerja: num(row.tunjangan_masa_kerja),
     tunjangan_transport: transport,
+    tunjangan_pph_21: num(row.tunjangan_pph_21),
     lembur: num(row.overtime_pay),
     insentif: num(row.insentif),
     kerajinan,
     bonus: num(row.bonus_omset),
     potongan_absen: absenceDeduction,
     potongan_terlambat: num(row.late_deduction),
+    potongan_pulang_awal: num(row.early_leave_deduction),
     bpjs_tk: num(row.bpjs_tk),
     bpjs_kes: num(row.bpjs_kes),
     pph21: num(row.pph_21),
@@ -589,6 +593,7 @@ function fieldOfficerEarningsTotal(row, amounts) {
     totalGaji +
     num(amounts.tunjangan_masa_kerja) +
     num(amounts.tunjangan_transport) +
+    num(amounts.tunjangan_pph_21) +
     num(amounts.lembur) +
     num(amounts.insentif) +
     num(amounts.kerajinan) +

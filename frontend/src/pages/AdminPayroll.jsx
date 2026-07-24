@@ -281,9 +281,11 @@ export default function AdminPayroll() {
         Number(row.loan_deduction_preview || 0)
       ),
       late_deduction: row.late_deduction ?? 0,
+      early_leave_deduction: row.early_leave_deduction ?? 0,
       bpjs_tk: row.bpjs_tk ?? 0,
       bpjs_kes: row.bpjs_kes ?? 0,
       pph_21: row.pph_21 ?? 0,
+      tunjangan_pph_21: row.tunjangan_pph_21 ?? 0,
       other_deductions: Number(row.other_deductions ?? 0),
       keterangan: row.keterangan ?? '',
     });
@@ -902,6 +904,17 @@ export default function AdminPayroll() {
                 }
               />
             </CompactField>
+            <CompactField label={t('payrollTunjanganPph21')}>
+              <input
+                type="number"
+                min="0"
+                className={inputClassCompact}
+                value={editForm.tunjangan_pph_21}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, tunjangan_pph_21: Number(e.target.value) }))
+                }
+              />
+            </CompactField>
             <CompactField
               label={t('payrollLembur')}
               hint={
@@ -1029,6 +1042,23 @@ export default function AdminPayroll() {
                 value={editForm.late_deduction}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, late_deduction: Number(e.target.value) }))
+                }
+              />
+            </CompactField>
+            <CompactField
+              label={t('payrollEarlyLeaveDeduction')}
+              hint={t('payrollEarlyLeaveDeductionHint')}
+            >
+              <input
+                type="number"
+                min="0"
+                className={inputClassCompact}
+                value={editForm.early_leave_deduction}
+                onChange={(e) =>
+                  setEditForm((f) => ({
+                    ...f,
+                    early_leave_deduction: Number(e.target.value),
+                  }))
                 }
               />
             </CompactField>

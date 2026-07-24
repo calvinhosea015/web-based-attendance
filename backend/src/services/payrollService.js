@@ -118,6 +118,8 @@ function buildManualPayrollFields({ prev, emp, settings }) {
     other_deductions: resolveOtherDeductionsAmount(prev),
     loan_deduction: num(prev?.loan_deduction ?? 0),
     late_deduction: num(prev?.late_deduction ?? 0),
+    early_leave_deduction: num(prev?.early_leave_deduction ?? 0),
+    tunjangan_pph_21: num(prev?.tunjangan_pph_21 ?? 0),
     pph_21: num(prev?.pph_21 ?? 0),
   };
 }
@@ -556,6 +558,8 @@ class PayrollService {
             bonus_omset: num(merged.bonus_omset),
             loan_deduction: num(merged.loan_deduction),
             late_deduction: num(merged.late_deduction),
+            early_leave_deduction: num(merged.early_leave_deduction),
+            tunjangan_pph_21: num(merged.tunjangan_pph_21),
             pph_21: num(merged.pph_21),
             other_deductions: resolveOtherDeductionsAmount(merged),
             bpjs_tk: num(merged.bpjs_tk),
@@ -583,11 +587,13 @@ class PayrollService {
       upah_harian: num(merged.upah_harian ?? merged.employee_upah_harian),
       monthly_basic_gross: num(merged.monthly_basic_gross ?? merged.employee_basic_salary),
       tunjangan_masa_kerja: slipTunjangan,
+      tunjangan_pph_21: num(merged.tunjangan_pph_21 ?? totals.tunjangan_pph_21),
       overtime_pay: num(merged.overtime_pay),
       insentif: num(merged.insentif),
       bonus_omset: num(merged.bonus_omset),
       absence_deduction: num(merged.absence_deduction ?? totals.absence_deduction),
       late_deduction: num(merged.late_deduction ?? totals.late_deduction),
+      early_leave_deduction: num(merged.early_leave_deduction ?? totals.early_leave_deduction),
       bpjs_tk: num(merged.bpjs_tk),
       bpjs_kes: num(merged.bpjs_kes),
       pph_21: num(merged.pph_21 ?? totals.pph_21),
@@ -686,6 +692,8 @@ class PayrollService {
         other_deductions: resolveOtherDeductionsAmount(prev),
         loan_deduction: 0,
         late_deduction: prev?.late_deduction ?? 0,
+        early_leave_deduction: prev?.early_leave_deduction ?? 0,
+        tunjangan_pph_21: prev?.tunjangan_pph_21 ?? 0,
         pph_21: prev?.pph_21 ?? 0,
         _employee: employee,
         _payrollPeriod: payrollPeriod,
@@ -768,7 +776,7 @@ class PayrollService {
     });
   }
 
-  /** Potongan terlambat (+ pulang awal for Staff Kantor) = rate × minutes in period. */
+  /** Potongan terlambat and potongan pulang awal (Staff Kantor only) as separate amounts. */
   async computeLateDeductionForPeriod(employeeId, bounds, employee, requiredWorkDays, role = null) {
     const lateMinutes = await this.attendanceRepository.sumLateMinutesInPeriod(
       employeeId,
@@ -783,11 +791,14 @@ class PayrollService {
         bounds.period_end
       );
     }
-    return computeLateDeductionPay({
-      gaji: num(employee.basic_salary),
-      requiredWorkDays,
-      lateMinutes: lateMinutes + earlyMinutes,
-    });
+    const payArgs = { gaji: num(employee.basic_salary), requiredWorkDays };
+    return {
+      late_deduction: computeLateDeductionPay({ ...payArgs, lateMinutes }),
+      early_leave_deduction: computeLateDeductionPay({
+        ...payArgs,
+        lateMinutes: earlyMinutes,
+      }),
+    };
   }
 
   /** Refresh days_attended and gaji from attendance; keep other payroll fields. */
@@ -845,6 +856,7 @@ class PayrollService {
 
     let overtimePay = num(row.overtime_pay);
     let lateDeduction = num(row.late_deduction);
+    let earlyLeaveDeduction = num(row.early_leave_deduction);
     if (receivesStaffKantorAttendancePayroll(role) && expectedDays != null) {
       overtimePay = await this.computeLemburPayForPeriod(
         empId,
@@ -852,13 +864,15 @@ class PayrollService {
         employee,
         expectedDays
       );
-      lateDeduction = await this.computeLateDeductionForPeriod(
+      const attendanceDeductions = await this.computeLateDeductionForPeriod(
         empId,
         bounds,
         employee,
         expectedDays,
         role
       );
+      lateDeduction = attendanceDeductions.late_deduction;
+      earlyLeaveDeduction = attendanceDeductions.early_leave_deduction;
     }
 
     const tunjanganMasaKerja =
@@ -897,10 +911,12 @@ class PayrollService {
       {
         basic_salary: gaji,
         tunjangan_masa_kerja: tunjanganMasaKerja,
+        tunjangan_pph_21: num(row.tunjangan_pph_21),
         transport_eligible: transportEligible,
         transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay: overtimePay,
         late_deduction: lateDeduction,
+        early_leave_deduction: earlyLeaveDeduction,
         pph_21: num(row.pph_21),
         insentif: num(row.insentif),
         diligence_eligible: diligenceEligible,
@@ -934,6 +950,7 @@ class PayrollService {
       days_attended: days,
       expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
+      tunjangan_pph_21: totals.tunjangan_pph_21,
       transport_eligible: fields.transport_eligible,
       transport_allowance: totals.transport_allowance,
       overtime_pay: fields.overtime_pay,
@@ -944,6 +961,7 @@ class PayrollService {
       omset_total: fields.omset_total ?? omsetTotal,
       loan_deduction: totals.loan_deduction,
       late_deduction: totals.late_deduction,
+      early_leave_deduction: totals.early_leave_deduction,
       pph_21: totals.pph_21,
       other_deductions: totals.other_deductions,
       absence_deduction: totals.absence_deduction,
@@ -1050,6 +1068,7 @@ class PayrollService {
           days_attended: prev?.days_attended ?? 0,
           expected_work_days: null,
           tunjangan_masa_kerja: manualFields.tunjangan_masa_kerja,
+          tunjangan_pph_21: totals.tunjangan_pph_21,
           transport_eligible: manualFields.transport_eligible,
           transport_allowance: totals.transport_allowance,
           overtime_pay: manualFields.overtime_pay,
@@ -1060,6 +1079,7 @@ class PayrollService {
           omset_total: num(prev?.omset_total),
           loan_deduction: manualFields.loan_deduction,
           late_deduction: manualFields.late_deduction,
+          early_leave_deduction: manualFields.early_leave_deduction,
           pph_21: totals.pph_21,
           other_deductions: totals.other_deductions,
           absence_deduction: 0,
@@ -1120,13 +1140,15 @@ class PayrollService {
             emp,
             expectedDays
           );
-          fields.late_deduction = await this.computeLateDeductionForPeriod(
+          const attendanceDeductions = await this.computeLateDeductionForPeriod(
             emp.id,
             bounds,
             emp,
             expectedDays,
             role
           );
+          fields.late_deduction = attendanceDeductions.late_deduction;
+          fields.early_leave_deduction = attendanceDeductions.early_leave_deduction;
         }
       }
       fields = normalizeRolePayrollFields(fields, role);
@@ -1168,6 +1190,7 @@ class PayrollService {
         days_attended: fields._resolvedDays ?? days,
         expected_work_days: expectedDays,
         tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
+        tunjangan_pph_21: totals.tunjangan_pph_21,
         transport_eligible: fields.transport_eligible,
         transport_allowance: totals.transport_allowance,
         overtime_pay: fields.overtime_pay,
@@ -1178,6 +1201,7 @@ class PayrollService {
         omset_total: isFieldOfficer(role) ? fields.omset_total ?? 0 : 0,
         loan_deduction: totals.loan_deduction,
         late_deduction: totals.late_deduction,
+        early_leave_deduction: totals.early_leave_deduction,
         pph_21: totals.pph_21,
         other_deductions: totals.other_deductions,
         absence_deduction: totals.absence_deduction,
@@ -1245,6 +1269,9 @@ class PayrollService {
         diligence_eligible: false,
         other_deductions: 0,
         loan_deduction: 0,
+        late_deduction: 0,
+        early_leave_deduction: 0,
+        tunjangan_pph_21: 0,
         pph_21: 0,
       };
     }
@@ -1280,6 +1307,10 @@ class PayrollService {
           payload.tunjangan_masa_kerja != null
             ? num(payload.tunjangan_masa_kerja)
             : num(existing.tunjangan_masa_kerja),
+        tunjangan_pph_21:
+          payload.tunjangan_pph_21 != null
+            ? num(payload.tunjangan_pph_21)
+            : num(existing.tunjangan_pph_21),
         transport_eligible: transportEligible,
         transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay:
@@ -1294,6 +1325,10 @@ class PayrollService {
           payload.loan_deduction != null ? num(payload.loan_deduction) : num(existing.loan_deduction),
         late_deduction:
           payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction),
+        early_leave_deduction:
+          payload.early_leave_deduction != null
+            ? num(payload.early_leave_deduction)
+            : num(existing.early_leave_deduction),
         pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),
         bpjs_tk: payload.bpjs_tk != null ? num(payload.bpjs_tk) : num(existing.bpjs_tk),
         bpjs_kes: payload.bpjs_kes != null ? num(payload.bpjs_kes) : num(existing.bpjs_kes),
@@ -1315,6 +1350,7 @@ class PayrollService {
         days_attended: daysN,
         expected_work_days: null,
         tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
+        tunjangan_pph_21: totals.tunjangan_pph_21,
         transport_eligible: fields.transport_eligible,
         transport_allowance: totals.transport_allowance,
         overtime_pay: fields.overtime_pay,
@@ -1325,6 +1361,7 @@ class PayrollService {
         omset_total: num(existing.omset_total),
         loan_deduction: fields.loan_deduction,
         late_deduction: fields.late_deduction,
+        early_leave_deduction: fields.early_leave_deduction,
         pph_21: totals.pph_21,
         other_deductions: totals.other_deductions,
         absence_deduction: 0,
@@ -1425,18 +1462,25 @@ class PayrollService {
 
     let lateDeduction =
       payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction);
+    let earlyLeaveDeduction =
+      payload.early_leave_deduction != null
+        ? num(payload.early_leave_deduction)
+        : num(existing.early_leave_deduction);
     if (
       receivesStaffKantorAttendancePayroll(role) &&
       expectedDaysForLate != null &&
-      payload.late_deduction == null
+      payload.late_deduction == null &&
+      payload.early_leave_deduction == null
     ) {
-      lateDeduction = await this.computeLateDeductionForPeriod(
+      const attendanceDeductions = await this.computeLateDeductionForPeriod(
         empId,
         bounds,
         employee,
         expectedDaysForLate,
         role
       );
+      lateDeduction = attendanceDeductions.late_deduction;
+      earlyLeaveDeduction = attendanceDeductions.early_leave_deduction;
     }
 
     let overtimePay =
@@ -1461,6 +1505,10 @@ class PayrollService {
           payload.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)
             ? num(payload.tunjangan_masa_kerja)
             : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period),
+        tunjangan_pph_21:
+          payload.tunjangan_pph_21 != null
+            ? num(payload.tunjangan_pph_21)
+            : num(existing.tunjangan_pph_21),
         transport_eligible: transportEligible,
         transport_allowance_amount: allowanceRates.transport_allowance_amount,
         overtime_pay: overtimePay,
@@ -1471,6 +1519,7 @@ class PayrollService {
         other_deductions: resolveOtherDeductionsFromPayload(payload, existing),
         loan_deduction: loanDeduction,
         late_deduction: lateDeduction,
+        early_leave_deduction: earlyLeaveDeduction,
         pph_21: payload.pph_21 != null ? num(payload.pph_21) : num(existing.pph_21),
         bpjs_tk: payload.bpjs_tk != null ? num(payload.bpjs_tk) : num(existing.bpjs_tk),
         bpjs_kes: payload.bpjs_kes != null ? num(payload.bpjs_kes) : num(existing.bpjs_kes),
@@ -1524,6 +1573,7 @@ class PayrollService {
       days_attended: daysN,
       expected_work_days: expectedDays,
       tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
+      tunjangan_pph_21: totals.tunjangan_pph_21,
       transport_eligible: fields.transport_eligible,
       transport_allowance: totals.transport_allowance,
       overtime_pay: fields.overtime_pay,
@@ -1534,6 +1584,7 @@ class PayrollService {
       omset_total: omsetTotal,
       loan_deduction: totals.loan_deduction,
       late_deduction: totals.late_deduction,
+      early_leave_deduction: totals.early_leave_deduction,
       pph_21: totals.pph_21,
       other_deductions: totals.other_deductions,
       absence_deduction: totals.absence_deduction,

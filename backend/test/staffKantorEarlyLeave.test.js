@@ -32,4 +32,20 @@ describe('Staff Kantor early leave minutes', () => {
     // 4_800_000 / 25 / 8 / 60 × 30 = 12_000
     assert.equal(earlyPay, 12_000);
   });
+
+  it('keeps late and early minute amounts separate at the same rate', () => {
+    const latePay = computeLateDeductionPay({
+      gaji: 4_800_000,
+      requiredWorkDays: 25,
+      lateMinutes: 15,
+    });
+    const earlyPay = computeLateDeductionPay({
+      gaji: 4_800_000,
+      requiredWorkDays: 25,
+      lateMinutes: 30,
+    });
+    assert.equal(latePay, 6_000);
+    assert.equal(earlyPay, 12_000);
+    assert.equal(latePay + earlyPay, 18_000);
+  });
 });

@@ -27,12 +27,14 @@ export function previewPayrollNetSalary(fields, { isMonthly, isManual } = {}) {
     absenceDeduction +
     num(fields.loan_deduction) +
     num(fields.late_deduction) +
+    num(fields.early_leave_deduction) +
     num(fields.pph_21) +
     num(fields.other_deductions) +
     num(fields.bpjs_tk) +
     num(fields.bpjs_kes);
   const allowances =
     num(fields.tunjangan_masa_kerja) +
+    num(fields.tunjangan_pph_21) +
     transportAllowance +
     num(fields.overtime_pay) +
     num(fields.insentif) +

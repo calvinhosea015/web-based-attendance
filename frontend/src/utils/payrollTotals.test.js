@@ -10,11 +10,13 @@ const net = previewPayrollNetSalary(
     transport_allowance_amount: 250_000,
     diligence_eligible: false,
     tunjangan_masa_kerja: 0,
+    tunjangan_pph_21: 100_000,
     overtime_pay: 0,
     insentif: 0,
     bonus_omset: 0,
     loan_deduction: 200_000,
-    late_deduction: 0,
+    late_deduction: 30_000,
+    early_leave_deduction: 20_000,
     pph_21: 0,
     other_deductions: 50_000,
     bpjs_tk: 0,
@@ -25,8 +27,8 @@ const net = previewPayrollNetSalary(
 
 assert.strictEqual(
   net,
-  4_000_000,
-  'net = monthly gross + allowances − absence, loans, custom other, tax, BPJS'
+  4_050_000,
+  'net includes tunjangan PPh 21 and separate early-leave deduction'
 );
 
 console.log('payrollTotals.test.js: ok');

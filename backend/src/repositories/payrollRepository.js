@@ -188,13 +188,14 @@ class PayrollRepository {
       `INSERT INTO payroll (
         employee_id, payroll_period, period_start, period_end,
         upah_harian, basic_salary, days_attended, expected_work_days,
-        tunjangan_masa_kerja, transport_eligible, transport_allowance,
+        tunjangan_masa_kerja, tunjangan_pph_21, transport_eligible, transport_allowance,
         overtime_pay, insentif, diligence_eligible, diligence_bonus,
-        bonus_omset, omset_total, loan_deduction, late_deduction, pph_21, other_deductions,
+        bonus_omset, omset_total, loan_deduction, late_deduction, early_leave_deduction,
+        pph_21, other_deductions,
         absence_deduction, bpjs_tk, bpjs_kes,
         deductions, allowances, final_salary, keterangan
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
       )
       ON CONFLICT (employee_id, payroll_period) DO UPDATE SET
         period_start = EXCLUDED.period_start,
@@ -204,6 +205,7 @@ class PayrollRepository {
         days_attended = EXCLUDED.days_attended,
         expected_work_days = EXCLUDED.expected_work_days,
         tunjangan_masa_kerja = EXCLUDED.tunjangan_masa_kerja,
+        tunjangan_pph_21 = EXCLUDED.tunjangan_pph_21,
         transport_eligible = EXCLUDED.transport_eligible,
         transport_allowance = EXCLUDED.transport_allowance,
         overtime_pay = EXCLUDED.overtime_pay,
@@ -214,6 +216,7 @@ class PayrollRepository {
         omset_total = EXCLUDED.omset_total,
         loan_deduction = EXCLUDED.loan_deduction,
         late_deduction = EXCLUDED.late_deduction,
+        early_leave_deduction = EXCLUDED.early_leave_deduction,
         pph_21 = EXCLUDED.pph_21,
         other_deductions = EXCLUDED.other_deductions,
         absence_deduction = EXCLUDED.absence_deduction,
@@ -234,6 +237,7 @@ class PayrollRepository {
         row.days_attended,
         row.expected_work_days ?? null,
         row.tunjangan_masa_kerja,
+        row.tunjangan_pph_21 ?? 0,
         row.transport_eligible,
         row.transport_allowance,
         row.overtime_pay,
@@ -244,6 +248,7 @@ class PayrollRepository {
         row.omset_total ?? 0,
         row.loan_deduction ?? 0,
         row.late_deduction ?? 0,
+        row.early_leave_deduction ?? 0,
         row.pph_21 ?? 0,
         row.other_deductions ?? 0,
         row.absence_deduction ?? null,

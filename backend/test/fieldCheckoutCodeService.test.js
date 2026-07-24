@@ -230,3 +230,49 @@ describe('FieldCheckoutCodeService assertReadyForCheckout', () => {
     assert.equal(createEntryCalls, 0);
   });
 });
+
+describe('FieldCheckoutCodeService listMyDeliveriesForPeriod', () => {
+  it('returns own lines and bonus total for the payroll cycle', async () => {
+    const entries = [
+      { id: 1, bonus_amount: 1000, omset_amount: 50000 },
+      { id: 2, bonus_amount: 500, omset_amount: 25000 },
+    ];
+    const service = new FieldCheckoutCodeService({
+      listForEmployeeBetween: async (employeeId, start, end) => {
+        assert.equal(employeeId, 7);
+        assert.equal(start, '2026-06-25');
+        assert.equal(end, '2026-07-24');
+        return entries;
+      },
+      sumBonusBetween: async () => 1500,
+      sumOmsetBetween: async () => 75000,
+    });
+
+    const data = await service.listMyDeliveriesForPeriod(
+      { role: 'field_officer', employeeId: 7 },
+      '2026-07'
+    );
+    assert.equal(data.payroll_period, '2026-07');
+    assert.equal(data.delivery_count, 2);
+    assert.equal(data.bonus_total, 1500);
+    assert.equal(data.omset_total, 75000);
+    assert.equal(data.entries.length, 2);
+  });
+
+  it('rejects non-field-officer callers', async () => {
+    const service = new FieldCheckoutCodeService({});
+    await assert.rejects(
+      () => service.listMyDeliveriesForPeriod({ role: 'employee', employeeId: 1 }, '2026-07'),
+      (err) => err instanceof AppError && err.code === 'NOT_FIELD_OFFICER'
+    );
+  });
+
+  it('rejects invalid period', async () => {
+    const service = new FieldCheckoutCodeService({});
+    await assert.rejects(
+      () =>
+        service.listMyDeliveriesForPeriod({ role: 'field_officer', employeeId: 1 }, 'not-a-period'),
+      (err) => err instanceof AppError && err.code === 'PAYROLL_PERIOD'
+    );
+  });
+});

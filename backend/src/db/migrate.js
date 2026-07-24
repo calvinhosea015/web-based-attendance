@@ -312,6 +312,7 @@ async function migratePayrollOtherDeductionsCleanup() {
          COALESCE(absence_deduction, 0)
          + COALESCE(loan_deduction, 0)
          + COALESCE(late_deduction, 0)
+         + COALESCE(early_leave_deduction, 0)
          + COALESCE(pph_21, 0)
          + COALESCE(bpjs_tk, 0)
          + COALESCE(bpjs_kes, 0)
@@ -321,6 +322,15 @@ async function migratePayrollOtherDeductionsCleanup() {
 
 async function migratePayrollKeteranganColumn() {
   await query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS keterangan TEXT NOT NULL DEFAULT ''`);
+}
+
+async function migratePayrollTunjanganPphAndEarlyLeave() {
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS tunjangan_pph_21 NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
+  await query(
+    `ALTER TABLE payroll ADD COLUMN IF NOT EXISTS early_leave_deduction NUMERIC(14,2) NOT NULL DEFAULT 0`
+  );
 }
 
 async function migrateEnterpriseColumns() {
@@ -757,6 +767,7 @@ async function migrate() {
   await migrateLoanRequests();
   await migratePayrollLoanColumns();
   await migratePayrollKeteranganColumn();
+  await migratePayrollTunjanganPphAndEarlyLeave();
   await migratePayrollOtherDeductionsCleanup();
   await seed();
   await syncEmployeeCodeSequence();

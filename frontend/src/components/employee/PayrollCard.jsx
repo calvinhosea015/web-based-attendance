@@ -15,6 +15,9 @@ export default function PayrollCard({ payroll }) {
             const loanDeduction = Number(row.loan_deduction || 0);
             const pph21 = Number(row.pph_21 || 0);
             const otherDeductions = Number(row.other_deductions || 0);
+            const lateDeduction = Number(row.late_deduction || 0);
+            const earlyLeaveDeduction = Number(row.early_leave_deduction || 0);
+            const tunjanganPph21 = Number(row.tunjangan_pph_21 || 0);
             const deductions = loanDeduction + pph21 + otherDeductions;
             return (
               <li
@@ -47,6 +50,14 @@ export default function PayrollCard({ payroll }) {
                     </dt>
                     <dd className="font-medium text-apple-text">Rp {formatIdr(row.basic_salary)}</dd>
                   </div>
+                  {tunjanganPph21 > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollTunjanganPph21')}
+                      </dt>
+                      <dd className="font-medium text-brand-700">Rp {formatIdr(tunjanganPph21)}</dd>
+                    </div>
+                  )}
                   {isMonthlyPayrollMode(row.payroll_mode) &&
                     Number(row.absence_deduction || 0) > 0 && (
                     <div>
@@ -55,6 +66,24 @@ export default function PayrollCard({ payroll }) {
                       </dt>
                       <dd className="font-medium text-rose-700">
                         Rp {formatIdr(row.absence_deduction)}
+                      </dd>
+                    </div>
+                  )}
+                  {lateDeduction > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollLateDeduction')}
+                      </dt>
+                      <dd className="font-medium text-rose-700">Rp {formatIdr(lateDeduction)}</dd>
+                    </div>
+                  )}
+                  {earlyLeaveDeduction > 0 && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-apple-label">
+                        {t('payrollEarlyLeaveDeduction')}
+                      </dt>
+                      <dd className="font-medium text-rose-700">
+                        Rp {formatIdr(earlyLeaveDeduction)}
                       </dd>
                     </div>
                   )}

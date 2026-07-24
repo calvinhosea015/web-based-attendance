@@ -112,7 +112,7 @@ function computeLemburPay({ gaji, requiredWorkDays, overtimeMinutes }) {
   });
 }
 
-/** Potongan datang terlambat (and Staff Kantor early leave) = gaji / required_days / 8 / 60 × minutes */
+/** Potongan datang terlambat or potongan pulang awal = gaji / required_days / 8 / 60 × minutes */
 function computeLateDeductionPay({ gaji, requiredWorkDays, lateMinutes }) {
   return computeStaffKantorPerMinuteAmount({
     gaji,

@@ -82,3 +82,36 @@ export function splitFieldCheckoutLines(text) {
     .map((line) => line.trim())
     .filter(Boolean);
 }
+
+/** Unique sorted option values from delivery rows (empty values skipped). */
+export function uniqueDeliveryFilterValues(rows, key) {
+  const seen = new Set();
+  for (const row of rows || []) {
+    const v = String(row?.[key] ?? '').trim();
+    if (v) seen.add(v);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, 'id'));
+}
+
+/**
+ * Client-side recap filters. Empty string = all for that dimension.
+ * @param {object[]} rows
+ * @param {{ pabrik?: string, officer?: string, kodeBarang?: string }} filters
+ *   officer matches `employee_code` (preferred) or `full_name`.
+ */
+export function filterDeliveryRecap(rows, { pabrik = '', officer = '', kodeBarang = '' } = {}) {
+  const p = String(pabrik || '').trim();
+  const o = String(officer || '').trim();
+  const k = String(kodeBarang || '').trim();
+  if (!p && !o && !k) return rows || [];
+  return (rows || []).filter((row) => {
+    if (p && String(row.pabrik_code ?? '').trim() !== p) return false;
+    if (o) {
+      const code = String(row.employee_code ?? '').trim();
+      const name = String(row.full_name ?? '').trim();
+      if (code !== o && name !== o) return false;
+    }
+    if (k && String(row.kode_barang ?? '').trim() !== k) return false;
+    return true;
+  });
+}

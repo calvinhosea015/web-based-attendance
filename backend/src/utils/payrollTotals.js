@@ -22,11 +22,13 @@ function computeTotals(fields, employee, settings, role = null) {
   const transportAllowance = fields.transport_eligible ? transportAmount : 0;
   const diligenceBonus = fields.diligence_eligible ? diligenceAmount : 0;
   const tunjangan = num(fields.tunjangan_masa_kerja);
+  const tunjanganPph21 = num(fields.tunjangan_pph_21);
   const overtime = num(fields.overtime_pay);
   const insentif = num(fields.insentif);
   const bonusOmset = num(fields.bonus_omset);
   const loanDeduction = num(fields.loan_deduction);
   const lateDeduction = num(fields.late_deduction);
+  const earlyLeaveDeduction = num(fields.early_leave_deduction);
   const pph21 = num(fields.pph_21);
   const otherDeductions = num(fields.other_deductions);
   const bpjsTk = num(fields.bpjs_tk);
@@ -47,18 +49,27 @@ function computeTotals(fields, employee, settings, role = null) {
     absenceDeduction +
     loanDeduction +
     lateDeduction +
+    earlyLeaveDeduction +
     pph21 +
     otherDeductions +
     bpjsTk +
     bpjsKes;
   const allowances =
-    tunjangan + transportAllowance + overtime + insentif + diligenceBonus + bonusOmset;
+    tunjangan +
+    tunjanganPph21 +
+    transportAllowance +
+    overtime +
+    insentif +
+    diligenceBonus +
+    bonusOmset;
   const finalSalary = earningsBase + allowances - deductions;
   return {
     transport_allowance: transportAllowance,
     diligence_bonus: diligenceBonus,
     loan_deduction: loanDeduction,
     late_deduction: lateDeduction,
+    early_leave_deduction: earlyLeaveDeduction,
+    tunjangan_pph_21: tunjanganPph21,
     pph_21: pph21,
     other_deductions: otherDeductions,
     bpjs_tk: bpjsTk,

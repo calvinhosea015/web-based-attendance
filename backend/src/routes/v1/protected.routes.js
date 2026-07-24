@@ -464,6 +464,13 @@ function buildProtectedRoutes(deps) {
     requireAttendanceRole,
     fieldCheckoutCodeController.listToday
   );
+  r.get(
+    '/employee/me/field-deliveries/periods/:period',
+    requireAttendanceRole,
+    payrollPeriodParamValidator,
+    validateRequest,
+    fieldCheckoutCodeController.listPeriod
+  );
   r.post(
     '/employee/me/field-code',
     requireAttendanceRole,

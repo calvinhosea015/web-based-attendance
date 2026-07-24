@@ -10,7 +10,7 @@ function receivesMonthlyAbsenceDeduction(role) {
 }
 
 /** Staff Kantor & Accounting — auto lembur, auto potongan terlambat (custom jam masuk).
- * Staff Kantor only also folds early-leave minutes into the same potongan rate. */
+ * Staff Kantor only also gets a separate potongan pulang awal at the same rate. */
 function receivesStaffKantorAttendancePayroll(role) {
   return isStaffKantor(role) || isAccounting(role);
 }

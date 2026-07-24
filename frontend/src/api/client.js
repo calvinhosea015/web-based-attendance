@@ -138,6 +138,9 @@ export const paths = {
   employeeLoans: '/v1/employee/me/loans',
   employeeFieldCode: '/v1/employee/me/field-code',
   employeeFieldDeliveriesToday: '/v1/employee/me/field-deliveries/today',
+  /** @param {string} period YYYY-MM payroll cycle */
+  employeeFieldDeliveriesPeriod: (period) =>
+    `/v1/employee/me/field-deliveries/periods/${period}`,
   adminPabriks: '/v1/admin/pabriks',
   /** @param {string|number} id */
   adminPabrik: (id) => `/v1/admin/pabriks/${id}`,

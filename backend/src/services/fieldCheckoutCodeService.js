@@ -7,6 +7,7 @@ const {
   normalizeFieldCheckoutCodes,
 } = require('../utils/fieldCheckoutPayload');
 const { computeLineBonus, computeLineOmset, FIELD_OFFICER_BONUS_RATE } = require('../utils/fieldOfficerBonus');
+const { payrollCycleBounds } = require('../utils/payrollPeriod');
 
 class FieldCheckoutCodeService {
   constructor(
@@ -265,6 +266,36 @@ class FieldCheckoutCodeService {
       validOn
     );
     return { valid_on: validOn, entries, today_bonus_total, today_omset_total };
+  }
+
+  /** Own delivery lines + totals for a payroll cycle (25th prev → 24th named month). */
+  async listMyDeliveriesForPeriod(auth, period) {
+    if (!isFieldOfficer(auth.role) || !auth.employeeId) {
+      throw new AppError('Only field officers can view delivery entries.', 403, 'NOT_FIELD_OFFICER');
+    }
+    const bounds = payrollCycleBounds(period);
+    if (!bounds) {
+      throw new AppError('Invalid payroll period. Use YYYY-MM.', 400, 'PAYROLL_PERIOD');
+    }
+    const { period_start, period_end, payroll_period } = bounds;
+    const [entries, bonus_total, omset_total] = await Promise.all([
+      this.fieldDeliveryRepository.listForEmployeeBetween(
+        auth.employeeId,
+        period_start,
+        period_end
+      ),
+      this.fieldDeliveryRepository.sumBonusBetween(auth.employeeId, period_start, period_end),
+      this.fieldDeliveryRepository.sumOmsetBetween(auth.employeeId, period_start, period_end),
+    ]);
+    return {
+      payroll_period,
+      period_start,
+      period_end,
+      entries,
+      delivery_count: entries.length,
+      bonus_total,
+      omset_total,
+    };
   }
 
   // Field officers may check out without any delivery data. A checkout code is only

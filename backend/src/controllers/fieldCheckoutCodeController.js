@@ -23,6 +23,11 @@ function makeFieldCheckoutCodeController(
       }
       res.json(data);
     }),
+    listPeriod: asyncHandler(async (req, res) => {
+      res.json(
+        await fieldCheckoutCodeService.listMyDeliveriesForPeriod(req.auth, req.params.period)
+      );
+    }),
     adminUpdateDelivery: asyncHandler(async (req, res) => {
       const id = Number(req.params.id);
       res.json(await fieldCheckoutCodeService.updateDeliveryAsAdmin(req.auth, id, req.body));

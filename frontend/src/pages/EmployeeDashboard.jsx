@@ -29,6 +29,7 @@ import PayrollCard from '../components/employee/PayrollCard.jsx';
 import LoanPanel from '../components/employee/LoanPanel.jsx';
 import LeavePanel from '../components/employee/LeavePanel.jsx';
 import FieldCodePanel from '../components/employee/FieldCodePanel.jsx';
+import FieldOfficerRecap from '../components/employee/FieldOfficerRecap.jsx';
 import { formatApiError } from '../utils/employeeFormat.js';
 import { formatIdr } from '../utils/payrollDisplay.js';
 
@@ -586,6 +587,8 @@ export default function EmployeeDashboard() {
             isUmum={isUmum}
             onCorrectionSubmitted={reloadHistory}
           />
+
+          <FieldOfficerRecap notify={notify} />
         </>
       ) : (
       <Card title={t('clockActions')}>
