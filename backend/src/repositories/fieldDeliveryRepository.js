@@ -22,9 +22,16 @@ class FieldDeliveryRepository {
 
   async listForEmployeeBetween(employeeId, periodStart, periodEnd) {
     const r = await query(
-      `SELECT * FROM field_delivery_entries
-       WHERE employee_id = $1 AND valid_on >= $2::date AND valid_on <= $3::date
-       ORDER BY valid_on ASC, created_at ASC`,
+      `SELECT
+        fde.*,
+        COALESCE(p.nama_pabrik, '') AS nama_pabrik,
+        COALESCE(r.nama_barang, '') AS nama_barang
+       FROM field_delivery_entries fde
+       LEFT JOIN pabriks p ON p.pabrik_code = fde.pabrik_code
+       LEFT JOIN pabrik_item_rates r
+         ON r.pabrik_code = fde.pabrik_code AND r.kode_barang = fde.kode_barang
+       WHERE fde.employee_id = $1 AND fde.valid_on >= $2::date AND fde.valid_on <= $3::date
+       ORDER BY fde.valid_on ASC, fde.created_at ASC`,
       [employeeId, periodStart, periodEnd]
     );
     return r.rows;
@@ -60,7 +67,14 @@ class FieldDeliveryRepository {
     return Number(r.rows[0]?.total ?? 0);
   }
 
-  async listDeliveriesInPeriod(periodStart, periodEnd) {
+  async listDeliveriesInPeriod(periodStart, periodEnd, { pabrikCode } = {}) {
+    const params = [periodStart, periodEnd];
+    let pabrikClause = '';
+    const code = String(pabrikCode || '').trim();
+    if (code) {
+      params.push(code);
+      pabrikClause = ` AND fde.pabrik_code = $${params.length}`;
+    }
     const r = await query(
       `SELECT
         fde.*,
@@ -75,13 +89,21 @@ class FieldDeliveryRepository {
        LEFT JOIN pabrik_item_rates r
          ON r.pabrik_code = fde.pabrik_code AND r.kode_barang = fde.kode_barang
        WHERE fde.valid_on >= $1::date AND fde.valid_on <= $2::date
+       ${pabrikClause}
        ORDER BY e.full_name ASC, fde.valid_on ASC, fde.created_at ASC`,
-      [periodStart, periodEnd]
+      params
     );
     return r.rows;
   }
 
-  async summarizeByFactoryItem(periodStart, periodEnd) {
+  async summarizeByFactoryItem(periodStart, periodEnd, { pabrikCode } = {}) {
+    const params = [periodStart, periodEnd];
+    let pabrikClause = '';
+    const code = String(pabrikCode || '').trim();
+    if (code) {
+      params.push(code);
+      pabrikClause = ` AND fde.pabrik_code = $${params.length}`;
+    }
     const r = await query(
       `SELECT
         fde.pabrik_code,
@@ -90,7 +112,7 @@ class FieldDeliveryRepository {
         MAX(r.nama_barang) AS nama_barang,
         MAX(fde.price_per_item)::numeric AS price_per_item,
         COUNT(*)::int AS delivery_count,
-        COALESCE(SUM(fde.selisih), 0)::numeric AS total_selisih,
+        COALESCE(SUM(fde.berat_bersih), 0)::numeric AS total_berat_bersih,
         COALESCE(SUM(fde.omset_amount), 0)::numeric AS total_omset,
         COALESCE(SUM(fde.bonus_amount), 0)::numeric AS total_bonus
        FROM field_delivery_entries fde
@@ -99,9 +121,10 @@ class FieldDeliveryRepository {
        LEFT JOIN pabrik_item_rates r
          ON r.pabrik_code = fde.pabrik_code AND r.kode_barang = fde.kode_barang
        WHERE fde.valid_on >= $1::date AND fde.valid_on <= $2::date
+       ${pabrikClause}
        GROUP BY fde.pabrik_code, p.nama_pabrik, fde.kode_barang
        ORDER BY fde.pabrik_code ASC, fde.kode_barang ASC`,
-      [periodStart, periodEnd]
+      params
     );
     return r.rows;
   }

@@ -86,10 +86,20 @@ function makePayrollController(payrollService) {
       const limit = req.query.limit != null ? Number(req.query.limit) : 5000;
       res.json(await payrollService.listAllFieldDeliveries({ limit }));
     }),
+    getFieldDeliveriesFactoryItemSummary: asyncHandler(async (req, res) => {
+      res.json(
+        await payrollService.getFieldDeliveriesFactoryItemSummary(
+          req.query.from,
+          req.query.to,
+          req.query.pabrik_code
+        )
+      );
+    }),
     exportFieldTonaseBonus: asyncHandler(async (req, res) => {
       const { buffer, filename } = await payrollService.exportFieldTonaseBonusReport(
         req.query.from,
-        req.query.to
+        req.query.to,
+        req.query.pabrik_code
       );
       res.setHeader('Content-Disposition', attachmentDisposition(filename));
       res.setHeader(

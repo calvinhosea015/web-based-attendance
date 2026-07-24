@@ -37,7 +37,7 @@ function addTitleRow(sheet, title, dateFrom, dateTo) {
 }
 
 function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
-  addTitleRow(sheet, 'Tonase bonus — ringkasan per pabrik & kode barang', dateFrom, dateTo);
+  addTitleRow(sheet, 'Berat bersih + bonus — ringkasan per pabrik & kode barang', dateFrom, dateTo);
   const headers = [
     'Kode pabrik',
     'Nama pabrik',
@@ -45,7 +45,7 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
     'Nama barang',
     'Harga per item',
     'Jumlah pengiriman',
-    'Total selisih (kg)',
+    'Total berat bersih (kg)',
     'Total omset',
     'Total bonus',
   ];
@@ -53,10 +53,12 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
   styleHeaderRow(headerRow);
 
   let totalDeliveries = 0;
+  let totalBeratBersih = 0;
   let totalOmset = 0;
   let totalBonus = 0;
   for (const row of summaryRows) {
     totalDeliveries += Number(row.delivery_count) || 0;
+    totalBeratBersih += Number(row.total_berat_bersih) || 0;
     totalOmset += Number(row.total_omset) || 0;
     totalBonus += Number(row.total_bonus) || 0;
     const dataRow = sheet.addRow([
@@ -66,7 +68,7 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
       row.nama_barang || '',
       Number(row.price_per_item) || 0,
       Number(row.delivery_count) || 0,
-      Number(row.total_selisih) || 0,
+      Number(row.total_berat_bersih) || 0,
       Number(row.total_omset) || 0,
       Number(row.total_bonus) || 0,
     ]);
@@ -84,7 +86,7 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
     '',
     '',
     totalDeliveries,
-    '',
+    Math.round(totalBeratBersih * 100) / 100,
     Math.round(totalOmset * 100) / 100,
     Math.round(totalBonus * 100) / 100,
   ]);
@@ -92,6 +94,7 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
     cell.font = FONT_HEAD;
   });
   totalRow.getCell(6).numFmt = COUNT_NUMFMT;
+  totalRow.getCell(7).numFmt = AMOUNT_NUMFMT;
   totalRow.getCell(8).numFmt = AMOUNT_NUMFMT;
   totalRow.getCell(9).numFmt = AMOUNT_NUMFMT;
 
@@ -102,14 +105,14 @@ function buildSummarySheet(sheet, summaryRows, dateFrom, dateTo) {
     { width: 14 },
     { width: 14 },
     { width: 18 },
-    { width: 16 },
+    { width: 20 },
     { width: 14 },
     { width: 14 },
   ];
 }
 
 function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
-  addTitleRow(sheet, 'Tonase bonus — detail pengiriman', dateFrom, dateTo);
+  addTitleRow(sheet, 'Berat bersih + bonus — detail pengiriman', dateFrom, dateTo);
   const headers = [
     'Tanggal',
     'Petugas',
@@ -154,7 +157,7 @@ function buildDetailSheet(sheet, deliveries, dateFrom, dateTo) {
       row.nopol,
       row.no_bs,
     ]);
-    for (const col of [8, 9, 10, 11, 12, 13, 14]) {
+    for (const col of [8, 9, 10, 11, 12, 13]) {
       dataRow.getCell(col).numFmt = AMOUNT_NUMFMT;
     }
   }

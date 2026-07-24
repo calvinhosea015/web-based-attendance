@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Field, StatTile, inputClass } from '../ui.jsx';
 import { api, paths, ensureCsrf } from '../../api/client.js';
-import { fieldDeliveryDisplayFields } from '../../utils/fieldCheckout.js';
-import { formatDisplayDate } from '../../utils/formatDate.js';
+import { groupFieldDeliveriesByFactoryItem } from '../../utils/fieldCheckout.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 import { currentPayrollPeriodKey, payrollCycleLabel } from '../../utils/payrollPeriod.js';
 import { formatApiError } from '../../utils/employeeFormat.js';
+
+function formatKg(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+}
 
 export default function FieldOfficerRecap({ notify }) {
   const { t } = useTranslation();
@@ -32,6 +36,8 @@ export default function FieldOfficerRecap({ notify }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const factories = groupFieldDeliveriesByFactoryItem(report?.entries);
 
   return (
     <Card
@@ -80,47 +86,68 @@ export default function FieldOfficerRecap({ notify }) {
             />
           </div>
 
-          {!report.entries?.length ? (
+          {!factories.length ? (
             <p className="text-[15px] text-apple-label">{t('fieldMyRecapEmpty')}</p>
           ) : (
-            <ul className="max-h-[28rem] space-y-3 overflow-y-auto">
-              {report.entries.map((row) => {
-                const parsed = fieldDeliveryDisplayFields(row);
-                return (
-                  <li
-                    key={row.id}
-                    className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/80 p-3 text-sm"
-                  >
-                    <div className="text-apple-label">
-                      {t('fieldDeliveryDate')}: {formatDisplayDate(row.valid_on)}
-                    </div>
-                    {row.checkout_code ? (
-                      <p className="mt-1 break-all font-mono text-xs text-apple-text">
-                        {row.checkout_code}
-                      </p>
-                    ) : null}
-                    {parsed ? (
-                      <dl className="mt-2 grid gap-1 sm:grid-cols-2">
-                        {Object.entries(parsed).map(([key, value]) => (
-                          <div key={key}>
-                            <dt className="text-xs uppercase tracking-wide text-apple-label">
-                              {t(`fieldDelivery_${key}`, key)}
-                            </dt>
-                            <dd className="font-medium text-apple-text">{value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    ) : null}
-                    <p className="mt-2 text-apple-label">
-                      {t('fieldOmsetLineAmounts', {
-                        omset: formatIdr(row.omset_amount),
-                        bonus: formatIdr(row.bonus_amount),
+            <div className="max-h-[32rem] space-y-5 overflow-y-auto">
+              {factories.map((factory) => (
+                <section
+                  key={factory.pabrik_code}
+                  className="rounded-apple-lg border border-black/[0.06] bg-apple-fill/80"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-black/[0.06] px-3 py-2.5">
+                    <h3 className="text-[15px] font-medium text-apple-text">
+                      {factory.nama_pabrik
+                        ? `${factory.pabrik_code} · ${factory.nama_pabrik}`
+                        : factory.pabrik_code}
+                    </h3>
+                    <p className="text-[13px] text-apple-label">
+                      {t('fieldMyRecapFactorySubtotal', {
+                        kg: formatKg(factory.total_berat_bersih),
+                        bonus: formatIdr(factory.total_bonus),
                       })}
                     </p>
-                  </li>
-                );
-              })}
-            </ul>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[28rem] text-left text-sm">
+                      <thead>
+                        <tr className="text-[12px] uppercase tracking-wide text-apple-label">
+                          <th className="px-3 py-2 font-medium">{t('fieldMyRecapItem')}</th>
+                          <th className="px-3 py-2 font-medium">{t('fieldMyRecapDeliveries')}</th>
+                          <th className="px-3 py-2 font-medium">
+                            {t('fieldDelivery_berat_bersih')}
+                          </th>
+                          <th className="px-3 py-2 font-medium">{t('fieldMyRecapBonusCol')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/[0.06]">
+                        {factory.items.map((item) => (
+                          <tr key={item.kode_barang}>
+                            <td className="px-3 py-2 text-apple-text">
+                              <span className="font-medium">{item.kode_barang}</span>
+                              {item.nama_barang ? (
+                                <span className="mt-0.5 block text-[13px] text-apple-label">
+                                  {item.nama_barang}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2 tabular-nums text-apple-text">
+                              {item.delivery_count}
+                            </td>
+                            <td className="px-3 py-2 tabular-nums text-apple-text">
+                              {formatKg(item.total_berat_bersih)} kg
+                            </td>
+                            <td className="px-3 py-2 tabular-nums text-apple-text">
+                              Rp {formatIdr(item.total_bonus)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ))}
+            </div>
           )}
         </div>
       ) : (

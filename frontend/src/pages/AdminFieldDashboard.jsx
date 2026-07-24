@@ -5,6 +5,7 @@ import OmsetReport from '../components/field/OmsetReport.jsx';
 import PabrikCatalog from '../components/field/PabrikCatalog.jsx';
 import LocationManager from '../components/field/LocationManager.jsx';
 import DeliveryRecap from '../components/field/DeliveryRecap.jsx';
+import FactoryItemBonusReport from '../components/field/FactoryItemBonusReport.jsx';
 
 export default function AdminFieldDashboard() {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ export default function AdminFieldDashboard() {
       subtitle={t('fieldOpsDashboardSubtitle')}
     >
       <OmsetReport />
+      <FactoryItemBonusReport />
       <PabrikCatalog />
       <LocationManager />
       <DeliveryRecap editable />

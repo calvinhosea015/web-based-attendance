@@ -115,3 +115,74 @@ export function filterDeliveryRecap(rows, { pabrik = '', officer = '', kodeBaran
     return true;
   });
 }
+
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Roll up delivery lines by factory → item (net weight + bonus).
+ * @param {object[]} entries
+ * @returns {{ pabrik_code: string, nama_pabrik: string, total_berat_bersih: number, total_bonus: number, total_omset: number, delivery_count: number, items: object[] }[]}
+ */
+export function groupFieldDeliveriesByFactoryItem(entries) {
+  /** @type {Map<string, { pabrik_code: string, nama_pabrik: string, items: Map<string, object> }>} */
+  const factories = new Map();
+  for (const row of entries || []) {
+    const pabrik_code = String(row.pabrik_code ?? '').trim() || '?';
+    const kode_barang = String(row.kode_barang ?? '').trim() || '?';
+    let factory = factories.get(pabrik_code);
+    if (!factory) {
+      factory = {
+        pabrik_code,
+        nama_pabrik: String(row.nama_pabrik ?? '').trim(),
+        items: new Map(),
+      };
+      factories.set(pabrik_code, factory);
+    } else if (!factory.nama_pabrik && row.nama_pabrik) {
+      factory.nama_pabrik = String(row.nama_pabrik).trim();
+    }
+    let item = factory.items.get(kode_barang);
+    if (!item) {
+      item = {
+        kode_barang,
+        nama_barang: String(row.nama_barang ?? '').trim(),
+        delivery_count: 0,
+        total_berat_bersih: 0,
+        total_bonus: 0,
+        total_omset: 0,
+      };
+      factory.items.set(kode_barang, item);
+    } else if (!item.nama_barang && row.nama_barang) {
+      item.nama_barang = String(row.nama_barang).trim();
+    }
+    item.delivery_count += 1;
+    item.total_berat_bersih += num(row.berat_bersih);
+    item.total_bonus += num(row.bonus_amount);
+    item.total_omset += num(row.omset_amount);
+  }
+
+  return [...factories.values()]
+    .map((f) => {
+      const items = [...f.items.values()]
+        .map((it) => ({
+          ...it,
+          total_berat_bersih: Math.round(it.total_berat_bersih * 100) / 100,
+          total_bonus: Math.round(it.total_bonus * 100) / 100,
+          total_omset: Math.round(it.total_omset * 100) / 100,
+        }))
+        .sort((a, b) => a.kode_barang.localeCompare(b.kode_barang, 'id'));
+      return {
+        pabrik_code: f.pabrik_code,
+        nama_pabrik: f.nama_pabrik,
+        items,
+        delivery_count: items.reduce((s, it) => s + it.delivery_count, 0),
+        total_berat_bersih:
+          Math.round(items.reduce((s, it) => s + it.total_berat_bersih, 0) * 100) / 100,
+        total_bonus: Math.round(items.reduce((s, it) => s + it.total_bonus, 0) * 100) / 100,
+        total_omset: Math.round(items.reduce((s, it) => s + it.total_omset, 0) * 100) / 100,
+      };
+    })
+    .sort((a, b) => a.pabrik_code.localeCompare(b.pabrik_code, 'id'));
+}

@@ -374,8 +374,15 @@ function buildProtectedRoutes(deps) {
     fieldCheckoutCodeController.adminDeleteDelivery
   );
   r.get(
+    '/admin/field-deliveries/summary',
+    requireRole('admin', 'head_of_finance'),
+    dateRangeQueryValidators,
+    validateRequest,
+    payrollController.getFieldDeliveriesFactoryItemSummary
+  );
+  r.get(
     '/admin/field-tonase-bonus/export',
-    requireRole('admin'),
+    requireRole('admin', 'head_of_finance'),
     dateRangeQueryValidators,
     validateRequest,
     payrollController.exportFieldTonaseBonus

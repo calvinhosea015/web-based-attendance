@@ -1693,15 +1693,51 @@ class PayrollService {
     return { dateFrom, dateTo };
   }
 
-  /** Excel export: tonase bonus aggregated per factory & item for a custom date range. */
-  async exportFieldTonaseBonusReport(from, to) {
+  /** Factory×item rollup (berat bersih + bonus) for a date range; optional pabrik filter. */
+  async getFieldDeliveriesFactoryItemSummary(from, to, pabrikCode) {
     const { dateFrom, dateTo } = this.parseExportDateRange(from, to);
     if (!this.fieldDeliveryRepository) {
       throw new AppError('Field delivery data is not available.', 503, 'UNAVAILABLE');
     }
+    const code = String(pabrikCode || '').trim() || undefined;
+    const rows = await this.fieldDeliveryRepository.summarizeByFactoryItem(dateFrom, dateTo, {
+      pabrikCode: code,
+    });
+    let delivery_count = 0;
+    let total_berat_bersih = 0;
+    let total_omset = 0;
+    let total_bonus = 0;
+    for (const row of rows) {
+      delivery_count += Number(row.delivery_count) || 0;
+      total_berat_bersih += Number(row.total_berat_bersih) || 0;
+      total_omset += Number(row.total_omset) || 0;
+      total_bonus += Number(row.total_bonus) || 0;
+    }
+    return {
+      date_from: dateFrom,
+      date_to: dateTo,
+      pabrik_code: code || null,
+      rows,
+      totals: {
+        delivery_count,
+        total_berat_bersih: Math.round(total_berat_bersih * 100) / 100,
+        total_omset: Math.round(total_omset * 100) / 100,
+        total_bonus: Math.round(total_bonus * 100) / 100,
+      },
+    };
+  }
+
+  /** Excel export: berat bersih + bonus aggregated per factory & item for a custom date range. */
+  async exportFieldTonaseBonusReport(from, to, pabrikCode) {
+    const { dateFrom, dateTo } = this.parseExportDateRange(from, to);
+    if (!this.fieldDeliveryRepository) {
+      throw new AppError('Field delivery data is not available.', 503, 'UNAVAILABLE');
+    }
+    const code = String(pabrikCode || '').trim() || undefined;
+    const opts = { pabrikCode: code };
     const [summaryRows, deliveries] = await Promise.all([
-      this.fieldDeliveryRepository.summarizeByFactoryItem(dateFrom, dateTo),
-      this.fieldDeliveryRepository.listDeliveriesInPeriod(dateFrom, dateTo),
+      this.fieldDeliveryRepository.summarizeByFactoryItem(dateFrom, dateTo, opts),
+      this.fieldDeliveryRepository.listDeliveriesInPeriod(dateFrom, dateTo, opts),
     ]);
     const wb = await buildFieldTonaseBonusWorkbook({
       summaryRows,
