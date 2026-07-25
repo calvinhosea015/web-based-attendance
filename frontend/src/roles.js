@@ -2,7 +2,7 @@
 export const ROLE_EMPLOYEE = 'employee';
 /** Petugas lapangan */
 export const ROLE_FIELD_OFFICER = 'field_officer';
-/** General affairs — gaji harian like petugas lapangan */
+/** General affairs — gaji harian like petugas lapangan; clock mode per employee */
 export const ROLE_GENERAL_AFFAIRS = 'general_affairs';
 /** Cleaning — one check-in per day; monthly gaji; potongan absen */
 export const ROLE_UMUM = 'umum';
@@ -11,6 +11,18 @@ export const ROLE_ACCOUNTING = 'accounting';
 /** Head of Finance — no attendance; manual payroll */
 export const ROLE_HEAD_OF_FINANCE = 'head_of_finance';
 export const ROLE_ADMIN = 'admin';
+
+/** GA per-employee clock pattern (matches backend employees.ga_clock_mode). */
+export const GA_CLOCK_IN_OUT = 'in_out';
+export const GA_CLOCK_CHECK_IN_ONLY = 'check_in_only';
+
+export function isGeneralAffairsRole(role) {
+  return role === ROLE_GENERAL_AFFAIRS;
+}
+
+export function normalizeGaClockMode(mode) {
+  return mode === GA_CLOCK_CHECK_IN_ONLY ? GA_CLOCK_CHECK_IN_ONLY : GA_CLOCK_IN_OUT;
+}
 
 export const ATTENDANCE_ROLES = [
   ROLE_EMPLOYEE,

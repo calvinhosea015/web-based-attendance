@@ -459,6 +459,11 @@ export default {
   generalAffairsAbsenceHint:
     'Potongan absen = gaji bulanan ÷ hari kerja wajib × jumlah hari tidak hadir.',
   generalAffairsOnceInOut: 'Satu absen masuk dan satu absen keluar per hari.',
+  gaClockModeLabel: 'Mode absensi',
+  gaClockModeInOut: 'Dua kali (masuk dan keluar)',
+  gaClockModeCheckInOnly: 'Satu kali (hanya masuk)',
+  gaClockModeCheckInOnlyHint:
+    'Satu absen masuk per hari (tanpa absen keluar). Hari tetap dihitung hadir untuk gaji harian.',
   accountingWorkStart: 'Jam mulai kerja (kustom)',
   accountingWorkEnd: 'Jam selesai kerja (kustom)',
   accountingBasicSalary: 'Gaji bulanan (Rp)',

@@ -13,10 +13,10 @@ const STATUS_BUFFER_MS = ATTENDANCE_STATUS_BUFFER_MINUTES * 60 * 1000;
 const {
   isAttendanceRole,
   isFieldOfficer,
-  isUmum,
   isAccounting,
   usesOncePerDayInOut,
   usesSimpleDailyCheckout,
+  usesCheckInOnlyClock,
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
 const { computeStaffKantorOvertimeMinutes, computeEarlyLeaveMinutes } = require('../utils/staffKantorOvertime');
@@ -259,18 +259,21 @@ class AttendanceService {
       throw new AppError('You still have an open session. Clock out before starting another.', 400, 'ALREADY_IN');
     }
 
-    const umum = isUmum(auth.role);
-    const onceDailyInOut = usesOncePerDayInOut(auth.role);
-    if (onceDailyInOut) {
+    const gaClockMode = userRow?.ga_clock_mode;
+    const checkInOnly = usesCheckInOnlyClock(auth.role, gaClockMode);
+    const onceDailyInOut = usesOncePerDayInOut(auth.role, gaClockMode);
+    if (onceDailyInOut || checkInOnly) {
       const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
       if (segCount >= 1) {
         throw new AppError(
-          'You can only check in once per day. Check out first if you are still on duty, or you have already finished today.',
+          checkInOnly
+            ? 'You can only check in once per day.'
+            : 'You can only check in once per day. Check out first if you are still on duty, or you have already finished today.',
           400,
           'FIELD_ONE_CHECKIN'
         );
       }
-    } else if (!umum) {
+    } else {
       const segCount = await this.attendanceRepository.countTodaySegments(auth.employeeId, dayStr);
       if (segCount >= CLOCK_SEGMENTS_PER_DAY) {
         throw new AppError('Attendance for today is already complete.', 400, 'DAY_COMPLETE');
@@ -340,7 +343,7 @@ class AttendanceService {
     const checkInTime = new Date();
     let lateMinutes = 0;
     let attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
-    if (onceDailyInOut || umum) {
+    if (onceDailyInOut || checkInOnly) {
       if (remoteWork) attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
     } else if (isAccounting(auth.role)) {
       const emp = await this.employeeRepository.findById(auth.employeeId);
@@ -361,7 +364,7 @@ class AttendanceService {
       attendanceStatus = remoteWork ? ATTENDANCE_STATUSES.REMOTE_WORK : late.status;
     }
 
-    // ponytail: umum needs insert+auto-checkout atomically; others are a single INSERT
+    // ponytail: check-in-only (umum + GA mode) needs insert+auto-checkout atomically; others are a single INSERT
     const insertArgs = {
       employeeId: auth.employeeId,
       officeId,
@@ -380,7 +383,7 @@ class AttendanceService {
       },
     };
 
-    if (umum) {
+    if (checkInOnly) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -421,7 +424,9 @@ class AttendanceService {
     if (!isAttendanceRole(auth.role) || !auth.employeeId) {
       throw new AppError('Only linked employees can clock out.', 403, 'NOT_EMPLOYEE');
     }
-    if (isUmum(auth.role)) {
+    const userRow = await this.userRepository.findById(auth.userId);
+    const gaClockMode = userRow?.ga_clock_mode;
+    if (usesCheckInOnlyClock(auth.role, gaClockMode)) {
       throw new AppError('Check-out is not required for your role.', 400, 'CHECKOUT_NOT_REQUIRED');
     }
     const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
@@ -465,7 +470,7 @@ class AttendanceService {
     let earlyMinutes = 0;
     let status;
     let checkoutCode = null;
-    if (usesSimpleDailyCheckout(auth.role)) {
+    if (usesSimpleDailyCheckout(auth.role, gaClockMode)) {
       checkoutCode =
         checkoutCodeRaw != null && String(checkoutCodeRaw).trim() !== ''
           ? String(checkoutCodeRaw).trim()
@@ -619,6 +624,10 @@ class AttendanceService {
 
     const userRow = await this.userRepository.findByEmployeeId(row.employee_id);
     const role = userRow?.role || 'employee';
+    const empRow = await this.employeeRepository.findById(row.employee_id);
+    const gaClockMode = empRow?.ga_clock_mode;
+    const checkInOnly = usesCheckInOnlyClock(role, gaClockMode);
+    const simpleCheckout = usesSimpleDailyCheckout(role, gaClockMode);
 
     let flags = row.validation_flags;
     if (typeof flags === 'string') {
@@ -636,14 +645,13 @@ class AttendanceService {
 
     if (remoteWork) {
       attendanceStatus = ATTENDANCE_STATUSES.REMOTE_WORK;
-    } else if (isUmum(role) || usesSimpleDailyCheckout(role)) {
-      // Umum / field officer: no standard late window on check-in edit.
+    } else if (checkInOnly || simpleCheckout) {
+      // Check-in-only / field officer: no standard late window on check-in edit.
       if (!nextCheckOut) {
         attendanceStatus = ATTENDANCE_STATUSES.PRESENT;
       }
     } else if (isAccounting(role)) {
-      const emp = await this.employeeRepository.findById(row.employee_id);
-      const shift = customShiftFromEmployee(emp);
+      const shift = customShiftFromEmployee(empRow);
       const late = computeLateAndStatus(nextCheckIn.toISOString(), shift);
       lateMinutes = late.lateMinutes;
       attendanceStatus = late.status;
@@ -661,13 +669,12 @@ class AttendanceService {
     if (nextCheckOut) {
       const checkInIso = nextCheckIn.toISOString();
       const checkOutIso = nextCheckOut.toISOString();
-      if (usesSimpleDailyCheckout(role)) {
+      if (simpleCheckout) {
         const rawHours = (nextCheckOut.getTime() - nextCheckIn.getTime()) / 3600000;
         workHours = Number(Math.max(0, rawHours).toFixed(2));
         overtimeHours = 0;
       } else if (isAccounting(role)) {
-        const emp = await this.employeeRepository.findById(row.employee_id);
-        const shift = customShiftFromEmployee(emp);
+        const shift = customShiftFromEmployee(empRow);
         const w = computeWorkAndCheckoutStatus(checkInIso, checkOutIso, shift, attendanceStatus, {
           skipBreakDeduction: true,
         });
@@ -675,7 +682,7 @@ class AttendanceService {
         overtimeHours = 0;
         earlyMinutes = w.earlyMinutes || 0;
         attendanceStatus = w.status;
-      } else if (isUmum(role)) {
+      } else if (checkInOnly) {
         workHours = Number(row.work_hours) || 0;
         overtimeHours = 0;
       } else {

@@ -16,9 +16,13 @@ import {
   isAccountingRole,
   isUmumRole,
   isHeadOfFinanceRole,
+  isGeneralAffairsRole,
   usesMultipleOfficesRole,
   requiresFullName,
   usesDailyWagePayrollRole,
+  GA_CLOCK_IN_OUT,
+  GA_CLOCK_CHECK_IN_ONLY,
+  normalizeGaClockMode,
 } from '../../roles.js';
 
 function toDateInputValue(v) {
@@ -59,6 +63,7 @@ const defaultNewUser = (offices) => ({
   custom_work_start: '09:00',
   custom_work_end: '17:00',
   basic_salary: '',
+  ga_clock_mode: GA_CLOCK_IN_OUT,
 });
 
 export default function UserManagement({ offices, pabriks, notify, onUsersChange }) {
@@ -160,6 +165,9 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
       if (isUmumRole(newUser.role) || isHeadOfFinanceRole(newUser.role)) {
         payload.basic_salary = Number(newUser.basic_salary) || 0;
       }
+      if (isGeneralAffairsRole(newUser.role)) {
+        payload.ga_clock_mode = normalizeGaClockMode(newUser.ga_clock_mode);
+      }
       const res = await api.post(paths.users, payload);
       const ec = res.data?.employee_code;
       notify(ec ? `${t('userAdded')} — ${t('employeeCode')}: ${ec}` : t('userAdded'), 'success');
@@ -201,6 +209,7 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
       custom_work_start: toTimeInputValue(user.custom_work_start) || '09:00',
       custom_work_end: toTimeInputValue(user.custom_work_end) || '17:00',
       basic_salary: user.basic_salary != null ? String(user.basic_salary) : '',
+      ga_clock_mode: normalizeGaClockMode(user.ga_clock_mode),
     });
   };
 
@@ -254,6 +263,9 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
         }
         if (isUmumRole(editingUser.role)) {
           body.basic_salary = Number(editingUser.basic_salary) || 0;
+        }
+        if (isGeneralAffairsRole(editingUser.role)) {
+          body.ga_clock_mode = normalizeGaClockMode(editingUser.ga_clock_mode);
         }
       } else if (editingUser.office_id) {
         body.office_id = Number(editingUser.office_id);
@@ -343,6 +355,31 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
               <p className="text-xs text-apple-label">{t('twoClockScheduleFixed')}</p>
             )}
             {usesDailyWagePayrollRole(newUser.role) && newUser.role !== 'field_officer' && (
+              <>
+                <label className="block text-sm text-apple-text">
+                  <span className="mb-1 block text-xs font-medium text-apple-label">
+                    {t('gaClockModeLabel')}
+                  </span>
+                  <select
+                    className={selectClass}
+                    value={normalizeGaClockMode(newUser.ga_clock_mode)}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, ga_clock_mode: e.target.value })
+                    }
+                  >
+                    <option value={GA_CLOCK_IN_OUT}>{t('gaClockModeInOut')}</option>
+                    <option value={GA_CLOCK_CHECK_IN_ONLY}>{t('gaClockModeCheckInOnly')}</option>
+                  </select>
+                </label>
+                <p className="text-xs text-apple-label">
+                  {normalizeGaClockMode(newUser.ga_clock_mode) === GA_CLOCK_CHECK_IN_ONLY
+                    ? t('gaClockModeCheckInOnlyHint')
+                    : t('generalAffairsOnceInOut')}
+                </p>
+                <p className="text-xs text-apple-label">{t('payrollGajiFormula')}</p>
+              </>
+            )}
+            {newUser.role === 'field_officer' && (
               <>
                 <p className="text-xs text-apple-label">{t('fieldOnceInOnceOut')}</p>
                 <p className="text-xs text-apple-label">{t('payrollGajiFormula')}</p>
@@ -676,10 +713,41 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
                     {usesDailyWagePayrollRole(editingUser.role) &&
                       editingUser.role !== 'field_officer' && (
                         <>
-                          <p className="text-xs text-apple-label">{t('fieldOnceInOnceOut')}</p>
+                          <label className="block text-xs text-apple-text">
+                            <span className="mb-1 block text-[10px] font-medium uppercase text-apple-label">
+                              {t('gaClockModeLabel')}
+                            </span>
+                            <select
+                              className={inputClassCompact}
+                              value={normalizeGaClockMode(editingUser.ga_clock_mode)}
+                              onChange={(e) =>
+                                setEditingUser({
+                                  ...editingUser,
+                                  ga_clock_mode: e.target.value,
+                                })
+                              }
+                            >
+                              <option value={GA_CLOCK_IN_OUT}>{t('gaClockModeInOut')}</option>
+                              <option value={GA_CLOCK_CHECK_IN_ONLY}>
+                                {t('gaClockModeCheckInOnly')}
+                              </option>
+                            </select>
+                          </label>
+                          <p className="text-xs text-apple-label">
+                            {normalizeGaClockMode(editingUser.ga_clock_mode) ===
+                            GA_CLOCK_CHECK_IN_ONLY
+                              ? t('gaClockModeCheckInOnlyHint')
+                              : t('generalAffairsOnceInOut')}
+                          </p>
                           <p className="text-xs text-apple-label">{t('payrollGajiFormula')}</p>
                         </>
                       )}
+                    {editingUser.role === 'field_officer' && (
+                      <>
+                        <p className="text-xs text-apple-label">{t('fieldOnceInOnceOut')}</p>
+                        <p className="text-xs text-apple-label">{t('payrollGajiFormula')}</p>
+                      </>
+                    )}
                     {isUmumRole(editingUser.role) && (
                       <>
                         <p className="text-xs text-apple-label">{t('umumOncePerDay')}</p>

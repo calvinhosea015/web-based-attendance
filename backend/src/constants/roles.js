@@ -5,7 +5,7 @@ const ROLES = {
   EMPLOYEE: 'employee',
   /** Petugas lapangan — one check-in per day; checkout requires structured delivery data */
   FIELD_OFFICER: 'field_officer',
-  /** General affairs — one in/out per day; gaji harian like petugas lapangan (no delivery omset) */
+  /** General affairs — gaji harian like petugas lapangan (no delivery omset); clock mode per employee */
   GENERAL_AFFAIRS: 'general_affairs',
   /** Cleaning (umum) — one check-in per day (auto close); gaji = gaji bulanan × hari hadir ÷ hari wajib */
   UMUM: 'umum',
@@ -14,6 +14,16 @@ const ROLES = {
   /** Head of Finance — no attendance; slip gaji filled manually by admin */
   HEAD_OF_FINANCE: 'head_of_finance',
 };
+
+/** Per-employee General Affairs clock pattern (employees.ga_clock_mode). */
+const GA_CLOCK_MODES = {
+  /** One check-in + one check-out per day (default). */
+  IN_OUT: 'in_out',
+  /** Check-in only; auto-checkout like Cleaning/umum. Day still counts as hadir. */
+  CHECK_IN_ONLY: 'check_in_only',
+};
+
+const VALID_GA_CLOCK_MODES = Object.values(GA_CLOCK_MODES);
 
 const VALID_ROLES = Object.values(ROLES);
 
@@ -47,11 +57,6 @@ function usesDailyWagePayroll(role) {
   return isFieldOfficer(role) || isGeneralAffairs(role);
 }
 
-/** Simple in/out per day; checkout work-hours calc (not Staff Kantor split shift). */
-function usesSimpleDailyCheckout(role) {
-  return usesDailyWagePayroll(role);
-}
-
 /** Petugas lapangan may be assigned to multiple check-in locations. */
 function usesMultipleOffices(role) {
   return isFieldOfficer(role);
@@ -70,9 +75,41 @@ function isAccounting(role) {
   return role === ROLES.ACCOUNTING;
 }
 
-/** One check-in and one check-out per day (petugas lapangan & urusan umum). */
-function usesOncePerDayInOut(role) {
-  return usesDailyWagePayroll(role);
+function normalizeGaClockMode(mode) {
+  return mode === GA_CLOCK_MODES.CHECK_IN_ONLY
+    ? GA_CLOCK_MODES.CHECK_IN_ONLY
+    : GA_CLOCK_MODES.IN_OUT;
+}
+
+function isValidGaClockMode(mode) {
+  return VALID_GA_CLOCK_MODES.includes(mode);
+}
+
+/**
+ * Check-in only with auto-checkout: Cleaning, or GA with ga_clock_mode=check_in_only.
+ * @param {string} role
+ * @param {string} [gaClockMode] — employees.ga_clock_mode (ignored unless GA)
+ */
+function usesCheckInOnlyClock(role, gaClockMode) {
+  if (isUmum(role)) return true;
+  if (isGeneralAffairs(role)) {
+    return normalizeGaClockMode(gaClockMode) === GA_CLOCK_MODES.CHECK_IN_ONLY;
+  }
+  return false;
+}
+
+/** One check-in and one check-out per day (petugas lapangan & GA in_out mode). */
+function usesOncePerDayInOut(role, gaClockMode) {
+  if (isFieldOfficer(role)) return true;
+  if (isGeneralAffairs(role)) {
+    return normalizeGaClockMode(gaClockMode) === GA_CLOCK_MODES.IN_OUT;
+  }
+  return false;
+}
+
+/** Manual checkout with raw elapsed hours (GA/field in_out). */
+function usesSimpleDailyCheckout(role, gaClockMode) {
+  return usesOncePerDayInOut(role, gaClockMode);
 }
 
 function isHeadOfFinance(role) {
@@ -103,6 +140,8 @@ module.exports = {
   ROLES,
   VALID_ROLES,
   ATTENDANCE_ROLES,
+  GA_CLOCK_MODES,
+  VALID_GA_CLOCK_MODES,
   isValidRole,
   isAttendanceRole,
   isFieldOfficer,
@@ -116,6 +155,9 @@ module.exports = {
   isHeadOfFinance,
   requiresLinkedEmployee,
   isPayrollOnlyRole,
+  normalizeGaClockMode,
+  isValidGaClockMode,
+  usesCheckInOnlyClock,
   usesOncePerDayInOut,
   requiresFullName,
   canAccessEmployeePayrollPortal,

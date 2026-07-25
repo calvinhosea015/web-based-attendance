@@ -97,7 +97,7 @@ const SLIP_PAGE_SETUP = {
 /** One A5 landscape page per employee: fixed row frame + manual breaks (no multi print-area; Excel fits only the first). */
 const BULK_ROW_HEIGHT = 14;
 const BULK_ROWS_PER_PAGE = 25;
-const BULK_SLIP_PAD_TOP = 1;
+const BULK_SLIP_PAD_TOP = 0;
 const BULK_SLIP_PAD_BOTTOM = BULK_ROWS_PER_PAGE - BASE_SHEET_LAST_ROW - BULK_SLIP_PAD_TOP;
 
 const BULK_SLIP_PAGE_SETUP = {

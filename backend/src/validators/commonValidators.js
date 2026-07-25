@@ -198,6 +198,7 @@ const createUserValidators = [
   optionalDateBody('birthday'),
   body('custom_work_start').optional({ values: 'null' }).isString(),
   body('custom_work_end').optional({ values: 'null' }).isString(),
+  body('ga_clock_mode').optional().isIn(['in_out', 'check_in_only']),
 ];
 
 const changePasswordValidators = [passwordPolicyValidator()];
@@ -217,6 +218,7 @@ const updateUserValidators = [
   body('custom_work_start').optional({ values: 'null' }).isString(),
   body('custom_work_end').optional({ values: 'null' }).isString(),
   body('basic_salary').optional({ values: 'null' }).isNumeric(),
+  body('ga_clock_mode').optional().isIn(['in_out', 'check_in_only']),
 ];
 
 const idParamValidator = [param('id').isInt({ min: 1 })];

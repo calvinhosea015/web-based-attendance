@@ -277,6 +277,7 @@ export default function EmployeeDashboard() {
     summary?.daily_wage_mode === true ||
     usesDailyWagePayrollRole(summary?.role || localStorage.getItem('role'));
   const isUmum = summary?.umum_mode === true;
+  const isCheckInOnly = summary?.check_in_only_mode === true || isUmum;
   const isOnceDailyInOut = summary?.once_daily_in_out_mode === true;
   const isAccounting =
     summary?.accounting_mode === true || isAccountingRole(summary?.role);
@@ -284,7 +285,9 @@ export default function EmployeeDashboard() {
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
   const shiftLabel = isDailyWageSchedule
-    ? t('fieldFlexibleSchedule')
+    ? isCheckInOnly && !isUmum
+      ? t('umumFlexibleSchedule')
+      : t('fieldFlexibleSchedule')
     : isUmum
       ? t('umumFlexibleSchedule')
       : isAccounting && shift?.start_time && shift?.end_time
@@ -297,13 +300,17 @@ export default function EmployeeDashboard() {
 
   const primaryClockLabel =
     nextAction === 'check_out' ? t('checkOut') : nextAction === 'done' ? t('dayClockComplete') : t('checkIn');
-  const scheduleHint = isDailyWageSchedule
-    ? t('fieldOnceInOnceOut')
-    : isUmum
-      ? t('umumOncePerDay')
-        : isAccounting
-          ? t('accountingScheduleHint')
-          : t('onceInOnceOut');
+  const scheduleHint = isOnceDailyInOut
+    ? isFieldOfficer
+      ? t('fieldOnceInOnceOut')
+      : t('generalAffairsOnceInOut')
+    : isCheckInOnly
+      ? isUmum
+        ? t('umumOncePerDay')
+        : t('gaClockModeCheckInOnlyHint')
+      : isAccounting
+        ? t('accountingScheduleHint')
+        : t('onceInOnceOut');
   const sessionsToday = today?.sessions_today ?? [];
 
   const baseRadius = summary?.check_in_radius_meters ?? 500;
@@ -388,10 +395,10 @@ export default function EmployeeDashboard() {
             {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
           </div>
           <p className="mt-1 text-xs text-apple-label">
-            {isOnceDailyInOut || isUmum || isAccounting
+            {isOnceDailyInOut || isCheckInOnly || isAccounting
               ? shiftLabel
               : `${t('expectedShift')}: ${shiftLabel}`}
-            {!isOnceDailyInOut && !isUmum && !isAccounting && shift?.shift_name
+            {!isOnceDailyInOut && !isCheckInOnly && !isAccounting && shift?.shift_name
               ? ` · ${shift.shift_name}`
               : ''}
           </p>
@@ -430,7 +437,7 @@ export default function EmployeeDashboard() {
                 <div>
                   {t('checkIn')}: {today?.check_in ? formatDisplayDateTime(today.check_in) : t('emDash')}
                 </div>
-                {!isUmum && (
+                {!isCheckInOnly && (
                   <>
                     <div>
                       {t('checkOut')}: {today?.check_out ? formatDisplayDateTime(today.check_out) : t('emDash')}
@@ -584,7 +591,7 @@ export default function EmployeeDashboard() {
 
           <EmployeeHistorySection
             history={history}
-            isUmum={isUmum}
+            isUmum={isCheckInOnly}
             onCorrectionSubmitted={reloadHistory}
           />
 
@@ -759,7 +766,7 @@ export default function EmployeeDashboard() {
       {!isFieldOfficer && (
       <EmployeeHistorySection
         history={history}
-        isUmum={isUmum}
+        isUmum={isCheckInOnly}
         onCorrectionSubmitted={reloadHistory}
       />
       )}

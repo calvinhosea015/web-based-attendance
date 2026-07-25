@@ -455,6 +455,11 @@ export default {
   generalAffairsAbsenceHint:
     'Absence deduction = monthly salary ÷ required work days × absent days.',
   generalAffairsOnceInOut: 'One check-in and one check-out per day.',
+  gaClockModeLabel: 'Attendance mode',
+  gaClockModeInOut: 'Two times (check-in and check-out)',
+  gaClockModeCheckInOnly: 'One time (check-in only)',
+  gaClockModeCheckInOnlyHint:
+    'One check-in per day (no check-out). The day still counts as attended for daily wage.',
   accountingWorkStart: 'Work start (custom)',
   accountingWorkEnd: 'Work end (custom)',
   accountingBasicSalary: 'Monthly salary (Rp)',

@@ -13,7 +13,7 @@ class UserRepository {
     const loginId = String(username || '').trim();
     const r = await query(
       `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
-              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
+              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end, e.ga_clock_mode,
               o.name AS assigned_office_name,
               o.lat AS assigned_office_lat,
               o.lng AS assigned_office_lng
@@ -43,7 +43,7 @@ class UserRepository {
   async findById(id) {
     const r = await query(
       `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
-              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
+              e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end, e.ga_clock_mode,
               o.name AS assigned_office_name,
               o.lat AS assigned_office_lat,
               o.lng AS assigned_office_lng
@@ -62,7 +62,7 @@ class UserRepository {
               e.join_date, e.birthday,
               e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
-              e.custom_work_start, e.custom_work_end, e.basic_salary
+              e.custom_work_start, e.custom_work_end, e.basic_salary, e.ga_clock_mode
        FROM users u
        LEFT JOIN employees e ON e.id = u.employee_id
        ORDER BY u.id`

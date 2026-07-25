@@ -13,7 +13,11 @@ const {
   isAccounting,
   isUmum,
   isHeadOfFinance,
+  isGeneralAffairs,
   usesMultipleOffices,
+  normalizeGaClockMode,
+  isValidGaClockMode,
+  GA_CLOCK_MODES,
 } = require('../constants/roles');
 const { normalizeOfficeIdList } = require('../utils/employeeOffices');
 const { normalizePabrikIdList } = require('../utils/employeePabriks');
@@ -164,6 +168,19 @@ class UserService {
         customWorkStart = hours.start;
         customWorkEnd = hours.end;
       }
+      let gaClockMode = GA_CLOCK_MODES.IN_OUT;
+      if (isGeneralAffairs(role)) {
+        if (payload.ga_clock_mode != null && payload.ga_clock_mode !== '') {
+          if (!isValidGaClockMode(payload.ga_clock_mode)) {
+            throw new AppError(
+              'ga_clock_mode must be in_out or check_in_only.',
+              400,
+              'GA_CLOCK_MODE'
+            );
+          }
+          gaClockMode = normalizeGaClockMode(payload.ga_clock_mode);
+        }
+      }
       const resolvedFullName = trimmedFullName;
       const trimmedCode = employeeCode && String(employeeCode).trim();
       const { departmentId, positionId } = await this.metaRepository.defaultDepartmentAndPosition();
@@ -193,6 +210,7 @@ class UserService {
         dailySegments: CLOCK_SEGMENTS_PER_DAY,
         custom_work_start: customWorkStart,
         custom_work_end: customWorkEnd,
+        gaClockMode: isGeneralAffairs(role) ? gaClockMode : GA_CLOCK_MODES.IN_OUT,
       };
       let emp;
       if (trimmedCode) {
@@ -298,10 +316,11 @@ class UserService {
       'basic_salary',
       'office_ids',
       'pabrik_ids',
+      'ga_clock_mode',
     ];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
-        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, birthday, custom work hours, or basic_salary is required.',
+        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, birthday, custom work hours, basic_salary, or ga_clock_mode is required.',
         400,
         'NO_FIELDS'
       );
@@ -351,6 +370,18 @@ class UserService {
       ) {
         await this.employeeRepository.updatePayrollDefaults(latest.employee_id, {
           basic_salary: Math.max(0, Number(payload.basic_salary) || 0),
+        });
+      }
+      if (isGeneralAffairs(effectiveRole) && has('ga_clock_mode')) {
+        if (!isValidGaClockMode(payload.ga_clock_mode)) {
+          throw new AppError(
+            'ga_clock_mode must be in_out or check_in_only.',
+            400,
+            'GA_CLOCK_MODE'
+          );
+        }
+        await this.employeeRepository.updateEnterpriseFields(latest.employee_id, {
+          ga_clock_mode: normalizeGaClockMode(payload.ga_clock_mode),
         });
       }
     };

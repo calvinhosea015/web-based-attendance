@@ -8,7 +8,9 @@ const {
   isStaffKantor,
   isAccounting,
   usesOncePerDayInOut,
+  usesCheckInOnlyClock,
   usesDailyWagePayroll,
+  normalizeGaClockMode,
 } = require('../constants/roles');
 const { customShiftFromEmployee } = require('../utils/customWorkShift');
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
@@ -51,7 +53,9 @@ class EmployeePortalService {
     const generalAffairs = isGeneralAffairs(auth.role);
     const umum = isUmum(auth.role);
     const accounting = isAccounting(auth.role);
-    const onceDailyInOut = usesOncePerDayInOut(auth.role);
+    const gaClockMode = generalAffairs ? normalizeGaClockMode(employee?.ga_clock_mode) : null;
+    const checkInOnly = usesCheckInOnlyClock(auth.role, employee?.ga_clock_mode);
+    const onceDailyInOut = usesOncePerDayInOut(auth.role, employee?.ga_clock_mode);
 
     const open = await this.attendanceRepository.findOpenSession(auth.employeeId);
     const sessions = await this.attendanceRepository.listTodaySegments(auth.employeeId, dayStr);
@@ -72,7 +76,7 @@ class EmployeePortalService {
       } else {
         nextClockAction = 'done';
       }
-    } else if (umum) {
+    } else if (checkInOnly) {
       for (const s of sessions) {
         if (s.check_in) clockEventsDone += 1;
       }
@@ -125,7 +129,7 @@ class EmployeePortalService {
     const remoteWorkAllowed = userRow ? userRow.remote_work_allowed !== false : true;
 
     let shift;
-    if (onceDailyInOut || umum) {
+    if (onceDailyInOut || checkInOnly) {
       shift = null;
     } else if (accounting) {
       shift = customShiftFromEmployee(employee);
@@ -158,11 +162,13 @@ class EmployeePortalService {
       remote_work_allowed: remoteWorkAllowed,
       field_officer_mode: fieldOfficer,
       general_affairs_mode: generalAffairs,
+      ga_clock_mode: gaClockMode,
       daily_wage_mode: usesDailyWagePayroll(auth.role),
       umum_mode: umum,
+      check_in_only_mode: checkInOnly,
       accounting_mode: accounting,
       once_daily_in_out_mode: onceDailyInOut,
-      daily_segments: onceDailyInOut || umum ? null : CLOCK_SEGMENTS_PER_DAY,
+      daily_segments: onceDailyInOut || checkInOnly ? null : CLOCK_SEGMENTS_PER_DAY,
       clock_events_target: clockEventsTarget,
       clock_events_done: clockEventsDone,
       next_clock_action: nextClockAction,

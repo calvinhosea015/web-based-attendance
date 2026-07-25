@@ -21,18 +21,20 @@ class EmployeeRepository {
       segment2_end,
       custom_work_start,
       custom_work_end,
+      gaClockMode,
     },
     exec = query
   ) {
     const ds = dailySegments === 2 ? 2 : 1;
+    const gaMode = gaClockMode === 'check_in_only' ? 'check_in_only' : 'in_out';
     const r = await exec(
       `INSERT INTO employees (
         employee_id, full_name, department_id, position_id, salary_type, basic_salary, upah_harian, join_date, birthday, status,
         remote_work_allowed, daily_segments,
         segment1_start, segment1_end, segment2_start, segment2_end,
-        custom_work_start, custom_work_end
+        custom_work_start, custom_work_end, ga_clock_mode
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), $12, $13, $14, $15, $16, $17, $18)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING *`,
       [
         employeeId,
@@ -53,6 +55,7 @@ class EmployeeRepository {
         ds === 2 ? segment2_end : null,
         custom_work_start || null,
         custom_work_end || null,
+        gaMode,
       ]
     );
     return r.rows[0];
@@ -150,6 +153,7 @@ class EmployeeRepository {
     segment2_end,
     custom_work_start,
     custom_work_end,
+    ga_clock_mode,
   }) {
     const sets = [];
     const vals = [];
@@ -210,6 +214,10 @@ class EmployeeRepository {
     if (custom_work_end !== undefined) {
       sets.push(`custom_work_end = $${i++}`);
       vals.push(custom_work_end);
+    }
+    if (ga_clock_mode !== undefined) {
+      sets.push(`ga_clock_mode = $${i++}`);
+      vals.push(ga_clock_mode === 'check_in_only' ? 'check_in_only' : 'in_out');
     }
     if (!sets.length) return this.findById(id);
     vals.push(id);

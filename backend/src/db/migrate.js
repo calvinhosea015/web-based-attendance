@@ -352,6 +352,10 @@ async function migrateEnterpriseColumns() {
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS birthday DATE`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS custom_work_start TIME`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS custom_work_end TIME`);
+  // ponytail: GA-only clock pattern; ignored for other roles. Default in_out = prior GA behaviour.
+  await query(
+    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS ga_clock_mode VARCHAR(16) NOT NULL DEFAULT 'in_out'`
+  );
 }
 
 /** Default shift 07:15–16:00 and assign to employees who have no shift row yet. */
