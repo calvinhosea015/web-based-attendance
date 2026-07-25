@@ -449,11 +449,6 @@ async function seed() {
   }
 }
 
-/** Former general_affairs accounts are umum (same attendance and payroll rules). */
-async function migrateMergeGeneralAffairsIntoUmum() {
-  await query(`UPDATE users SET role = 'umum' WHERE role = 'general_affairs'`);
-}
-
 /** Re-allow general_affairs role (distinct from umum; daily wage like field officer). */
 async function migrateGeneralAffairsRole() {
   const r = await query(`
@@ -480,18 +475,6 @@ async function migrateGeneralAffairsRole() {
 /** Allow pegawai (employee) and petugas lapangan (field_officer) roles on existing DBs. */
 async function migrateUserRoleConstraint() {
   await migrateGeneralAffairsRole();
-}
-
-/** All staff: one check-in and one check-out per day (no split-shift / four-clock mode). */
-async function normalizeEmployeeClockMode() {
-  await query(`UPDATE employees SET daily_segments = 1`);
-  await query(`
-    UPDATE employees SET
-      segment1_start = NULL,
-      segment1_end = NULL,
-      segment2_start = NULL,
-      segment2_end = NULL
-  `);
 }
 
 async function migrateAttendanceCheckoutCode() {
@@ -687,14 +670,12 @@ async function migratePabrikCatalog() {
      WHERE pabrik_code = '3' AND bonus_omset_rate = 0.02`
   );
 
+  // ponytail: insert-only seed — DO UPDATE was wiping admin renames on every API restart.
   for (const row of PABRIK_CATALOG) {
     await query(
       `INSERT INTO pabriks (pabrik_code, nama_pabrik, sort_order)
        VALUES ($1, $2, $3)
-       ON CONFLICT (pabrik_code) DO UPDATE SET
-         nama_pabrik = EXCLUDED.nama_pabrik,
-         sort_order = EXCLUDED.sort_order,
-         updated_at = NOW()`,
+       ON CONFLICT (pabrik_code) DO NOTHING`,
       [row.code, row.name, row.sort_order]
     );
     for (const kode of row.items) {
@@ -756,7 +737,6 @@ async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
   }
-  await migrateMergeGeneralAffairsIntoUmum();
   await migrateUserRoleConstraint();
   await migrateEnterpriseColumns();
   await migrateAttendanceCheckoutCode();
@@ -766,7 +746,6 @@ async function migrate() {
   await migrateEmployeePabriks();
   await migrateFieldDeliveryBackdateRequests();
   await migrateLeaveFeatures();
-  await normalizeEmployeeClockMode();
   await migratePayrollColumns();
   await migrateLoanRequests();
   await migratePayrollLoanColumns();
