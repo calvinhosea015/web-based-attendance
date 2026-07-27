@@ -795,187 +795,6 @@ class PayrollService {
     };
   }
 
-  /**
-   * Recalc one row from attendance and persist.
-   * ponytail: not used on read paths — only call from an explicit admin action if reintroduced;
-   * monthly refresh is generatePeriod ("Process this month").
-   */
-  async syncPayrollRowFromAttendance(row, bounds) {
-    const empId = row.employee_id;
-    let role = row.user_role;
-    if (!role) role = await this.payrollRepository.getRoleForEmployee(empId);
-
-    if (isHeadOfFinance(role)) {
-      const employee = await this.employeeRepository.findById(empId);
-      if (!employee) return row;
-      return attachPayrollMode(
-        attachEmployeeFields(row, {
-          ...employee,
-          employee_code: employee.employee_id,
-          user_role: role,
-        })
-      );
-    }
-
-    const days = await this.resolveDaysAttended(
-      empId,
-      bounds.period_start,
-      bounds.period_end,
-      role
-    );
-    const employee = await this.employeeRepository.findById(empId);
-    if (!employee) return row;
-
-    const settings = await this.payrollRepository.getSettings();
-    const upahHarian = resolveUpahHarian(row, employee, role, settings);
-    let gaji;
-
-    const expectedDays = hasMonthlyBasicPayroll(role)
-      ? this.resolveExpectedWorkDays({
-          payrollPeriod: bounds.payroll_period,
-          existing: row.expected_work_days,
-        })
-      : null;
-
-    let monthlyCalc = null;
-    let absenceForTotals = num(row.absence_deduction);
-    if (receivesMonthlyAbsenceDeduction(role) && expectedDays != null) {
-      monthlyCalc = computeMonthlyStaffPayroll({
-        monthlyBasic: num(employee.basic_salary),
-        expectedDays,
-        daysAttended: days,
-      });
-      gaji = monthlyCalc.basic_salary;
-      if (row.absence_deduction == null) absenceForTotals = monthlyCalc.absence_deduction;
-    } else {
-      gaji = computeGaji(days, upahHarian);
-      if (usesDailyWagePayroll(role)) absenceForTotals = 0;
-    }
-
-    let overtimePay = num(row.overtime_pay);
-    let lateDeduction = num(row.late_deduction);
-    let earlyLeaveDeduction = num(row.early_leave_deduction);
-    if (receivesStaffKantorAttendancePayroll(role) && expectedDays != null) {
-      overtimePay = await this.computeLemburPayForPeriod(
-        empId,
-        bounds,
-        employee,
-        expectedDays
-      );
-      const attendanceDeductions = await this.computeLateDeductionForPeriod(
-        empId,
-        bounds,
-        employee,
-        expectedDays,
-        role
-      );
-      lateDeduction = attendanceDeductions.late_deduction;
-      earlyLeaveDeduction = attendanceDeductions.early_leave_deduction;
-    }
-
-    const tunjanganMasaKerja =
-      row.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)
-        ? num(row.tunjangan_masa_kerja)
-        : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period);
-
-    const transportEligible = resolveTransportEligible(row, employee);
-    const diligenceEligible = resolveDiligenceEligible(row);
-    const allowanceRates = resolveAllowanceRateFields({
-      transportEligible,
-      diligenceEligible,
-      transportAllowanceStored: row.transport_allowance,
-      diligenceBonusStored: row.diligence_bonus,
-      employeeTransportAmount: employee.transport_allowance_amount,
-      employeeDiligenceAmount: employee.diligence_allowance_amount,
-      settings,
-    });
-
-    let bonusOmset = num(row.bonus_omset);
-    let omsetTotal = num(row.omset_total);
-    if (isFieldOfficer(role)) {
-      bonusOmset = await this.sumFieldOfficerBonusForPeriod(
-        empId,
-        bounds.period_start,
-        bounds.period_end
-      );
-      omsetTotal = await this.sumFieldOfficerOmsetForPeriod(
-        empId,
-        bounds.period_start,
-        bounds.period_end
-      );
-    }
-
-    const fields = normalizeRolePayrollFields(
-      {
-        basic_salary: gaji,
-        tunjangan_masa_kerja: tunjanganMasaKerja,
-        tunjangan_pph_21: num(row.tunjangan_pph_21),
-        transport_eligible: transportEligible,
-        transport_allowance_amount: allowanceRates.transport_allowance_amount,
-        overtime_pay: overtimePay,
-        late_deduction: lateDeduction,
-        early_leave_deduction: earlyLeaveDeduction,
-        pph_21: num(row.pph_21),
-        insentif: num(row.insentif),
-        diligence_eligible: diligenceEligible,
-        diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
-        bonus_omset: bonusOmset,
-        omset_total: omsetTotal,
-        other_deductions: resolveOtherDeductionsAmount(row),
-        loan_deduction: num(row.loan_deduction),
-      },
-      role
-    );
-
-    const totals = computeTotals(
-      withSlipTotalsContext(fields, role, {
-        monthly_basic_gross: monthlyCalc?.monthly_basic_gross ?? num(employee.basic_salary),
-        absence_deduction: absenceForTotals,
-        bpjs_tk: row.bpjs_tk,
-        bpjs_kes: row.bpjs_kes,
-      }),
-      employee,
-      settings,
-      role
-    );
-    const saved = await this.payrollRepository.upsertRow({
-      employee_id: empId,
-      payroll_period: bounds.payroll_period,
-      period_start: bounds.period_start,
-      period_end: bounds.period_end,
-      upah_harian: upahHarian,
-      basic_salary: totals.basic_salary ?? gaji,
-      days_attended: days,
-      expected_work_days: expectedDays,
-      tunjangan_masa_kerja: fields.tunjangan_masa_kerja,
-      tunjangan_pph_21: totals.tunjangan_pph_21,
-      transport_eligible: fields.transport_eligible,
-      transport_allowance: totals.transport_allowance,
-      overtime_pay: fields.overtime_pay,
-      insentif: fields.insentif,
-      diligence_eligible: fields.diligence_eligible,
-      diligence_bonus: totals.diligence_bonus,
-      bonus_omset: fields.bonus_omset,
-      omset_total: fields.omset_total ?? omsetTotal,
-      loan_deduction: totals.loan_deduction,
-      late_deduction: totals.late_deduction,
-      early_leave_deduction: totals.early_leave_deduction,
-      pph_21: totals.pph_21,
-      other_deductions: totals.other_deductions,
-      absence_deduction: totals.absence_deduction,
-      bpjs_tk: totals.bpjs_tk,
-      bpjs_kes: totals.bpjs_kes,
-      deductions: totals.deductions,
-      allowances: totals.allowances,
-      final_salary: totals.final_salary,
-      keterangan: row.keterangan ?? '',
-    });
-
-    // Keep any join fields from the original row (e.g. full_name/employee_code from listByPeriod)
-    // while still refreshing payroll numeric fields from `saved`.
-    return { ...row, ...saved, user_role: role };
-  }
-
   async getSettings() {
     return this.payrollRepository.getSettings();
   }
@@ -1240,38 +1059,11 @@ class PayrollService {
     const settings = await this.payrollRepository.getSettings();
     let existing = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
     if (!existing) {
-      const days = await this.resolveDaysAttended(
-        empId,
-        bounds.period_start,
-        bounds.period_end,
-        role
+      throw new AppError(
+        'No payroll record for this employee in this period. Process this month first.',
+        404,
+        'PAYROLL_NOT_FOUND'
       );
-      existing = {
-        employee_id: empId,
-        payroll_period: bounds.payroll_period,
-        period_start: bounds.period_start,
-        period_end: bounds.period_end,
-        upah_harian: hasMonthlyBasicPayroll(role) ? 0 : num(employee.upah_harian),
-        days_attended: days,
-        expected_work_days: hasMonthlyBasicPayroll(role)
-          ? this.resolveExpectedWorkDays({ payrollPeriod: bounds.payroll_period })
-          : null,
-        tunjangan_masa_kerja: resolveTunjanganMasaKerjaForRole(
-          role,
-          employee.join_date,
-          bounds.payroll_period
-        ),
-        transport_eligible: Boolean(employee.transport_eligible),
-        overtime_pay: 0,
-        insentif: 0,
-        diligence_eligible: false,
-        other_deductions: 0,
-        loan_deduction: 0,
-        late_deduction: 0,
-        early_leave_deduction: 0,
-        tunjangan_pph_21: 0,
-        pph_21: 0,
-      };
     }
 
     if (headOfFinance) {
@@ -1383,15 +1175,11 @@ class PayrollService {
       payload.upah_harian != null
         ? num(payload.upah_harian)
         : resolveUpahHarian(existing, employee, role, settings);
+    // ponytail: Save persists admin values only — attendance refresh is generatePeriod.
     const daysN =
       payload.days_attended != null
         ? Math.max(0, Math.floor(num(payload.days_attended)))
-        : await this.resolveDaysAttended(
-            empId,
-            bounds.period_start,
-            bounds.period_end,
-            role
-          );
+        : Math.max(0, Math.floor(num(existing.days_attended)));
     let gaji;
     let monthlyBasicGross = num(employee.basic_salary);
     let absenceForTotals = 0;
@@ -1448,53 +1236,21 @@ class PayrollService {
       settings,
     });
 
-    let loanDeduction =
-      payload.loan_deduction != null ? num(payload.loan_deduction) : null;
-    if (loanDeduction == null) {
-      loanDeduction = await this.resolveLoanDeduction(empId, bounds.payroll_period);
-    }
-
-    const expectedDaysForLate = receivesStaffKantorAttendancePayroll(role)
-      ? expectedDays
-      : null;
-
-    let lateDeduction =
+    const loanDeduction =
+      payload.loan_deduction != null ? num(payload.loan_deduction) : num(existing.loan_deduction);
+    const lateDeduction =
       payload.late_deduction != null ? num(payload.late_deduction) : num(existing.late_deduction);
-    let earlyLeaveDeduction =
+    const earlyLeaveDeduction =
       payload.early_leave_deduction != null
         ? num(payload.early_leave_deduction)
         : num(existing.early_leave_deduction);
-    if (
-      receivesStaffKantorAttendancePayroll(role) &&
-      expectedDaysForLate != null &&
-      payload.late_deduction == null &&
-      payload.early_leave_deduction == null
-    ) {
-      const attendanceDeductions = await this.computeLateDeductionForPeriod(
-        empId,
-        bounds,
-        employee,
-        expectedDaysForLate,
-        role
-      );
-      lateDeduction = attendanceDeductions.late_deduction;
-      earlyLeaveDeduction = attendanceDeductions.early_leave_deduction;
-    }
-
-    let overtimePay =
+    const overtimePay =
       payload.overtime_pay != null ? num(payload.overtime_pay) : num(existing.overtime_pay);
-    if (
-      receivesStaffKantorAttendancePayroll(role) &&
-      expectedDaysForLate != null &&
-      payload.overtime_pay == null
-    ) {
-      overtimePay = await this.computeLemburPayForPeriod(
-        empId,
-        bounds,
-        employee,
-        expectedDaysForLate
-      );
-    }
+
+    const storedTunjangan =
+      existing.tunjangan_masa_kerja != null
+        ? num(existing.tunjangan_masa_kerja)
+        : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period);
 
     const fields = normalizeRolePayrollFields(
       {
@@ -1502,7 +1258,7 @@ class PayrollService {
         tunjangan_masa_kerja:
           payload.tunjangan_masa_kerja != null && receivesTunjanganMasaKerja(role)
             ? num(payload.tunjangan_masa_kerja)
-            : resolveTunjanganMasaKerjaForRole(role, employee.join_date, bounds.payroll_period),
+            : storedTunjangan,
         tunjangan_pph_21:
           payload.tunjangan_pph_21 != null
             ? num(payload.tunjangan_pph_21)
@@ -1513,7 +1269,8 @@ class PayrollService {
         insentif: payload.insentif != null ? num(payload.insentif) : num(existing.insentif),
         diligence_eligible: diligenceEligible,
         diligence_allowance_amount: allowanceRates.diligence_allowance_amount,
-        bonus_omset: 0,
+        bonus_omset:
+          payload.bonus_omset != null ? num(payload.bonus_omset) : num(existing.bonus_omset),
         other_deductions: resolveOtherDeductionsFromPayload(payload, existing),
         loan_deduction: loanDeduction,
         late_deduction: lateDeduction,
@@ -1525,26 +1282,8 @@ class PayrollService {
       role
     );
 
-    if (payload.bonus_omset != null) {
-      fields.bonus_omset = num(payload.bonus_omset);
-    } else if (isFieldOfficer(role)) {
-      fields.bonus_omset = await this.sumFieldOfficerBonusForPeriod(
-        empId,
-        bounds.period_start,
-        bounds.period_end
-      );
-    } else {
-      fields.bonus_omset = num(existing.bonus_omset);
-    }
-
-    let omsetTotal = num(existing.omset_total);
-    if (isFieldOfficer(role)) {
-      omsetTotal = await this.sumFieldOfficerOmsetForPeriod(
-        empId,
-        bounds.period_start,
-        bounds.period_end
-      );
-    }
+    const omsetTotal =
+      payload.omset_total != null ? num(payload.omset_total) : num(existing.omset_total);
 
     const totals = computeTotals(
       withSlipTotalsContext(fields, role, {
@@ -1638,13 +1377,13 @@ class PayrollService {
     return row;
   }
 
-  async getSlipRow(period, employeeId, { sync = false } = {}) {
+  async getSlipRow(period, employeeId) {
     const bounds = parsePeriod(period);
     const empId = Number(employeeId);
     if (!Number.isFinite(empId) || empId < 1) {
       throw new AppError('Invalid employee id.', 400, 'VALIDATION');
     }
-    let row = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
+    const row = await this.payrollRepository.findByPeriodAndEmployee(bounds.payroll_period, empId);
     if (!row) {
       throw new AppError(
         'No payroll record for this employee in this period. Generate payroll first.',
@@ -1653,18 +1392,11 @@ class PayrollService {
       );
     }
     const role = row.user_role || (await this.payrollRepository.getRoleForEmployee(empId));
-    if (sync) {
-      row = await this.syncPayrollRowFromAttendance({ ...row, user_role: role }, bounds);
-    } else {
-      row = { ...row, user_role: role };
-    }
-    return { period: bounds.payroll_period, row };
+    return { period: bounds.payroll_period, row: { ...row, user_role: role } };
   }
 
   async exportEmployeeSlip(period, employeeId) {
-    const { period: payroll_period, row } = await this.getSlipRow(period, employeeId, {
-      sync: false,
-    });
+    const { period: payroll_period, row } = await this.getSlipRow(period, employeeId);
     const slipRow = await this.enrichSlipRow(row, payroll_period);
     const wb = buildEmployeeSlipWorkbook(slipRow, payroll_period);
     const buffer = await writeSlipBuffer(wb);
