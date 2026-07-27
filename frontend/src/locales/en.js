@@ -617,8 +617,7 @@ export default {
   clockProgress: 'Today: {{done}} / {{target}} clocks',
   dayClockComplete: 'Finished all clocks for today',
   sessionN: 'Session {{n}}',
-  passwordPolicyHint:
-    'Passwords must be at least 8 characters with at least one letter and one number.',
+  passwordPolicyHint: 'Passwords must be at least 6 characters.',
   professionalReport: 'Absen HJS (Excel)',
   attendanceByUser: 'Filter by user',
   editAttendance: 'Edit',

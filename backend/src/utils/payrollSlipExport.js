@@ -95,7 +95,17 @@ const SLIP_PAGE_SETUP = {
 };
 
 /** One A5 landscape page per employee: fixed row frame + manual breaks (no multi print-area; Excel fits only the first). */
-const BULK_ROW_HEIGHT = 14;
+/** Margins in inches (= Excel Normal): top/bottom 1.91cm, left/right 1.78cm, header/footer 0.76cm. */
+const BULK_PAGE_MARGINS = {
+  top: 0.75,
+  bottom: 0.75,
+  left: 0.7,
+  right: 0.7,
+  header: 0.3,
+  footer: 0.3,
+};
+/** ponytail: row height sized so 25×h fits A5 landscape printable height with BULK_PAGE_MARGINS (~4.33"); raise scale path if layout grows. */
+const BULK_ROW_HEIGHT = 12;
 const BULK_ROWS_PER_PAGE = 25;
 const BULK_SLIP_PAD_TOP = 0;
 const BULK_SLIP_PAD_BOTTOM = BULK_ROWS_PER_PAGE - BASE_SHEET_LAST_ROW - BULK_SLIP_PAD_TOP;
@@ -107,7 +117,7 @@ const BULK_SLIP_PAGE_SETUP = {
   scale: 100,
   horizontalCentered: true,
   verticalCentered: true,
-  margins: { top: 0.5, left: 0.5, right: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+  margins: { ...BULK_PAGE_MARGINS },
 };
 
 function bulkSlipFrameStart(slipIndex) {
@@ -837,6 +847,7 @@ module.exports = {
   PANEL_COLS,
   BASE_SHEET_LAST_ROW,
   BULK_SLIP_PAGE_SETUP,
+  BULK_PAGE_MARGINS,
   BULK_ROWS_PER_PAGE,
   BULK_SLIP_PAD_TOP,
   bulkSlipFrameStart,

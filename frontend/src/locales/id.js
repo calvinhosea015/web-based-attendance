@@ -622,8 +622,7 @@ export default {
   clockProgress: 'Hari ini: {{done}} / {{target}} absen',
   dayClockComplete: 'Semua absen hari ini selesai',
   sessionN: 'Sesi {{n}}',
-  passwordPolicyHint:
-    'Kata sandi minimal 8 karakter, harus mengandung huruf dan angka.',
+  passwordPolicyHint: 'Kata sandi minimal 6 karakter.',
   professionalReport: 'Absen HJS (Excel)',
   attendanceByUser: 'Filter menurut pengguna',
   editAttendance: 'Ubah',

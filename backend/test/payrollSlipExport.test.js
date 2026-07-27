@@ -9,6 +9,7 @@ const {
   BASE_SHEET_LAST_ROW,
   BULK_ROWS_PER_PAGE,
   BULK_SLIP_PAD_TOP,
+  BULK_PAGE_MARGINS,
   bulkSlipFrameEnd,
 } = require('../src/utils/payrollSlipExport');
 
@@ -51,6 +52,7 @@ describe('slipWorkbookFromRows', () => {
     assert.equal(ws.pageSetup.fitToPage, false);
     assert.equal(ws.pageSetup.horizontalCentered, true);
     assert.equal(ws.pageSetup.verticalCentered, true);
+    assert.deepEqual(ws.pageSetup.margins, BULK_PAGE_MARGINS);
     assert.equal(ws.pageSetup.printArea, undefined);
     assert.equal(ws.rowBreaks.length, 1);
     assert.equal(ws.rowBreaks[0].id, bulkSlipFrameEnd(0) + 1);

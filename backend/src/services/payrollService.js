@@ -619,17 +619,11 @@ class PayrollService {
     };
   }
 
+  /** Read payroll as stored — do not reprocess from attendance (admin Save / Process this month only). */
   async listPayrollForEmployee(employeeId) {
     const rows = await this.payrollRepository.listForEmployee(employeeId);
     const role = await this.payrollRepository.getRoleForEmployee(employeeId);
-    const synced = [];
-    for (const row of rows) {
-      const bounds = parsePeriod(row.payroll_period);
-      synced.push(
-        await this.syncPayrollRowFromAttendance({ ...row, user_role: role }, bounds)
-      );
-    }
-    return this.enrichPayrollRows(synced);
+    return this.enrichPayrollRows(rows.map((row) => ({ ...row, user_role: role })));
   }
 
   buildFieldsFromSources({
@@ -801,7 +795,11 @@ class PayrollService {
     };
   }
 
-  /** Refresh days_attended and gaji from attendance; keep other payroll fields. */
+  /**
+   * Recalc one row from attendance and persist.
+   * ponytail: not used on read paths — only call from an explicit admin action if reintroduced;
+   * monthly refresh is generatePeriod ("Process this month").
+   */
   async syncPayrollRowFromAttendance(row, bounds) {
     const empId = row.employee_id;
     let role = row.user_role;
@@ -1640,7 +1638,7 @@ class PayrollService {
     return row;
   }
 
-  async getSlipRow(period, employeeId, { sync = true } = {}) {
+  async getSlipRow(period, employeeId, { sync = false } = {}) {
     const bounds = parsePeriod(period);
     const empId = Number(employeeId);
     if (!Number.isFinite(empId) || empId < 1) {
