@@ -10,6 +10,7 @@ const {
   BULK_ROWS_PER_PAGE,
   BULK_SLIP_PAD_TOP,
   BULK_PAGE_MARGINS,
+  bulkSlipFrameStart,
   bulkSlipFrameEnd,
 } = require('../src/utils/payrollSlipExport');
 
@@ -51,11 +52,20 @@ describe('slipWorkbookFromRows', () => {
     assert.equal(ws.pageSetup.orientation, 'landscape');
     assert.equal(ws.pageSetup.fitToPage, false);
     assert.equal(ws.pageSetup.horizontalCentered, true);
-    assert.equal(ws.pageSetup.verticalCentered, true);
+    assert.equal(ws.pageSetup.verticalCentered, false);
     assert.deepEqual(ws.pageSetup.margins, BULK_PAGE_MARGINS);
     assert.equal(ws.pageSetup.printArea, undefined);
     assert.equal(ws.rowBreaks.length, 1);
-    assert.equal(ws.rowBreaks[0].id, bulkSlipFrameEnd(0) + 1);
+    assert.equal(ws.rowBreaks[0].id, bulkSlipFrameEnd(0));
+
+    const rows3 = [stubRow('A', 'A'), stubRow('B', 'B'), stubRow('C', 'C')];
+    const wb3 = slipWorkbookFromRows(rows3, '2026-01');
+    const ws3 = wb3.getWorksheet('Semua Slip');
+    assert.equal(ws3.rowBreaks.length, 2);
+    assert.equal(ws3.rowBreaks[0].id, bulkSlipFrameEnd(0));
+    assert.equal(ws3.rowBreaks[1].id, bulkSlipFrameEnd(1));
+    // Second-to-last frame must end exactly on its page break (no bleed into next slip).
+    assert.equal(bulkSlipFrameEnd(1) + 1, bulkSlipFrameStart(2));
 
     const slip1Start = 1 + BULK_SLIP_PAD_TOP;
     const slip2Start = BULK_ROWS_PER_PAGE + 1 + BULK_SLIP_PAD_TOP;

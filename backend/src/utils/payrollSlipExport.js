@@ -105,7 +105,7 @@ const BULK_PAGE_MARGINS = {
   footer: 0.3,
 };
 /** ponytail: row height sized so 25×h fits A5 landscape printable height with BULK_PAGE_MARGINS (~4.33"); raise scale path if layout grows. */
-const BULK_ROW_HEIGHT = 12;
+const BULK_ROW_HEIGHT = 11;
 const BULK_ROWS_PER_PAGE = 25;
 const BULK_SLIP_PAD_TOP = 0;
 const BULK_SLIP_PAD_BOTTOM = BULK_ROWS_PER_PAGE - BASE_SHEET_LAST_ROW - BULK_SLIP_PAD_TOP;
@@ -116,7 +116,7 @@ const BULK_SLIP_PAGE_SETUP = {
   fitToPage: false,
   scale: 100,
   horizontalCentered: true,
-  verticalCentered: true,
+  verticalCentered: false,
   margins: { ...BULK_PAGE_MARGINS },
 };
 
@@ -773,8 +773,9 @@ function renderSlipOnWorksheet(ws, row, period, startRow = 1, rowHeight = ROW_HE
   return slipRow(startRow, lastLogical);
 }
 
+/** Manual break after `afterRow` (ExcelJS: id = that 1-based row number). */
 function addHorizontalPageBreak(ws, afterRow) {
-  ws.rowBreaks.push({ id: afterRow + 1, max: 16383, man: 1 });
+  ws.getRow(afterRow).addPageBreak();
 }
 
 function addSlipSheet(wb, row, period, sheetName = 'Slip Gaji') {
