@@ -337,14 +337,14 @@ export default function EmployeeDashboard() {
 
   if (payrollOnly) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="page-shell layout-stack mx-auto max-w-4xl">
+        <div className="payroll-only-hero flex flex-wrap items-end justify-between gap-4">
           <div>
             <span className="apple-eyebrow">{t('headOfFinanceHubTitle')}</span>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-apple-text">
               {t('payrollEmployeeTitle')}
             </h1>
-            <p className="mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
+            <p className="payroll-only-sub mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             {t('logout')}
@@ -368,7 +368,7 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-10 sm:px-6 sm:py-14">
+    <div className="page-shell layout-stack mx-auto max-w-5xl">
       <PageHero
         eyebrow={translateRole(localStorage.getItem('role'))}
         title={t('employeeDashboard')}

@@ -14,7 +14,7 @@ export function Card({ title, description, action, children, className = '', bod
     <section id={id} className={`bezel-outer shadow-apple ${className}`}>
       <div className="bezel-inner overflow-hidden">
         {(title || description || action) && (
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-5 py-4 sm:px-6">
+          <div className="card-header flex flex-wrap items-start justify-between gap-4 border-b border-black/[0.05] px-5 py-4 sm:px-6">
             <div className="max-w-3xl">
               {title && (
                 <h2 className="font-display text-title font-semibold text-apple-text">
@@ -28,7 +28,7 @@ export function Card({ title, description, action, children, className = '', bod
             {action}
           </div>
         )}
-        <div className={`px-5 py-5 sm:px-6 ${bodyClassName}`}>{children}</div>
+        <div className={`card-body px-5 py-5 sm:px-6 ${bodyClassName}`}>{children}</div>
       </div>
     </section>
   );
@@ -235,7 +235,7 @@ export function StatCard({ label, value, tone = 'neutral', className = '', featu
 
   return (
     <div className={`bezel-outer shadow-apple transition-all duration-premium ease-premium hover:shadow-apple-md ${className}`}>
-      <div className={`bezel-inner p-5 sm:p-6 ${featured ? 'sm:p-8' : ''}`}>
+      <div className={`stat-surface bezel-inner p-5 sm:p-6 ${featured ? 'sm:p-8' : ''}`}>
         <div className="flex items-center gap-2.5">
           <span
             className={`h-2 w-2 shrink-0 rounded-full bg-gradient-to-br ${gradient}`}
@@ -257,14 +257,16 @@ export function StatCard({ label, value, tone = 'neutral', className = '', featu
 
 export function PageHero({ eyebrow, title, subtitle, action, className = '' }) {
   return (
-    <div className={`mb-8 flex flex-wrap items-end justify-between gap-6 ${className}`}>
+    <div className={`page-hero ${className}`}>
       <div className="max-w-3xl">
-        {eyebrow && <span className="apple-eyebrow">{eyebrow}</span>}
-        <h1 className="mt-3 font-display text-display font-semibold text-apple-text sm:text-display-lg">
+        {eyebrow && <span className="page-hero-eyebrow apple-eyebrow">{eyebrow}</span>}
+        <h1 className="page-hero-title mt-3 font-display text-display font-semibold text-apple-text sm:text-display-lg">
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-3 text-[16px] leading-relaxed text-apple-label">{subtitle}</p>
+          <p className="page-hero-subtitle mt-3 text-[16px] leading-relaxed text-apple-label">
+            {subtitle}
+          </p>
         )}
       </div>
       {action}
@@ -403,7 +405,7 @@ export function CompactField({ label, hint, children, className = '' }) {
 export function StatTile({ label, value, sub, className = '' }) {
   return (
     <div className={`bezel-outer shadow-apple ${className}`}>
-      <div className="bezel-inner p-5 sm:p-6">
+      <div className="stat-surface bezel-inner p-5 sm:p-6">
         <p className="text-[13px] font-medium text-apple-label">{label}</p>
         <p className="mt-2 font-display text-[28px] font-semibold tabular-nums tracking-tightest text-apple-text">
           {value}

@@ -1,16 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { isCompactMode } from '../hooks/useCompactMode.js';
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+const skipReveal = () => prefersReducedMotion() || isCompactMode();
+
 export function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
   const ref = useRef(null);
-  // Reduced-motion users skip the entrance animation and see content immediately.
-  const [visible, setVisible] = useState(() => prefersReducedMotion());
+  const [visible, setVisible] = useState(() => skipReveal());
 
   useEffect(() => {
-    if (prefersReducedMotion()) return;
+    if (skipReveal()) return;
     const el = ref.current;
     if (!el) return;
     const observer = new IntersectionObserver(

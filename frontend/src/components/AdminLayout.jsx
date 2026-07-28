@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, PageHero } from './ui.jsx';
+import { CompactModeToggle } from './CompactModeToggle.jsx';
 import { Reveal } from './Reveal.jsx';
 import { api, paths } from '../api/client.js';
 
@@ -195,7 +196,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
 
   return (
     <div className="page-canvas">
-      <div className="relative z-10 px-4 pt-6 sm:px-6">
+      <div className="nav-shell relative z-10 px-4 pt-6 sm:px-6">
         <div className="nav-island">
           <div className="nav-island-inner">
             <div className="flex min-w-0 items-center gap-4 sm:gap-6">
@@ -215,6 +216,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <CompactModeToggle className="hidden sm:inline-flex" />
               <div className="hidden sm:block">
                 <LanguageToggle />
               </div>
@@ -270,6 +272,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                 transform: menuOpen ? 'translateY(0)' : 'translateY(3rem)',
               }}
             >
+              <CompactModeToggle />
               <LanguageToggle />
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 {t('logout')}
@@ -279,7 +282,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="page-shell relative z-10 mx-auto max-w-7xl">
         <Reveal>
           <PageHero
             eyebrow={t('adminOnly')}
@@ -290,7 +293,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
             }
           />
         </Reveal>
-        <div className="space-y-6">{children}</div>
+        <div className="layout-stack">{children}</div>
       </div>
     </div>
   );

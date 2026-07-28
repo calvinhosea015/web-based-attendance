@@ -1,3 +1,5 @@
+import { toCalendarYmd } from './formatDate.js';
+
 /** Must match backend FIELD_OFFICER_CHECKOUT_SEGMENT_COUNT */
 export const FIELD_CHECKOUT_SEGMENT_COUNT = 9;
 
@@ -118,7 +120,7 @@ export function filterDeliveryRecap(
       if (code !== o && name !== o) return false;
     }
     if (k && String(row.kode_barang ?? '').trim() !== k) return false;
-    const day = String(row.valid_on ?? '').slice(0, 10);
+    const day = toCalendarYmd(row.valid_on);
     if (from && (!day || day < from)) return false;
     if (to && (!day || day > to)) return false;
     return true;

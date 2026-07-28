@@ -1,4 +1,7 @@
-/** Parse API / DB date values into calendar parts. */
+/** Match backend ATTENDANCE_CALENDAR_TZ default. */
+const CALENDAR_TZ = 'Asia/Jakarta';
+
+/** Parse API / DB date values into Asia/Jakarta calendar parts. */
 export function parseDateParts(value) {
   if (value == null || value === '') return null;
 
@@ -8,6 +11,7 @@ export function parseDateParts(value) {
     if (ymd) {
       return { d: +ymd[3], m: +ymd[2], y: +ymd[1], hasTime: false };
     }
+    // UTC midnight = calendar DATE from node-pg on a UTC host.
     const ymdMidnight = /^(\d{4})-(\d{2})-(\d{2})T00:00:00/.exec(s);
     if (ymdMidnight) {
       return { d: +ymdMidnight[3], m: +ymdMidnight[2], y: +ymdMidnight[1], hasTime: false };
@@ -17,18 +21,36 @@ export function parseDateParts(value) {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return null;
 
+  // ponytail: wall clock in Jakarta — ceiling is non-Jakarta viewers; upgrade: pass tz.
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: CALENDAR_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).map((p) => [p.type, p.value]));
   return {
-    d: d.getDate(),
-    m: d.getMonth() + 1,
-    y: d.getFullYear(),
-    h: d.getHours(),
-    min: d.getMinutes(),
+    d: +parts.day,
+    m: +parts.month,
+    y: +parts.year,
+    h: +parts.hour,
+    min: +parts.minute,
     hasTime: true,
   };
 }
 
 function pad2(n) {
   return String(n).padStart(2, '0');
+}
+
+/** Calendar day YYYY-MM-DD — same day formatDisplayDate would show. */
+export function toCalendarYmd(value) {
+  const p = parseDateParts(value);
+  if (!p) return '';
+  return `${p.y}-${pad2(p.m)}-${pad2(p.d)}`;
 }
 
 /** Date only: dd/mm/yyyy */

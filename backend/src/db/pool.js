@@ -1,9 +1,13 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const config = require('../config/env');
 
 if (!config.databaseUrl) {
   throw new Error('DATABASE_URL is required (PostgreSQL connection string).');
 }
+
+// Keep DATE as YYYY-MM-DD. node-pg default (JS Date at local midnight) shifts the
+// calendar day when JSON-serialized in non-UTC process timezones (e.g. Asia/Jakarta).
+types.setTypeParser(types.builtins.DATE, (val) => val);
 
 const useSsl =
   process.env.DATABASE_SSL === 'true' ||

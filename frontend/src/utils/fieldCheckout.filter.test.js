@@ -48,6 +48,24 @@ assert.equal(
   filterDeliveryRecap(rows, { dateFrom: '2026-07-01', dateTo: '2026-07-10' }).length,
   1
 );
+assert.equal(
+  filterDeliveryRecap(rows, { dateFrom: '2026-07-15', dateTo: '2026-07-15' }).length,
+  1
+);
+
+// Asia/Jakarta local-midnight DATE serialized as prior UTC calendar day — filter by
+// displayed day (15), not the ISO date prefix (14).
+const tzShifted = [
+  { id: 10, pabrik_code: 'PKA', kode_barang: 'B001', valid_on: '2026-07-14T17:00:00.000Z' },
+];
+assert.equal(
+  filterDeliveryRecap(tzShifted, { dateFrom: '2026-07-15', dateTo: '2026-07-15' }).length,
+  1
+);
+assert.equal(
+  filterDeliveryRecap(tzShifted, { dateFrom: '2026-07-14', dateTo: '2026-07-14' }).length,
+  0
+);
 
 const grouped = groupFieldDeliveriesByFactoryItem([
   {
