@@ -561,7 +561,7 @@ export default {
   checkoutCodeRequired: 'Data pengiriman wajib diisi.',
   fieldDeliveryTitle: 'Petugas lapangan — data pengiriman',
   fieldDeliveryHint:
-    'Data pengiriman dari petugas lapangan di kantor Anda (default 365 hari terakhir). Filter tanggal untuk mempersempit rentang. Hanya lihat.',
+    'Seluruh data pengiriman dari petugas lapangan — hanya lihat.',
   fieldDeliveryDate: 'Tanggal',
   fieldDeliveryEmpty: 'Belum ada data pengiriman.',
   fieldDeliveryRecapTitle: 'Rekap data pengiriman',

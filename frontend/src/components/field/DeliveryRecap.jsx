@@ -28,8 +28,6 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
 
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
-  const [appliedDateFrom, setAppliedDateFrom] = useState('');
-  const [appliedDateTo, setAppliedDateTo] = useState('');
 
   const [filterPabrik, setFilterPabrik] = useState('');
   const [filterOfficer, setFilterOfficer] = useState('');
@@ -39,15 +37,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     setRecapLoading(true);
     try {
       const path = officeScope ? paths.employeeFieldDeliveries : paths.adminFieldDeliveries;
-      const params = officeScope
-        ? {
-            limit: 2000,
-            ...(appliedDateFrom ? { date_from: appliedDateFrom } : {}),
-            ...(appliedDateTo ? { date_to: appliedDateTo } : {}),
-            ...(!appliedDateFrom && !appliedDateTo ? { days: 365 } : {}),
-          }
-        : { limit: 5000 };
-      const { data } = await api.get(path, { params });
+      const { data } = await api.get(path, { params: { limit: 5000 } });
       setAllDeliveries(Array.isArray(data) ? data : []);
     } catch (err) {
       setAllDeliveries([]);
@@ -55,7 +45,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     } finally {
       setRecapLoading(false);
     }
-  }, [officeScope, appliedDateFrom, appliedDateTo, t, notify]);
+  }, [officeScope, t, notify]);
 
   useEffect(() => {
     loadAllDeliveries();
@@ -97,9 +87,8 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
         pabrik: filterPabrik,
         officer: filterOfficer,
         kodeBarang: filterKodeBarang,
-        // officeScope dates already applied server-side; still filter client-side for admin
-        dateFrom: officeScope ? '' : filterDateFrom,
-        dateTo: officeScope ? '' : filterDateTo,
+        dateFrom: filterDateFrom,
+        dateTo: filterDateTo,
       }),
     [
       allDeliveries,
@@ -108,37 +97,15 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
       filterKodeBarang,
       filterDateFrom,
       filterDateTo,
-      officeScope,
     ]
   );
-
-  const applyDateFilter = () => {
-    if (filterDateFrom && filterDateTo && filterDateFrom > filterDateTo) {
-      notify(t('fieldDeliveryRecapDateOrderError'), 'error');
-      return;
-    }
-    dismiss();
-    if (officeScope) {
-      setAppliedDateFrom(filterDateFrom);
-      setAppliedDateTo(filterDateTo);
-      return;
-    }
-    loadAllDeliveries();
-  };
 
   const clearFilters = () => {
     setFilterPabrik('');
     setFilterOfficer('');
     setFilterKodeBarang('');
-    if (officeScope) {
-      setFilterDateFrom('');
-      setFilterDateTo('');
-      setAppliedDateFrom('');
-      setAppliedDateTo('');
-    } else {
-      setFilterDateFrom('');
-      setFilterDateTo('');
-    }
+    setFilterDateFrom('');
+    setFilterDateTo('');
   };
 
   const startEditDelivery = (row) => {
@@ -197,9 +164,6 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     }
   };
 
-  const datePending =
-    officeScope && (filterDateFrom !== appliedDateFrom || filterDateTo !== appliedDateTo);
-
   return (
     <>
       {notification && (
@@ -209,7 +173,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
       )}
       <Card
         title={t('fieldDeliveryRecapTitle')}
-        description={t(officeScope ? 'fieldDeliveryHint' : 'fieldDeliveryRecapHint')}
+        description={t('fieldDeliveryRecapHint')}
         action={
           <Button
             type="button"
@@ -218,11 +182,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
             disabled={recapLoading}
             onClick={() => {
               dismiss();
-              if (officeScope) {
-                applyDateFilter();
-              } else {
-                loadAllDeliveries();
-              }
+              loadAllDeliveries();
             }}
           >
             {recapLoading ? t('loading') : t('fieldOmsetRefresh')}
@@ -246,18 +206,6 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
               onChange={(e) => setFilterDateTo(e.target.value)}
             />
           </Field>
-          {officeScope ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="mb-0.5"
-              disabled={recapLoading || !datePending}
-              onClick={applyDateFilter}
-            >
-              {t('fieldDeliveryRecapApplyDates')}
-            </Button>
-          ) : null}
           <Field label={t('fieldDeliveryRecapFilterPabrik')} className="min-w-[10rem]">
             <select
               className={inputClass}
@@ -318,7 +266,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
         ) : allDeliveries.length ? (
           <>
             <p className="mb-4 text-[13px] text-apple-label">
-              {filtersActive || (officeScope && (appliedDateFrom || appliedDateTo))
+              {filtersActive
                 ? t('fieldDeliveryRecapFilterCount', {
                     shown: filteredDeliveries.length,
                     total: allDeliveries.length,
