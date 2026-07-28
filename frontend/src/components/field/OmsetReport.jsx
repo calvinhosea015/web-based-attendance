@@ -50,6 +50,8 @@ export default function OmsetReport({ period: periodProp, onPeriodChange }) {
             ? `${t('fieldOmsetReportSubtitle')} · ${payrollCycleLabel(omsetPeriod)}`
             : t('fieldOmsetReportSubtitle')
         }
+        collapsible
+        defaultOpen
         action={
           onPeriodChange ? (
             <div className="flex flex-wrap items-end gap-2">

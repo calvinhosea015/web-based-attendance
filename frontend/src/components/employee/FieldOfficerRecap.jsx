@@ -47,6 +47,8 @@ export default function FieldOfficerRecap({ notify }) {
           ? `${t('fieldMyRecapHint')} · ${payrollCycleLabel(period)}`
           : t('fieldMyRecapHint')
       }
+      collapsible
+      defaultOpen={false}
       action={
         <div className="flex flex-wrap items-end gap-2">
           <Field label={t('payrollMonth')}>

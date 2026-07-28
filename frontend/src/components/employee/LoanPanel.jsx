@@ -62,7 +62,7 @@ export default function LoanPanel({ notify }) {
   };
 
   return (
-    <Card title={t('loanTitle')} description={t('loanEmployeeHint')}>
+    <Card title={t('loanTitle')} description={t('loanEmployeeHint')} collapsible defaultOpen={false}>
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleLoanSubmit}>
         <Field label={t('loanAmount')}>
           <input

@@ -124,7 +124,12 @@ export default function LocationManager() {
           {notification.text}
         </Alert>
       )}
-      <Card title={t('locationManagement')} description={t('locationManagementHint')}>
+      <Card
+        title={t('locationManagement')}
+        description={t('locationManagementHint')}
+        collapsible
+        defaultOpen={false}
+      >
         <form
           className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
           onSubmit={handleAddOffice}

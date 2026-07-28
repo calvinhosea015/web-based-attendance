@@ -407,6 +407,8 @@ export default function PabrikCatalog() {
       <Card
         title={t('pabrikCatalogTitle')}
         description={t('pabrikCatalogHint')}
+        collapsible
+        defaultOpen={false}
         action={
           <Button
             type="button"

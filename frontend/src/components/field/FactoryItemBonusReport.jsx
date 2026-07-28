@@ -132,6 +132,8 @@ export default function FactoryItemBonusReport() {
       <Card
         title={t('fieldFactoryBonusReportTitle')}
         description={t('fieldFactoryBonusReportHint')}
+        collapsible
+        defaultOpen={false}
         action={
           <div className="flex flex-wrap items-end gap-2">
             <Field label={t('pabrikTonaseDateFrom')}>

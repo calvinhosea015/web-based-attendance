@@ -51,7 +51,7 @@ export default function EmployeeHistorySection({ history, isUmum, onCorrectionSu
   };
 
   return (
-    <Card title={t('history')}>
+    <Card title={t('history')} collapsible defaultOpen={false}>
       {message && (
         <Alert tone={message.includes(t('correctionSubmitted')) ? 'success' : 'error'}>
           {message}

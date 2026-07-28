@@ -8,7 +8,7 @@ export default function PayrollCard({ payroll }) {
   const { t } = useTranslation();
 
   return (
-    <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')}>
+    <Card title={t('payrollEmployeeTitle')} description={t('payrollEmployeeHint')} collapsible>
       {payroll.length > 0 ? (
         <ul className="space-y-3 text-sm">
           {payroll.map((row) => {

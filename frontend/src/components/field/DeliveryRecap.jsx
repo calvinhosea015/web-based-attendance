@@ -246,6 +246,8 @@ export default function DeliveryRecap({
       <Card
         title={t('fieldDeliveryRecapTitle')}
         description={t('fieldDeliveryRecapHint')}
+        collapsible
+        defaultOpen
         action={
           <Button
             type="button"

@@ -91,7 +91,7 @@ export default function LeavePanel({ notify }) {
   };
 
   return (
-    <Card title={t('leaveTitle')} description={t('leaveEmployeeHint')}>
+    <Card title={t('leaveTitle')} description={t('leaveEmployeeHint')} collapsible defaultOpen={false}>
       {leaveBalances.length > 0 && (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           {leaveBalances.map((b) => (

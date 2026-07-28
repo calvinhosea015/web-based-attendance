@@ -8,7 +8,6 @@ import {
   PageHero,
   panelClass,
 } from '../components/ui.jsx';
-import { CompactModeToggle } from '../components/CompactModeToggle.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
 import { translateAttendanceStatus, translateRole } from '../translateApi.js';
@@ -339,16 +338,13 @@ export default function EmployeeDashboard() {
   if (payrollOnly) {
     return (
       <div className="page-shell layout-stack mx-auto max-w-4xl">
-        <div className="payroll-only-hero flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <span className="apple-eyebrow">{t('headOfFinanceHubTitle')}</span>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-apple-text">
               {t('payrollEmployeeTitle')}
             </h1>
-            <p className="payroll-only-sub mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
-            <div className="page-compact-toggle mt-2">
-              <CompactModeToggle />
-            </div>
+            <p className="mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             {t('logout')}
