@@ -461,7 +461,7 @@ function buildProtectedRoutes(deps) {
   r.get('/employee/me/payroll', requireEmployeePayrollAccess, dashboardController.employeePayroll);
   r.get(
     '/employee/field-deliveries',
-    requireRole('employee'),
+    requireRole('employee', 'accounting'),
     fieldDeliveryQueryValidators,
     validateRequest,
     dashboardController.employeeFieldDeliveries

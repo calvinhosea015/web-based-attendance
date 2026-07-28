@@ -208,8 +208,12 @@ class EmployeePortalService {
   }
 
   async listFieldOfficerDeliveries(auth, { limit = 100, days = 60 } = {}) {
-    if (!isStaffKantor(auth.role)) {
-      throw new AppError('Only Staff Kantor can view field delivery data.', 403, 'FORBIDDEN');
+    if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
+      throw new AppError(
+        'Only Staff Kantor and Accounting can view field delivery data.',
+        403,
+        'FORBIDDEN'
+      );
     }
     const userRow = await this.userRepository.findById(auth.userId);
     if (!userRow?.office_id) {

@@ -45,6 +45,10 @@ function formatTimePart(t) {
   return s.length >= 5 ? s.slice(0, 5) : s;
 }
 
+function canViewOfficeDeliveryRecap(role) {
+  return role === ROLE_EMPLOYEE || isAccountingRole(role);
+}
+
 export default function EmployeeDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -102,12 +106,12 @@ export default function EmployeeDashboard() {
           setPayroll(pr.data || []);
           return;
         }
-        const isStaffKantor = role === ROLE_EMPLOYEE;
+        const allowDeliveryRecap = canViewOfficeDeliveryRecap(role);
         const [s, h, pr, fd] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
           api.get(paths.employeePayroll).catch(() => ({ data: [] })),
-          isStaffKantor
+          allowDeliveryRecap
             ? api.get(paths.employeeFieldDeliveries).catch(() => ({ data: [] }))
             : Promise.resolve({ data: [] }),
         ]);
@@ -282,6 +286,9 @@ export default function EmployeeDashboard() {
   const isAccounting =
     summary?.accounting_mode === true || isAccountingRole(summary?.role);
   const isStaffKantor = summary?.role === ROLE_EMPLOYEE;
+  const canShowDeliveryRecap = canViewOfficeDeliveryRecap(
+    summary?.role || localStorage.getItem('role')
+  );
   const nextAction = summary?.next_clock_action ?? 'check_in';
   const shift = summary?.shift;
   const shiftLabel = isDailyWageSchedule
@@ -692,7 +699,7 @@ export default function EmployeeDashboard() {
 
       <LoanPanel notify={notify} />
 
-      {isStaffKantor && (
+      {canShowDeliveryRecap && (
         <Card title={t('fieldDeliveryTitle')} description={t('fieldDeliveryHint')}>
           {fieldDeliveries.length ? (
             <ul className="space-y-4 text-sm">
