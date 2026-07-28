@@ -224,7 +224,9 @@ export default function FactoryItemBonusReport() {
                         {t('fieldDeliveryRecapFilterPabrik')}
                       </th>
                       <th className="px-3 py-2.5 font-medium">{t('fieldMyRecapItem')}</th>
-                      <th className="px-3 py-2.5 font-medium">{t('fieldMyRecapDeliveries')}</th>
+                      <th className="px-3 py-2.5 text-right font-medium">
+                        {t('fieldMyRecapDeliveries')}
+                      </th>
                       <th className="px-3 py-2.5 text-right font-medium">
                         <span className="uppercase">{t('fieldDelivery_berat_bersih')}</span>
                         <span className="normal-case"> (kg)</span>
@@ -251,7 +253,7 @@ export default function FactoryItemBonusReport() {
                             </span>
                           ) : null}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-apple-text">
+                        <td className="px-3 py-2 text-right tabular-nums text-apple-text">
                           {row.delivery_count}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums text-apple-text">
