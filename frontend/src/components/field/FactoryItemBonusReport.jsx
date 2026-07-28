@@ -225,11 +225,18 @@ export default function FactoryItemBonusReport() {
                       </th>
                       <th className="px-3 py-2.5 font-medium">{t('fieldMyRecapItem')}</th>
                       <th className="px-3 py-2.5 font-medium">{t('fieldMyRecapDeliveries')}</th>
-                      <th className="px-3 py-2.5 font-medium">
-                        {t('fieldDelivery_berat_bersih')}
+                      <th className="px-3 py-2.5 text-right font-medium">
+                        <span className="uppercase">{t('fieldDelivery_berat_bersih')}</span>
+                        <span className="normal-case"> (kg)</span>
                       </th>
-                      <th className="px-3 py-2.5 font-medium">{t('fieldOmsetTotal')}</th>
-                      <th className="px-3 py-2.5 font-medium">{t('fieldMyRecapBonusCol')}</th>
+                      <th className="px-3 py-2.5 text-right font-medium">
+                        <span className="uppercase">{t('fieldOmsetTotal')}</span>
+                        <span className="normal-case"> (Rp.)</span>
+                      </th>
+                      <th className="px-3 py-2.5 text-right font-medium">
+                        <span className="uppercase">{t('fieldMyRecapBonusCol')}</span>
+                        <span className="normal-case"> (Rp.)</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/[0.06]">
@@ -247,14 +254,14 @@ export default function FactoryItemBonusReport() {
                         <td className="px-3 py-2 tabular-nums text-apple-text">
                           {row.delivery_count}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-apple-text">
-                          {formatKg(row.total_berat_bersih)} kg
+                        <td className="px-3 py-2 text-right tabular-nums text-apple-text">
+                          {formatKg(row.total_berat_bersih)}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-apple-text">
-                          Rp {formatIdr(row.total_omset)}
+                        <td className="px-3 py-2 text-right tabular-nums text-apple-text">
+                          {formatIdr(row.total_omset)}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-apple-text">
-                          Rp {formatIdr(row.total_bonus)}
+                        <td className="px-3 py-2 text-right tabular-nums text-apple-text">
+                          {formatIdr(row.total_bonus)}
                         </td>
                       </tr>
                     ))}
