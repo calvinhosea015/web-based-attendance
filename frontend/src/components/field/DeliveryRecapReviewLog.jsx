@@ -5,17 +5,15 @@ import { api, paths } from '../../api/client.js';
 import { translateApiMessage } from '../../translateApi.js';
 import { formatDisplayDate, formatDisplayDateTime } from '../../utils/formatDate.js';
 
-function scopeSummary(row, t) {
+function deliverySummary(row, t) {
   const parts = [];
-  if (row.filter_date_from || row.filter_date_to) {
-    const from = row.filter_date_from ? formatDisplayDate(row.filter_date_from) : '…';
-    const to = row.filter_date_to ? formatDisplayDate(row.filter_date_to) : '…';
-    parts.push(`${from} – ${to}`);
-  }
-  if (row.filter_pabrik) parts.push(row.filter_pabrik);
-  if (row.filter_officer) parts.push(row.filter_officer);
-  if (row.filter_kode_barang) parts.push(row.filter_kode_barang);
-  return parts.length ? parts.join(' · ') : t('fieldDeliveryRecapFilterAll');
+  if (row.valid_on) parts.push(formatDisplayDate(row.valid_on));
+  const officer = row.delivery_officer_name || row.delivery_employee_code;
+  if (officer) parts.push(officer);
+  if (row.pabrik_code) parts.push(row.pabrik_code);
+  if (row.kode_barang) parts.push(row.kode_barang);
+  if (row.nomor_surat_jalan) parts.push(`SJ ${row.nomor_surat_jalan}`);
+  return parts.length ? parts.join(' · ') : t('fieldDeliveryRecapReviewLogUnknownDelivery');
 }
 
 export default function DeliveryRecapReviewLog() {
@@ -76,7 +74,7 @@ export default function DeliveryRecapReviewLog() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-apple-label">
-                {t('fieldDeliveryRecapReviewLogScope')}: {scopeSummary(row, t)}
+                {t('fieldDeliveryRecapReviewLogDelivery')}: {deliverySummary(row, t)}
               </p>
               {row.notes ? (
                 <p className="mt-2 text-sm text-apple-text">“{row.notes}”</p>

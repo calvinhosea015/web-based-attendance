@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Card, Field, inputClass } from '../ui.jsx';
+import { Alert, Badge, Button, Card, Field, inputClass } from '../ui.jsx';
 import { api, paths, ensureCsrf } from '../../api/client.js';
 import { translateApiMessage } from '../../translateApi.js';
 import { useNotify } from '../../hooks/useNotify.js';
@@ -37,77 +37,62 @@ export default function DeliveryRecap({
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterKodeBarang, setFilterKodeBarang] = useState('');
 
-  const [reviewVerdict, setReviewVerdict] = useState(null);
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [lastReview, setLastReview] = useState(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewSaving, setReviewSaving] = useState(false);
+  const [rowReviewDraft, setRowReviewDraft] = useState({});
+  const [reviewSavingId, setReviewSavingId] = useState(null);
 
-  const reviewScope = useMemo(
-    () => ({
-      date_from: filterDateFrom || null,
-      date_to: filterDateTo || null,
-      pabrik: filterPabrik,
-      officer: filterOfficer,
-      kode_barang: filterKodeBarang,
-    }),
-    [filterDateFrom, filterDateTo, filterPabrik, filterOfficer, filterKodeBarang]
-  );
-
-  const loadDeliveryRecapReview = useCallback(async () => {
-    if (!officeScope) return;
-    setReviewLoading(true);
-    try {
-      const { data } = await api.get(paths.employeeDeliveryRecapReviews, { params: reviewScope });
-      setLastReview(data || null);
-      if (data && typeof data.is_correct === 'boolean') {
-        setReviewVerdict(data.is_correct);
-        setReviewNotes(data.notes || '');
-      } else {
-        setReviewVerdict(null);
-        setReviewNotes('');
-      }
-    } catch {
-      setLastReview(null);
-      setReviewVerdict(null);
-      setReviewNotes('');
-    } finally {
-      setReviewLoading(false);
+  const getRowReviewDraft = (row) => {
+    const draft = rowReviewDraft[row.id];
+    if (draft) return draft;
+    const review = row.recap_review;
+    if (review && typeof review.is_correct === 'boolean') {
+      return { verdict: review.is_correct, notes: review.notes || '' };
     }
-  }, [officeScope, reviewScope]);
+    return { verdict: null, notes: '' };
+  };
 
-  useEffect(() => {
-    loadDeliveryRecapReview();
-  }, [loadDeliveryRecapReview]);
+  const setRowDraft = (row, patch) => {
+    setRowReviewDraft((prev) => {
+      const base =
+        prev[row.id] ??
+        (row.recap_review && typeof row.recap_review.is_correct === 'boolean'
+          ? { verdict: row.recap_review.is_correct, notes: row.recap_review.notes || '' }
+          : { verdict: null, notes: '' });
+      return { ...prev, [row.id]: { ...base, ...patch } };
+    });
+  };
 
-  const saveDeliveryRecapReview = async () => {
-    if (typeof reviewVerdict !== 'boolean') {
+  const saveRowReview = async (row) => {
+    const draft = getRowReviewDraft(row);
+    if (typeof draft.verdict !== 'boolean') {
       notify(t('fieldDeliveryRecapReviewVerdictRequired'), 'error');
       return;
     }
-    if (!reviewVerdict && !reviewNotes.trim()) {
+    if (!draft.verdict && !draft.notes.trim()) {
       notify(t('fieldDeliveryRecapReviewNotesRequired'), 'error');
       return;
     }
-    setReviewSaving(true);
+    setReviewSavingId(row.id);
     dismiss();
     try {
       await ensureCsrf();
       const { data } = await api.post(paths.employeeDeliveryRecapReviews, {
-        scope: reviewScope,
-        is_correct: reviewVerdict,
-        notes: reviewNotes.trim() || null,
+        delivery_entry_id: row.id,
+        is_correct: draft.verdict,
+        notes: draft.notes.trim() || null,
       });
-      setLastReview(data || null);
-      if (data && typeof data.is_correct === 'boolean') {
-        setReviewVerdict(data.is_correct);
-        setReviewNotes(data.notes || '');
-      }
+      setAllDeliveries((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, recap_review: data || null } : r))
+      );
+      setRowReviewDraft((prev) => {
+        const next = { ...prev };
+        delete next[row.id];
+        return next;
+      });
       notify(t('fieldDeliveryRecapReviewSaved'), 'success');
     } catch (err) {
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
-      setReviewSaving(false);
+      setReviewSavingId(null);
     }
   };
 
@@ -355,6 +340,8 @@ export default function DeliveryRecap({
               <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-sm">
                 {filteredDeliveries.map((row) => {
                   const parsed = fieldDeliveryDisplayFields(row);
+                  const reviewDraft = getRowReviewDraft(row);
+                  const reviewSaving = reviewSavingId === row.id;
                   return (
                     <li
                       key={row.id}
@@ -455,6 +442,84 @@ export default function DeliveryRecap({
                               ) : null}
                             </p>
                           ) : null}
+                          {officeScope && editingId !== row.id ? (
+                            <div className="mt-3 border-t border-black/[0.06] pt-3">
+                              <p className="text-xs font-medium text-apple-label">
+                                {t('fieldDeliveryRecapReviewTitle')}
+                              </p>
+                              {row.recap_review?.reviewed_at &&
+                              typeof row.recap_review.is_correct === 'boolean' &&
+                              !rowReviewDraft[row.id] ? (
+                                <p className="mt-1 text-xs text-apple-label">
+                                  {t('fieldDeliveryRecapReviewLastSaved', {
+                                    name:
+                                      row.recap_review.reviewer_full_name ||
+                                      row.recap_review.reviewer_username ||
+                                      '—',
+                                    date: formatDisplayDate(row.recap_review.reviewed_at),
+                                    verdict: row.recap_review.is_correct
+                                      ? t('fieldDeliveryRecapReviewCorrect')
+                                      : t('fieldDeliveryRecapReviewIncorrect'),
+                                  })}
+                                  {row.recap_review.notes ? (
+                                    <span className="mt-1 block text-apple-text">
+                                      “{row.recap_review.notes}”
+                                    </span>
+                                  ) : null}
+                                </p>
+                              ) : null}
+                              {reviewEditable ? (
+                                <div className="mt-2 space-y-2">
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant={reviewDraft.verdict === true ? 'primary' : 'secondary'}
+                                      onClick={() => setRowDraft(row, { verdict: true })}
+                                    >
+                                      {t('fieldDeliveryRecapReviewCorrect')}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant={reviewDraft.verdict === false ? 'danger' : 'secondary'}
+                                      onClick={() => setRowDraft(row, { verdict: false })}
+                                    >
+                                      {t('fieldDeliveryRecapReviewIncorrect')}
+                                    </Button>
+                                  </div>
+                                  {reviewDraft.verdict === false ? (
+                                    <textarea
+                                      className={`${inputClass} min-h-[3rem] resize-y text-sm`}
+                                      placeholder={t('fieldDeliveryRecapReviewNotesPlaceholder')}
+                                      value={reviewDraft.notes}
+                                      onChange={(e) => setRowDraft(row, { notes: e.target.value })}
+                                      maxLength={500}
+                                    />
+                                  ) : null}
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={
+                                      reviewSaving || typeof reviewDraft.verdict !== 'boolean'
+                                    }
+                                    onClick={() => saveRowReview(row)}
+                                  >
+                                    {reviewSaving ? t('loading') : t('fieldDeliveryRecapReviewSave')}
+                                  </Button>
+                                </div>
+                              ) : row.recap_review &&
+                                typeof row.recap_review.is_correct === 'boolean' ? (
+                                <div className="mt-2">
+                                  <Badge variant={row.recap_review.is_correct ? 'success' : 'muted'}>
+                                  {row.recap_review.is_correct
+                                    ? t('fieldDeliveryRecapReviewCorrect')
+                                    : t('fieldDeliveryRecapReviewIncorrect')}
+                                </Badge>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                           {editable ? (
                             <div className="mt-3 flex gap-2">
                               <Button
@@ -489,81 +554,6 @@ export default function DeliveryRecap({
         ) : (
           <p className="text-[15px] text-apple-label">{t('fieldDeliveryEmpty')}</p>
         )}
-
-        {officeScope ? (
-          <div className="mt-4 rounded-apple-lg border border-black/[0.06] bg-apple-fill/60 p-4">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium text-apple-text">
-                {t('fieldDeliveryRecapReviewTitle')}
-              </h3>
-              <p className="mt-1 text-xs text-apple-label">
-                {t('fieldDeliveryRecapReviewHint')}
-              </p>
-            </div>
-            {lastReview?.reviewed_at && typeof lastReview.is_correct === 'boolean' ? (
-              <p className="mb-3 text-xs text-apple-label">
-                {t('fieldDeliveryRecapReviewLastSaved', {
-                  name:
-                    lastReview.reviewer_full_name ||
-                    lastReview.reviewer_username ||
-                    '—',
-                  date: formatDisplayDate(lastReview.reviewed_at),
-                  verdict: lastReview.is_correct
-                    ? t('fieldDeliveryRecapReviewCorrect')
-                    : t('fieldDeliveryRecapReviewIncorrect'),
-                })}
-                {lastReview.notes ? (
-                  <span className="mt-1 block text-apple-text">“{lastReview.notes}”</span>
-                ) : null}
-              </p>
-            ) : null}
-            {reviewLoading ? (
-              <p className="text-xs text-apple-label">{t('loading')}</p>
-            ) : reviewEditable ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={reviewVerdict === true ? 'primary' : 'secondary'}
-                    onClick={() => setReviewVerdict(true)}
-                  >
-                    {t('fieldDeliveryRecapReviewCorrect')}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={reviewVerdict === false ? 'danger' : 'secondary'}
-                    onClick={() => setReviewVerdict(false)}
-                  >
-                    {t('fieldDeliveryRecapReviewIncorrect')}
-                  </Button>
-                </div>
-                {reviewVerdict === false ? (
-                  <Field label={t('fieldDeliveryRecapReviewNotesLabel')}>
-                    <textarea
-                      className={`${inputClass} min-h-[4rem] resize-y`}
-                      placeholder={t('fieldDeliveryRecapReviewNotesPlaceholder')}
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      maxLength={500}
-                    />
-                  </Field>
-                ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={reviewSaving || typeof reviewVerdict !== 'boolean'}
-                  onClick={saveDeliveryRecapReview}
-                >
-                  {reviewSaving ? t('loading') : t('fieldDeliveryRecapReviewSave')}
-                </Button>
-              </div>
-            ) : lastReview?.reviewed_at && typeof lastReview.is_correct === 'boolean' ? null : (
-              <p className="text-xs text-apple-label">{t('fieldDeliveryRecapReviewReadOnly')}</p>
-            )}
-          </div>
-        ) : null}
       </Card>
     </>
   );

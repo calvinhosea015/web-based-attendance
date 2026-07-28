@@ -585,7 +585,7 @@ export default {
   fieldDeliveryRecapFilterNoMatch: 'Tidak ada baris yang cocok dengan filter.',
   fieldDeliveryRecapReviewTitle: 'Cek rekap pengiriman',
   fieldDeliveryRecapReviewHint:
-    'Periksa data pengiriman di bawah, lalu tentukan apakah rekap ini sudah benar.',
+    'Tandai setiap baris pengiriman di bawah sebagai benar atau tidak benar, lalu simpan.',
   fieldDeliveryRecapReviewCorrect: 'Benar',
   fieldDeliveryRecapReviewIncorrect: 'Tidak benar',
   fieldDeliveryRecapReviewSave: 'Simpan cek',
@@ -599,8 +599,9 @@ export default {
   fieldDeliveryRecapReviewReadOnly: 'Hanya Staff Kantor yang dapat menyimpan cek.',
   fieldDeliveryRecapReviewLogTitle: 'Riwayat cek rekap pengiriman',
   fieldDeliveryRecapReviewLogHint:
-    'Catatan verifikasi Staff Kantor — siapa mengecek rekap dan apakah sudah benar.',
-  fieldDeliveryRecapReviewLogScope: 'Filter',
+    'Cek Staff Kantor per baris pengiriman — siapa mengecek dan hasilnya.',
+  fieldDeliveryRecapReviewLogDelivery: 'Pengiriman',
+  fieldDeliveryRecapReviewLogUnknownDelivery: 'Baris pengiriman',
   fieldDeliveryRecapReviewLogEmpty: 'Belum ada cek tersimpan.',
   fieldDelivery_pabrik: 'Pabrik',
   fieldDelivery_norek: 'Norek',

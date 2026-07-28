@@ -1,60 +1,46 @@
 const { query } = require('../db/pool');
 
-function normalizeScope({
-  date_from: dateFrom,
-  date_to: dateTo,
-  pabrik = '',
-  officer = '',
-  kode_barang: kodeBarang = '',
-}) {
-  return {
-    dateFrom: dateFrom || null,
-    dateTo: dateTo || null,
-    pabrik: String(pabrik || '').trim(),
-    officer: String(officer || '').trim(),
-    kodeBarang: String(kodeBarang || '').trim(),
-  };
-}
-
 class DeliveryRecapReviewRepository {
-  async findLatestForScope(scope) {
-    const { dateFrom, dateTo, pabrik, officer, kodeBarang } = normalizeScope(scope);
+  async findLatestForDelivery(deliveryEntryId) {
     const r = await query(
       `SELECT r.*, u.username AS reviewer_username, e.full_name AS reviewer_full_name
        FROM delivery_recap_reviews r
        JOIN users u ON u.id = r.reviewed_by
        LEFT JOIN employees e ON e.id = u.employee_id
-       WHERE r.filter_date_from IS NOT DISTINCT FROM $1::date
-         AND r.filter_date_to IS NOT DISTINCT FROM $2::date
-         AND r.filter_pabrik = $3
-         AND r.filter_officer = $4
-         AND r.filter_kode_barang = $5
-         AND r.is_correct IS NOT NULL
+       WHERE r.delivery_entry_id = $1 AND r.is_correct IS NOT NULL
        ORDER BY r.reviewed_at DESC
        LIMIT 1`,
-      [dateFrom, dateTo, pabrik, officer, kodeBarang]
+      [deliveryEntryId]
     );
     return r.rows[0] || null;
   }
 
-  async create({ scope, isCorrect, notes, reviewedBy }) {
-    const { dateFrom, dateTo, pabrik, officer, kodeBarang } = normalizeScope(scope);
+  async mapLatestByDeliveryIds(deliveryIds) {
+    const ids = [...new Set(deliveryIds.map((id) => Number(id)).filter((n) => Number.isFinite(n) && n > 0))];
+    if (!ids.length) return new Map();
     const r = await query(
-      `INSERT INTO delivery_recap_reviews (
-         filter_date_from, filter_date_to, filter_pabrik, filter_officer, filter_kode_barang,
-         is_correct, notes, reviewed_by
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `SELECT DISTINCT ON (r.delivery_entry_id)
+              r.*, u.username AS reviewer_username, e.full_name AS reviewer_full_name
+       FROM delivery_recap_reviews r
+       JOIN users u ON u.id = r.reviewed_by
+       LEFT JOIN employees e ON e.id = u.employee_id
+       WHERE r.delivery_entry_id = ANY($1::int[]) AND r.is_correct IS NOT NULL
+       ORDER BY r.delivery_entry_id, r.reviewed_at DESC`,
+      [ids]
+    );
+    const map = new Map();
+    for (const row of r.rows) {
+      map.set(Number(row.delivery_entry_id), row);
+    }
+    return map;
+  }
+
+  async create({ deliveryEntryId, isCorrect, notes, reviewedBy }) {
+    const r = await query(
+      `INSERT INTO delivery_recap_reviews (delivery_entry_id, is_correct, notes, reviewed_by)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [
-        dateFrom,
-        dateTo,
-        pabrik,
-        officer,
-        kodeBarang,
-        Boolean(isCorrect),
-        notes || null,
-        reviewedBy,
-      ]
+      [deliveryEntryId, Boolean(isCorrect), notes || null, reviewedBy]
     );
     return r.rows[0];
   }
@@ -62,11 +48,15 @@ class DeliveryRecapReviewRepository {
   async listRecent(limit = 50) {
     const safeLimit = Math.min(200, Math.max(1, Number(limit) || 50));
     const r = await query(
-      `SELECT r.*, u.username AS reviewer_username, e.full_name AS reviewer_full_name
+      `SELECT r.*, u.username AS reviewer_username, rev.full_name AS reviewer_full_name,
+              fde.valid_on, fde.pabrik_code, fde.kode_barang, fde.nomor_surat_jalan,
+              del.full_name AS delivery_officer_name, del.employee_id AS delivery_employee_code
        FROM delivery_recap_reviews r
        JOIN users u ON u.id = r.reviewed_by
-       LEFT JOIN employees e ON e.id = u.employee_id
-       WHERE r.is_correct IS NOT NULL
+       LEFT JOIN employees rev ON rev.id = u.employee_id
+       JOIN field_delivery_entries fde ON fde.id = r.delivery_entry_id
+       JOIN employees del ON del.id = fde.employee_id
+       WHERE r.is_correct IS NOT NULL AND r.delivery_entry_id IS NOT NULL
        ORDER BY r.reviewed_at DESC
        LIMIT $1`,
       [safeLimit]
@@ -75,4 +65,4 @@ class DeliveryRecapReviewRepository {
   }
 }
 
-module.exports = { DeliveryRecapReviewRepository, normalizeScope };
+module.exports = { DeliveryRecapReviewRepository };

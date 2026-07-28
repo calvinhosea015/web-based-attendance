@@ -220,6 +220,10 @@ class EmployeePortalService {
     if (!this.fieldDeliveryRepository) return [];
     const safeLimit = Math.min(5000, Math.max(1, Number(limit) || 5000));
     const rows = await this.fieldDeliveryRepository.listAll({ limit: safeLimit });
+    const reviewMap =
+      this.deliveryRecapReviewRepository
+        ? await this.deliveryRecapReviewRepository.mapLatestByDeliveryIds(rows.map((r) => r.id))
+        : new Map();
     return rows.map((row) => ({
       id: row.id,
       full_name: row.full_name,
@@ -244,6 +248,7 @@ class EmployeePortalService {
       price_per_item: row.price_per_item ?? null,
       omset_amount: row.omset_amount ?? null,
       bonus_amount: row.bonus_amount ?? null,
+      recap_review: this.formatDeliveryRecapReview(reviewMap.get(Number(row.id))),
     }));
   }
 
@@ -251,39 +256,36 @@ class EmployeePortalService {
     if (!row) return null;
     return {
       id: row.id,
-      filter_date_from: row.filter_date_from ?? null,
-      filter_date_to: row.filter_date_to ?? null,
-      filter_pabrik: row.filter_pabrik ?? '',
-      filter_officer: row.filter_officer ?? '',
-      filter_kode_barang: row.filter_kode_barang ?? '',
+      delivery_entry_id: row.delivery_entry_id ?? null,
       is_correct: row.is_correct ?? null,
       notes: row.notes ?? null,
       reviewed_by: row.reviewed_by,
       reviewed_at: row.reviewed_at ?? null,
       reviewer_username: row.reviewer_username ?? null,
       reviewer_full_name: row.reviewer_full_name ?? null,
+      valid_on: row.valid_on ?? null,
+      pabrik_code: row.pabrik_code ?? null,
+      kode_barang: row.kode_barang ?? null,
+      delivery_officer_name: row.delivery_officer_name ?? null,
+      delivery_employee_code: row.delivery_employee_code ?? null,
+      nomor_surat_jalan: row.nomor_surat_jalan ?? null,
     };
   }
 
-  async getDeliveryRecapReview(auth, scope) {
-    if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
-      throw new AppError(
-        'Only Staff Kantor and Accounting can view delivery recap reviews.',
-        403,
-        'FORBIDDEN'
-      );
-    }
-    if (!this.deliveryRecapReviewRepository) return null;
-    const row = await this.deliveryRecapReviewRepository.findLatestForScope(scope);
-    return this.formatDeliveryRecapReview(row);
-  }
-
-  async saveDeliveryRecapReview(auth, { scope, is_correct: isCorrect, notes }) {
+  async saveDeliveryRecapReview(auth, { delivery_entry_id: deliveryEntryId, is_correct: isCorrect, notes }) {
     if (!isStaffKantor(auth.role)) {
       throw new AppError('Only Staff Kantor can save delivery recap reviews.', 403, 'FORBIDDEN');
     }
-    if (!this.deliveryRecapReviewRepository) {
+    if (!this.deliveryRecapReviewRepository || !this.fieldDeliveryRepository) {
       throw new AppError('Delivery recap reviews are not available.', 500, 'INTERNAL');
+    }
+    const entryId = Number(deliveryEntryId);
+    if (!Number.isFinite(entryId) || entryId < 1) {
+      throw new AppError('delivery_entry_id is required.', 400, 'DELIVERY_ID');
+    }
+    const entry = await this.fieldDeliveryRepository.findById(entryId);
+    if (!entry) {
+      throw new AppError('Delivery entry not found.', 404, 'NOT_FOUND');
     }
     if (typeof isCorrect !== 'boolean') {
       throw new AppError('Mark the delivery recap as correct or not correct.', 400, 'REVIEW_VERDICT');
@@ -292,14 +294,14 @@ class EmployeePortalService {
     if (!isCorrect && !noteText) {
       throw new AppError('Add a note when the recap is not correct.', 400, 'REVIEW_NOTES');
     }
-    const row = await this.deliveryRecapReviewRepository.create({
-      scope: scope || {},
+    await this.deliveryRecapReviewRepository.create({
+      deliveryEntryId: entryId,
       isCorrect,
       notes: noteText || null,
       reviewedBy: auth.userId,
     });
-    const withUser = await this.deliveryRecapReviewRepository.findLatestForScope(scope || {});
-    return this.formatDeliveryRecapReview(withUser || row);
+    const withUser = await this.deliveryRecapReviewRepository.findLatestForDelivery(entryId);
+    return this.formatDeliveryRecapReview(withUser);
   }
 
   async listDeliveryRecapReviews(auth, { limit = 50 } = {}) {

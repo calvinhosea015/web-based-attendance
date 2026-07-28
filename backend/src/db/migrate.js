@@ -757,6 +757,13 @@ async function migrateDeliveryRecapReviews() {
     `ALTER TABLE delivery_recap_reviews ADD COLUMN IF NOT EXISTS is_correct BOOLEAN`
   );
   await query(`ALTER TABLE delivery_recap_reviews ADD COLUMN IF NOT EXISTS notes TEXT`);
+  await query(
+    `ALTER TABLE delivery_recap_reviews ADD COLUMN IF NOT EXISTS delivery_entry_id INTEGER REFERENCES field_delivery_entries(id) ON DELETE CASCADE`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_delivery_recap_reviews_entry
+     ON delivery_recap_reviews(delivery_entry_id, reviewed_at DESC)`
+  );
 }
 
 async function migrate() {

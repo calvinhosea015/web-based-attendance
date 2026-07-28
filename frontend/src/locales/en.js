@@ -579,7 +579,7 @@ export default {
   fieldDeliveryRecapFilterNoMatch: 'No lines match your filters.',
   fieldDeliveryRecapReviewTitle: 'Verify delivery recap',
   fieldDeliveryRecapReviewHint:
-    'Review the filtered delivery lines below, then mark whether this recap is correct.',
+    'Mark each delivery line below as correct or not correct, then save.',
   fieldDeliveryRecapReviewCorrect: 'Correct',
   fieldDeliveryRecapReviewIncorrect: 'Not correct',
   fieldDeliveryRecapReviewSave: 'Save check',
@@ -593,8 +593,9 @@ export default {
   fieldDeliveryRecapReviewReadOnly: 'Only Staff Kantor can save a check.',
   fieldDeliveryRecapReviewLogTitle: 'Delivery recap checks',
   fieldDeliveryRecapReviewLogHint:
-    'Staff Kantor verification records — who checked each recap and whether it was correct.',
-  fieldDeliveryRecapReviewLogScope: 'Filters',
+    'Staff Kantor checks per delivery line — who verified each line and the verdict.',
+  fieldDeliveryRecapReviewLogDelivery: 'Delivery',
+  fieldDeliveryRecapReviewLogUnknownDelivery: 'Delivery line',
   fieldDeliveryRecapReviewLogEmpty: 'No checks recorded yet.',
   fieldDelivery_pabrik: 'Pabrik',
   fieldDelivery_norek: 'Norek',

@@ -364,21 +364,8 @@ const fieldDeliveryQueryValidators = [
   query('limit').optional().isInt({ min: 1, max: 5000 }),
 ];
 
-const deliveryRecapReviewQueryValidators = [
-  query('date_from').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
-  query('date_to').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
-  query('pabrik').optional().isString().isLength({ max: 32 }),
-  query('officer').optional().isString().isLength({ max: 64 }),
-  query('kode_barang').optional().isString().isLength({ max: 64 }),
-];
-
 const deliveryRecapReviewSaveValidators = [
-  body('scope').optional().isObject(),
-  body('scope.date_from').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
-  body('scope.date_to').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
-  body('scope.pabrik').optional().isString().isLength({ max: 32 }),
-  body('scope.officer').optional().isString().isLength({ max: 64 }),
-  body('scope.kode_barang').optional().isString().isLength({ max: 64 }),
+  body('delivery_entry_id').isInt({ min: 1 }),
   body('is_correct').isBoolean({ strict: true }),
   body('notes').optional({ values: 'null' }).trim().isLength({ max: 500 }),
 ];
@@ -458,7 +445,6 @@ module.exports = {
   loanSubmitValidators,
   loanDecideValidators,
   fieldDeliveryQueryValidators,
-  deliveryRecapReviewQueryValidators,
   deliveryRecapReviewSaveValidators,
   adminFieldDeliveryQueryValidators,
   adminFieldDeliveryUpdateValidators,
