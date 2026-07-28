@@ -207,7 +207,10 @@ class EmployeePortalService {
     return this.payrollRepository.listForEmployee(auth.employeeId);
   }
 
-  async listFieldOfficerDeliveries(auth, { limit = 100, days = 60 } = {}) {
+  async listFieldOfficerDeliveries(
+    auth,
+    { limit = 100, days = 60, dateFrom = null, dateTo = null } = {}
+  ) {
     if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
       throw new AppError(
         'Only Staff Kantor and Accounting can view field delivery data.',
@@ -223,17 +226,36 @@ class EmployeePortalService {
         'NO_OFFICE'
       );
     }
-    const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
+    const from = dateFrom ? String(dateFrom).trim() : '';
+    const to = dateTo ? String(dateTo).trim() : '';
+    if ((from && !/^\d{4}-\d{2}-\d{2}$/.test(from)) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to))) {
+      throw new AppError('Invalid date format. Use YYYY-MM-DD.', 400, 'VALIDATION');
+    }
+    if (from && to && from > to) {
+      throw new AppError('Start date must be on or before end date.', 400, 'VALIDATION');
+    }
+    if (from && to) {
+      const start = new Date(`${from}T00:00:00Z`);
+      const end = new Date(`${to}T00:00:00Z`);
+      const spanDays = Math.floor((end - start) / 86400000) + 1;
+      if (spanDays > 366) {
+        throw new AppError('Date range cannot exceed 366 days.', 400, 'VALIDATION');
+      }
+    }
+    const safeLimit = Math.min(2000, Math.max(1, Number(limit) || 100));
     const safeDays = Math.min(365, Math.max(1, Number(days) || 60));
+    const queryOpts = {
+      limit: safeLimit,
+      days: safeDays,
+      dateFrom: from || null,
+      dateTo: to || null,
+    };
     const rows = this.fieldDeliveryRepository
-      ? await this.fieldDeliveryRepository.listByOffice(userRow.office_id, {
-          limit: safeLimit,
-          days: safeDays,
-        })
-      : await this.attendanceRepository.listFieldOfficerDeliveriesByOffice(userRow.office_id, {
-          limit: safeLimit,
-          days: safeDays,
-        });
+      ? await this.fieldDeliveryRepository.listByOffice(userRow.office_id, queryOpts)
+      : await this.attendanceRepository.listFieldOfficerDeliveriesByOffice(
+          userRow.office_id,
+          queryOpts
+        );
     return rows.map((row) => ({
       id: row.id,
       full_name: row.full_name,

@@ -360,8 +360,12 @@ const loanDecideValidators = [
 ];
 
 const fieldDeliveryQueryValidators = [
-  query('limit').optional().isInt({ min: 1, max: 200 }),
+  query('limit').optional().isInt({ min: 1, max: 2000 }),
   query('days').optional().isInt({ min: 1, max: 365 }),
+  query('date_from').optional().matches(/^\d{4}-\d{2}-\d{2}$/),
+  query('date_to').optional().matches(/^\d{4}-\d{2}-\d{2}$/),
+  query('from').optional().matches(/^\d{4}-\d{2}-\d{2}$/),
+  query('to').optional().matches(/^\d{4}-\d{2}-\d{2}$/),
 ];
 
 const adminFieldDeliveryQueryValidators = [

@@ -286,8 +286,26 @@ class FieldDeliveryRepository {
 
   /**
    * Delivery lines from petugas lapangan visible to staff at the given office.
+   * Prefer dateFrom/dateTo; otherwise fall back to trailing `days`.
    */
-  async listByOffice(officeId, { limit = 100, days = 60 } = {}) {
+  async listByOffice(officeId, { limit = 100, days = 60, dateFrom = null, dateTo = null } = {}) {
+    const params = [officeId, limit];
+    let dateClause;
+    const from = dateFrom ? String(dateFrom).trim() : '';
+    const to = dateTo ? String(dateTo).trim() : '';
+    if (from && to) {
+      params.push(from, to);
+      dateClause = `fde.valid_on >= $3::date AND fde.valid_on <= $4::date`;
+    } else if (from) {
+      params.push(from);
+      dateClause = `fde.valid_on >= $3::date`;
+    } else if (to) {
+      params.push(to);
+      dateClause = `fde.valid_on <= $3::date`;
+    } else {
+      params.push(days);
+      dateClause = `fde.valid_on >= (CURRENT_DATE - $3::int)`;
+    }
     const r = await query(
       `SELECT
         fde.id,
@@ -319,7 +337,7 @@ class FieldDeliveryRepository {
        LEFT JOIN pabriks p ON p.pabrik_code = fde.pabrik_code
        LEFT JOIN offices o ON o.id = COALESCE(p.office_id, u.office_id)
        LEFT JOIN attendance a ON a.id = fde.attendance_id
-       WHERE fde.valid_on >= (CURRENT_DATE - $3::int)
+       WHERE ${dateClause}
          AND (
            u.office_id = $1
            OR EXISTS (
@@ -330,7 +348,7 @@ class FieldDeliveryRepository {
          )
        ORDER BY fde.valid_on DESC, fde.created_at DESC
        LIMIT $2`,
-      [officeId, limit, days]
+      params
     );
     return r.rows;
   }

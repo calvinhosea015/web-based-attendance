@@ -96,14 +96,20 @@ export function uniqueDeliveryFilterValues(rows, key) {
 /**
  * Client-side recap filters. Empty string = all for that dimension.
  * @param {object[]} rows
- * @param {{ pabrik?: string, officer?: string, kodeBarang?: string }} filters
+ * @param {{ pabrik?: string, officer?: string, kodeBarang?: string, dateFrom?: string, dateTo?: string }} filters
  *   officer matches `employee_code` (preferred) or `full_name`.
+ *   dateFrom/dateTo are YYYY-MM-DD against `valid_on`.
  */
-export function filterDeliveryRecap(rows, { pabrik = '', officer = '', kodeBarang = '' } = {}) {
+export function filterDeliveryRecap(
+  rows,
+  { pabrik = '', officer = '', kodeBarang = '', dateFrom = '', dateTo = '' } = {}
+) {
   const p = String(pabrik || '').trim();
   const o = String(officer || '').trim();
   const k = String(kodeBarang || '').trim();
-  if (!p && !o && !k) return rows || [];
+  const from = String(dateFrom || '').trim();
+  const to = String(dateTo || '').trim();
+  if (!p && !o && !k && !from && !to) return rows || [];
   return (rows || []).filter((row) => {
     if (p && String(row.pabrik_code ?? '').trim() !== p) return false;
     if (o) {
@@ -112,6 +118,9 @@ export function filterDeliveryRecap(rows, { pabrik = '', officer = '', kodeBaran
       if (code !== o && name !== o) return false;
     }
     if (k && String(row.kode_barang ?? '').trim() !== k) return false;
+    const day = String(row.valid_on ?? '').slice(0, 10);
+    if (from && (!day || day < from)) return false;
+    if (to && (!day || day > to)) return false;
     return true;
   });
 }

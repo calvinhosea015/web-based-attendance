@@ -12,6 +12,7 @@ const rows = [
     employee_code: 'FO01',
     pabrik_code: 'PKA',
     kode_barang: 'B001',
+    valid_on: '2026-07-01',
   },
   {
     id: 2,
@@ -19,6 +20,7 @@ const rows = [
     employee_code: 'FO02',
     pabrik_code: 'PKB',
     kode_barang: 'B001',
+    valid_on: '2026-07-15',
   },
   {
     id: 3,
@@ -26,6 +28,7 @@ const rows = [
     employee_code: 'FO01',
     pabrik_code: 'PKA',
     kode_barang: 'B002',
+    valid_on: '2026-06-20',
   },
 ];
 
@@ -39,6 +42,12 @@ assert.equal(
   1
 );
 assert.equal(filterDeliveryRecap(rows, { pabrik: 'ZZZ' }).length, 0);
+assert.equal(filterDeliveryRecap(rows, { dateFrom: '2026-07-01' }).length, 2);
+assert.equal(filterDeliveryRecap(rows, { dateTo: '2026-06-30' }).length, 1);
+assert.equal(
+  filterDeliveryRecap(rows, { dateFrom: '2026-07-01', dateTo: '2026-07-10' }).length,
+  1
+);
 
 const grouped = groupFieldDeliveriesByFactoryItem([
   {

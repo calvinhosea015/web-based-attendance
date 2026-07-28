@@ -12,6 +12,21 @@ import {
 import { formatDisplayDate } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
+function ymd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function defaultMonthRange() {
+  const now = new Date();
+  return {
+    from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: ymd(now),
+  };
+}
+
 /**
  * @param {{ editable?: boolean, officeScope?: boolean }} props
  */
@@ -26,6 +41,12 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
   const [savingDelivery, setSavingDelivery] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
+  const initialRange = defaultMonthRange();
+  const [filterDateFrom, setFilterDateFrom] = useState(officeScope ? initialRange.from : '');
+  const [filterDateTo, setFilterDateTo] = useState(officeScope ? initialRange.to : '');
+  const [appliedDateFrom, setAppliedDateFrom] = useState(officeScope ? initialRange.from : '');
+  const [appliedDateTo, setAppliedDateTo] = useState(officeScope ? initialRange.to : '');
+
   const [filterPabrik, setFilterPabrik] = useState('');
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterKodeBarang, setFilterKodeBarang] = useState('');
@@ -34,7 +55,14 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     setRecapLoading(true);
     try {
       const path = officeScope ? paths.employeeFieldDeliveries : paths.adminFieldDeliveries;
-      const params = officeScope ? { limit: 200, days: 365 } : { limit: 5000 };
+      const params = officeScope
+        ? {
+            limit: 2000,
+            ...(appliedDateFrom ? { date_from: appliedDateFrom } : {}),
+            ...(appliedDateTo ? { date_to: appliedDateTo } : {}),
+            ...(!appliedDateFrom && !appliedDateTo ? { days: 60 } : {}),
+          }
+        : { limit: 5000 };
       const { data } = await api.get(path, { params });
       setAllDeliveries(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -43,7 +71,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     } finally {
       setRecapLoading(false);
     }
-  }, [officeScope, t, notify]);
+  }, [officeScope, appliedDateFrom, appliedDateTo, t, notify]);
 
   useEffect(() => {
     loadAllDeliveries();
@@ -75,7 +103,9 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     [allDeliveries]
   );
 
-  const filtersActive = Boolean(filterPabrik || filterOfficer || filterKodeBarang);
+  const filtersActive = Boolean(
+    filterPabrik || filterOfficer || filterKodeBarang || filterDateFrom || filterDateTo
+  );
 
   const filteredDeliveries = useMemo(
     () =>
@@ -83,14 +113,49 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
         pabrik: filterPabrik,
         officer: filterOfficer,
         kodeBarang: filterKodeBarang,
+        // officeScope dates already applied server-side; still filter client-side for admin
+        dateFrom: officeScope ? '' : filterDateFrom,
+        dateTo: officeScope ? '' : filterDateTo,
       }),
-    [allDeliveries, filterPabrik, filterOfficer, filterKodeBarang]
+    [
+      allDeliveries,
+      filterPabrik,
+      filterOfficer,
+      filterKodeBarang,
+      filterDateFrom,
+      filterDateTo,
+      officeScope,
+    ]
   );
+
+  const applyDateFilter = () => {
+    if (filterDateFrom && filterDateTo && filterDateFrom > filterDateTo) {
+      notify(t('fieldDeliveryRecapDateOrderError'), 'error');
+      return;
+    }
+    dismiss();
+    if (officeScope) {
+      setAppliedDateFrom(filterDateFrom);
+      setAppliedDateTo(filterDateTo);
+      return;
+    }
+    loadAllDeliveries();
+  };
 
   const clearFilters = () => {
     setFilterPabrik('');
     setFilterOfficer('');
     setFilterKodeBarang('');
+    if (officeScope) {
+      const range = defaultMonthRange();
+      setFilterDateFrom(range.from);
+      setFilterDateTo(range.to);
+      setAppliedDateFrom(range.from);
+      setAppliedDateTo(range.to);
+    } else {
+      setFilterDateFrom('');
+      setFilterDateTo('');
+    }
   };
 
   const startEditDelivery = (row) => {
@@ -149,6 +214,9 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     }
   };
 
+  const datePending =
+    officeScope && (filterDateFrom !== appliedDateFrom || filterDateTo !== appliedDateTo);
+
   return (
     <>
       {notification && (
@@ -167,74 +235,107 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
             disabled={recapLoading}
             onClick={() => {
               dismiss();
-              loadAllDeliveries();
+              if (officeScope) {
+                applyDateFilter();
+              } else {
+                loadAllDeliveries();
+              }
             }}
           >
             {recapLoading ? t('loading') : t('fieldOmsetRefresh')}
           </Button>
         }
       >
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <Field label={t('fieldDeliveryRecapFilterDateFrom')} className="min-w-[10rem]">
+            <input
+              type="date"
+              className={inputClass}
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+            />
+          </Field>
+          <Field label={t('fieldDeliveryRecapFilterDateTo')} className="min-w-[10rem]">
+            <input
+              type="date"
+              className={inputClass}
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+            />
+          </Field>
+          {officeScope ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mb-0.5"
+              disabled={recapLoading || !datePending}
+              onClick={applyDateFilter}
+            >
+              {t('fieldDeliveryRecapApplyDates')}
+            </Button>
+          ) : null}
+          <Field label={t('fieldDeliveryRecapFilterPabrik')} className="min-w-[10rem]">
+            <select
+              className={inputClass}
+              value={filterPabrik}
+              onChange={(e) => setFilterPabrik(e.target.value)}
+            >
+              <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
+              {pabrikOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('fieldDeliveryRecapFilterOfficer')} className="min-w-[12rem]">
+            <select
+              className={inputClass}
+              value={filterOfficer}
+              onChange={(e) => setFilterOfficer(e.target.value)}
+            >
+              <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
+              {officerOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('fieldDeliveryRecapFilterKodeBarang')} className="min-w-[10rem]">
+            <select
+              className={inputClass}
+              value={filterKodeBarang}
+              onChange={(e) => setFilterKodeBarang(e.target.value)}
+            >
+              <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
+              {kodeBarangOptions.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {filtersActive ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mb-0.5"
+              onClick={clearFilters}
+            >
+              {t('fieldDeliveryRecapFilterClear')}
+            </Button>
+          ) : null}
+        </div>
+
         {recapLoading && !allDeliveries.length ? (
           <p className="text-[15px] text-apple-label">{t('loading')}</p>
         ) : allDeliveries.length ? (
           <>
-            <div className="mb-4 flex flex-wrap items-end gap-3">
-              <Field label={t('fieldDeliveryRecapFilterPabrik')} className="min-w-[10rem]">
-                <select
-                  className={inputClass}
-                  value={filterPabrik}
-                  onChange={(e) => setFilterPabrik(e.target.value)}
-                >
-                  <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
-                  {pabrikOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t('fieldDeliveryRecapFilterOfficer')} className="min-w-[12rem]">
-                <select
-                  className={inputClass}
-                  value={filterOfficer}
-                  onChange={(e) => setFilterOfficer(e.target.value)}
-                >
-                  <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
-                  {officerOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t('fieldDeliveryRecapFilterKodeBarang')} className="min-w-[10rem]">
-                <select
-                  className={inputClass}
-                  value={filterKodeBarang}
-                  onChange={(e) => setFilterKodeBarang(e.target.value)}
-                >
-                  <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
-                  {kodeBarangOptions.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              {filtersActive ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mb-0.5"
-                  onClick={clearFilters}
-                >
-                  {t('fieldDeliveryRecapFilterClear')}
-                </Button>
-              ) : null}
-            </div>
             <p className="mb-4 text-[13px] text-apple-label">
-              {filtersActive
+              {filtersActive || (officeScope && (appliedDateFrom || appliedDateTo))
                 ? t('fieldDeliveryRecapFilterCount', {
                     shown: filteredDeliveries.length,
                     total: allDeliveries.length,

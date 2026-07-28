@@ -691,7 +691,7 @@ export default function EmployeeDashboard() {
 
       <LoanPanel notify={notify} />
 
-      {canShowDeliveryRecap && <DeliveryRecap officeScope />}
+      {canShowDeliveryRecap && <DeliveryRecap officeScope editable={false} />}
 
       {!isFieldOfficer && (
       <EmployeeHistorySection
