@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CompactModeToggle } from './CompactModeToggle.jsx';
 
 export function DoubleBezel({ children, className = '', innerClassName = '' }) {
   return (
@@ -255,7 +256,7 @@ export function StatCard({ label, value, tone = 'neutral', className = '', featu
   );
 }
 
-export function PageHero({ eyebrow, title, subtitle, action, className = '' }) {
+export function PageHero({ eyebrow, title, subtitle, action, className = '', showCompactToggle = true }) {
   return (
     <div className={`page-hero ${className}`}>
       <div className="max-w-3xl">
@@ -267,6 +268,11 @@ export function PageHero({ eyebrow, title, subtitle, action, className = '' }) {
           <p className="page-hero-subtitle mt-3 text-[16px] leading-relaxed text-apple-label">
             {subtitle}
           </p>
+        )}
+        {showCompactToggle && (
+          <div className="page-compact-toggle mt-2">
+            <CompactModeToggle />
+          </div>
         )}
       </div>
       {action}

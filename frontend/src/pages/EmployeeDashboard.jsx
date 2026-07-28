@@ -8,6 +8,7 @@ import {
   PageHero,
   panelClass,
 } from '../components/ui.jsx';
+import { CompactModeToggle } from '../components/CompactModeToggle.jsx';
 import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
 import i18n from '../i18n.js';
 import { translateAttendanceStatus, translateRole } from '../translateApi.js';
@@ -345,6 +346,9 @@ export default function EmployeeDashboard() {
               {t('payrollEmployeeTitle')}
             </h1>
             <p className="payroll-only-sub mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
+            <div className="page-compact-toggle mt-2">
+              <CompactModeToggle />
+            </div>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             {t('logout')}

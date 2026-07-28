@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, PageHero } from './ui.jsx';
-import { CompactModeToggle } from './CompactModeToggle.jsx';
 import { Reveal } from './Reveal.jsx';
 import { api, paths } from '../api/client.js';
 
@@ -216,7 +215,6 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <CompactModeToggle className="hidden sm:inline-flex" />
               <div className="hidden sm:block">
                 <LanguageToggle />
               </div>
@@ -272,7 +270,6 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                 transform: menuOpen ? 'translateY(0)' : 'translateY(3rem)',
               }}
             >
-              <CompactModeToggle />
               <LanguageToggle />
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 {t('logout')}

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { ensureCsrf } from './api/client.js';
 import { canAccessEmployeePayrollPortal } from './roles.js';
 import { EmptyState } from './components/ui.jsx';
-import { CompactModeToggle } from './components/CompactModeToggle.jsx';
 import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPayroll from './pages/AdminPayroll.jsx';
@@ -28,28 +27,25 @@ function PublicHeader({ showName = true, showLogo = true }) {
             ) : null}
             {showName ? t('appName') : null}
           </span>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <CompactModeToggle />
-            <div
-              className="flex rounded-full bg-apple-fill p-0.5 ring-1 ring-black/[0.04]"
-              role="group"
-              aria-label={t('language')}
-            >
-              {['en', 'id'].map((lng) => (
-                <button
-                  key={lng}
-                  type="button"
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition-all duration-300 ease-premium ${
-                    i18n.language?.startsWith(lng)
-                      ? 'bg-white text-apple-text shadow-apple'
-                      : 'text-apple-muted hover:text-apple-text'
-                  }`}
-                  onClick={() => i18n.changeLanguage(lng)}
-                >
-                  {lng}
-                </button>
-              ))}
-            </div>
+          <div
+            className="flex rounded-full bg-apple-fill p-0.5 ring-1 ring-black/[0.04]"
+            role="group"
+            aria-label={t('language')}
+          >
+            {['en', 'id'].map((lng) => (
+              <button
+                key={lng}
+                type="button"
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition-all duration-300 ease-premium ${
+                  i18n.language?.startsWith(lng)
+                    ? 'bg-white text-apple-text shadow-apple'
+                    : 'text-apple-muted hover:text-apple-text'
+                }`}
+                onClick={() => i18n.changeLanguage(lng)}
+              >
+                {lng}
+              </button>
+            ))}
           </div>
         </div>
       </div>

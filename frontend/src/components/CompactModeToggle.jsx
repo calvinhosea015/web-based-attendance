@@ -9,17 +9,11 @@ export function CompactModeToggle({ className = '' }) {
   return (
     <button
       type="button"
-      className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition-all duration-300 ease-premium ${
-        compact
-          ? 'bg-brand-600 text-white shadow-apple'
-          : 'text-apple-muted ring-1 ring-black/[0.06] hover:bg-apple-fill hover:text-apple-text'
-      } ${className}`}
+      className={`text-[12px] font-medium text-brand-600 ${className}`}
       onClick={toggleCompact}
       aria-pressed={compact}
-      aria-label={compact ? t('uiExpandHint') : t('uiMinimizeHint')}
-      title={compact ? t('uiExpandHint') : t('uiMinimizeHint')}
     >
-      {compact ? t('uiExpand') : t('uiMinimize')}
+      {compact ? t('uiHideCompactLayout') : t('uiShowCompactLayout')}
     </button>
   );
 }
