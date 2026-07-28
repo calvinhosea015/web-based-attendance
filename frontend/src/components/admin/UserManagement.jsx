@@ -210,6 +210,8 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
       custom_work_end: toTimeInputValue(user.custom_work_end) || '17:00',
       basic_salary: user.basic_salary != null ? String(user.basic_salary) : '',
       ga_clock_mode: normalizeGaClockMode(user.ga_clock_mode),
+      employee_status: user.employee_status === 'inactive' ? 'inactive' : 'active',
+      employee_id: user.employee_id,
     });
   };
 
@@ -269,6 +271,9 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
         }
       } else if (editingUser.office_id) {
         body.office_id = Number(editingUser.office_id);
+      }
+      if (editingUser.employee_id != null) {
+        body.status = editingUser.employee_status === 'inactive' ? 'inactive' : 'active';
       }
       await api.put(`${paths.users}/${editingUser.id}`, body);
       notify(t('userUpdated'), 'success');
@@ -567,6 +572,11 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
                   <div className="text-xs text-apple-label">
                     {translateRole(user.role)}
                     {user.full_name ? ` · ${user.username}` : ''}
+                    {user.employee_id != null && user.employee_status === 'inactive' ? (
+                      <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-900">
+                        {t('employeeStatusInactive')}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -832,6 +842,26 @@ export default function UserManagement({ offices, pabriks, notify, onUsersChange
                         onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
                         required
                       />
+                    )}
+                    {editingUser.employee_id != null && (
+                      <label className="block text-xs text-apple-text">
+                        <span className="mb-0.5 block font-medium text-apple-label">
+                          {t('employeeStatusLabel')}
+                        </span>
+                        <select
+                          className={inputClassCompact}
+                          value={editingUser.employee_status || 'active'}
+                          onChange={(e) =>
+                            setEditingUser({ ...editingUser, employee_status: e.target.value })
+                          }
+                        >
+                          <option value="active">{t('employeeStatusActive')}</option>
+                          <option value="inactive">{t('employeeStatusInactive')}</option>
+                        </select>
+                        <span className="mt-1 block text-[10px] text-apple-label">
+                          {t('employeeStatusHint')}
+                        </span>
+                      </label>
                     )}
                     {isAttendanceRole(editingUser.role) && (
                       <div className="grid gap-2 sm:grid-cols-2">

@@ -13,9 +13,13 @@ import { formatDisplayDate } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
 /**
- * @param {{ editable?: boolean, officeScope?: boolean }} props
+ * @param {{ editable?: boolean, officeScope?: boolean, checklistEditable?: boolean }} props
  */
-export default function DeliveryRecap({ editable = false, officeScope = false }) {
+export default function DeliveryRecap({
+  editable = false,
+  officeScope = false,
+  checklistEditable = false,
+}) {
   const { t } = useTranslation();
   const [notification, notify, dismiss] = useNotify();
 
@@ -32,6 +36,80 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
   const [filterPabrik, setFilterPabrik] = useState('');
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterKodeBarang, setFilterKodeBarang] = useState('');
+
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [newChecklistLabel, setNewChecklistLabel] = useState('');
+  const [lastReview, setLastReview] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewSaving, setReviewSaving] = useState(false);
+
+  const reviewScope = useMemo(
+    () => ({
+      date_from: filterDateFrom || null,
+      date_to: filterDateTo || null,
+      pabrik: filterPabrik,
+      officer: filterOfficer,
+      kode_barang: filterKodeBarang,
+    }),
+    [filterDateFrom, filterDateTo, filterPabrik, filterOfficer, filterKodeBarang]
+  );
+
+  const loadDeliveryRecapReview = useCallback(async () => {
+    if (!officeScope) return;
+    setReviewLoading(true);
+    try {
+      const { data } = await api.get(paths.employeeDeliveryRecapReviews, { params: reviewScope });
+      if (data && Array.isArray(data.checklist) && data.checklist.length) {
+        setChecklistItems(data.checklist);
+        setLastReview(data);
+      } else {
+        setChecklistItems([]);
+        setLastReview(data || null);
+      }
+    } catch {
+      setChecklistItems([]);
+      setLastReview(null);
+    } finally {
+      setReviewLoading(false);
+    }
+  }, [officeScope, reviewScope]);
+
+  useEffect(() => {
+    loadDeliveryRecapReview();
+  }, [loadDeliveryRecapReview]);
+
+  const addChecklistItem = () => {
+    const label = newChecklistLabel.trim();
+    if (!label) return;
+    setChecklistItems((prev) => [
+      ...prev,
+      { id: `item-${Date.now()}`, label, checked: false },
+    ]);
+    setNewChecklistLabel('');
+  };
+
+  const saveDeliveryRecapReview = async () => {
+    if (!checklistItems.length) {
+      notify(t('fieldDeliveryRecapChecklistEmpty'), 'error');
+      return;
+    }
+    setReviewSaving(true);
+    dismiss();
+    try {
+      await ensureCsrf();
+      const { data } = await api.post(paths.employeeDeliveryRecapReviews, {
+        scope: reviewScope,
+        checklist: checklistItems,
+      });
+      setLastReview(data || null);
+      if (Array.isArray(data?.checklist)) setChecklistItems(data.checklist);
+      notify(t('fieldDeliveryRecapChecklistSaved'), 'success');
+    } catch (err) {
+      notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
+    } finally {
+      setReviewSaving(false);
+    }
+  };
 
   const loadAllDeliveries = useCallback(async () => {
     setRecapLoading(true);
@@ -260,6 +338,89 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
             </Button>
           ) : null}
         </div>
+
+        {officeScope ? (
+          <div className="mb-4 rounded-apple-lg border border-black/[0.06] bg-apple-fill/60 p-4">
+            <div className="mb-2">
+              <h3 className="text-sm font-medium text-apple-text">
+                {t('fieldDeliveryRecapChecklistTitle')}
+              </h3>
+              <p className="mt-1 text-xs text-apple-label">
+                {t('fieldDeliveryRecapChecklistHint')}
+              </p>
+            </div>
+            {lastReview?.reviewed_at ? (
+              <p className="mb-3 text-xs text-apple-label">
+                {t('fieldDeliveryRecapChecklistLastReview', {
+                  name:
+                    lastReview.reviewer_full_name ||
+                    lastReview.reviewer_username ||
+                    '—',
+                  date: formatDisplayDate(lastReview.reviewed_at),
+                })}
+              </p>
+            ) : null}
+            {reviewLoading ? (
+              <p className="text-xs text-apple-label">{t('loading')}</p>
+            ) : (
+              <>
+                {checklistItems.length ? (
+                  <ul className="mb-3 space-y-2">
+                    {checklistItems.map((item) => (
+                      <li key={item.id}>
+                        <label className="flex items-start gap-2 text-sm text-apple-text">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={Boolean(item.checked)}
+                            disabled={!checklistEditable}
+                            onChange={() =>
+                              setChecklistItems((prev) =>
+                                prev.map((row) =>
+                                  row.id === item.id ? { ...row, checked: !row.checked } : row
+                                )
+                              )
+                            }
+                          />
+                          <span>{item.label}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {checklistEditable ? (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <Field label={t('fieldDeliveryRecapChecklistAdd')} className="min-w-[12rem] flex-1">
+                      <input
+                        className={inputClass}
+                        placeholder={t('fieldDeliveryRecapChecklistPlaceholder')}
+                        value={newChecklistLabel}
+                        onChange={(e) => setNewChecklistLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addChecklistItem();
+                          }
+                        }}
+                      />
+                    </Field>
+                    <Button type="button" variant="secondary" size="sm" onClick={addChecklistItem}>
+                      {t('fieldDeliveryRecapChecklistAdd')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={reviewSaving}
+                      onClick={saveDeliveryRecapReview}
+                    >
+                      {reviewSaving ? t('loading') : t('fieldDeliveryRecapChecklistSave')}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
 
         {recapLoading && !allDeliveries.length ? (
           <p className="text-[15px] text-apple-label">{t('loading')}</p>

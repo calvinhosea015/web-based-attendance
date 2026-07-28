@@ -28,6 +28,7 @@ const { LeaveService } = require('../../services/leaveService');
 const { FieldCodeEntryRepository } = require('../../repositories/fieldCodeEntryRepository');
 const { FieldDeliveryRepository } = require('../../repositories/fieldDeliveryRepository');
 const { FieldDeliveryBackdateRepository } = require('../../repositories/fieldDeliveryBackdateRepository');
+const { DeliveryRecapReviewRepository } = require('../../repositories/deliveryRecapReviewRepository');
 const { PabrikItemRateRepository } = require('../../repositories/pabrikItemRateRepository');
 const { PabrikRepository } = require('../../repositories/pabrikRepository');
 const { EmployeeOfficeRepository } = require('../../repositories/employeeOfficeRepository');
@@ -63,6 +64,7 @@ function buildV1Router() {
   const fieldCodeEntryRepository = new FieldCodeEntryRepository();
   const fieldDeliveryRepository = new FieldDeliveryRepository();
   const fieldDeliveryBackdateRepository = new FieldDeliveryBackdateRepository();
+  const deliveryRecapReviewRepository = new DeliveryRecapReviewRepository();
   const pabrikItemRateRepository = new PabrikItemRateRepository();
   const pabrikRepository = new PabrikRepository();
   const employeeOfficeRepository = new EmployeeOfficeRepository();
@@ -104,7 +106,8 @@ function buildV1Router() {
     userRepository,
     employeeRepository,
     employeeOfficeRepository,
-    employeePabrikRepository
+    employeePabrikRepository,
+    refreshTokenRepository
   );
   const dashboardService = new DashboardService(
     attendanceRepository,
@@ -131,7 +134,8 @@ function buildV1Router() {
     fieldDeliveryRepository,
     payrollService,
     employeeOfficeRepository,
-    employeePabrikRepository
+    employeePabrikRepository,
+    deliveryRecapReviewRepository
   );
   const enterpriseAdminService = new EnterpriseAdminService(
     notificationRepository,

@@ -219,6 +219,7 @@ const updateUserValidators = [
   body('custom_work_end').optional({ values: 'null' }).isString(),
   body('basic_salary').optional({ values: 'null' }).isNumeric(),
   body('ga_clock_mode').optional().isIn(['in_out', 'check_in_only']),
+  body('status').optional().isIn(['active', 'inactive']),
 ];
 
 const idParamValidator = [param('id').isInt({ min: 1 })];
@@ -363,6 +364,27 @@ const fieldDeliveryQueryValidators = [
   query('limit').optional().isInt({ min: 1, max: 5000 }),
 ];
 
+const deliveryRecapReviewQueryValidators = [
+  query('date_from').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
+  query('date_to').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
+  query('pabrik').optional().isString().isLength({ max: 32 }),
+  query('officer').optional().isString().isLength({ max: 64 }),
+  query('kode_barang').optional().isString().isLength({ max: 64 }),
+];
+
+const deliveryRecapReviewSaveValidators = [
+  body('scope').optional().isObject(),
+  body('scope.date_from').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
+  body('scope.date_to').optional({ values: 'null' }).matches(/^\d{4}-\d{2}-\d{2}$/),
+  body('scope.pabrik').optional().isString().isLength({ max: 32 }),
+  body('scope.officer').optional().isString().isLength({ max: 64 }),
+  body('scope.kode_barang').optional().isString().isLength({ max: 64 }),
+  body('checklist').isArray({ min: 1, max: 32 }),
+  body('checklist.*.id').optional().isString().isLength({ max: 64 }),
+  body('checklist.*.label').trim().notEmpty().isString().isLength({ max: 255 }),
+  body('checklist.*.checked').optional().isBoolean({ strict: true }),
+];
+
 const adminFieldDeliveryQueryValidators = [
   query('limit').optional().isInt({ min: 1, max: 10000 }),
 ];
@@ -438,6 +460,8 @@ module.exports = {
   loanSubmitValidators,
   loanDecideValidators,
   fieldDeliveryQueryValidators,
+  deliveryRecapReviewQueryValidators,
+  deliveryRecapReviewSaveValidators,
   adminFieldDeliveryQueryValidators,
   adminFieldDeliveryUpdateValidators,
   dateRangeQueryValidators,

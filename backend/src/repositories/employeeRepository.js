@@ -145,6 +145,7 @@ class EmployeeRepository {
     position_id,
     join_date,
     birthday,
+    status,
     remote_work_allowed,
     daily_segments,
     segment1_start,
@@ -181,6 +182,10 @@ class EmployeeRepository {
     if (birthday !== undefined) {
       sets.push(`birthday = $${i++}`);
       vals.push(birthday);
+    }
+    if (status !== undefined) {
+      sets.push(`status = $${i++}`);
+      vals.push(status === 'inactive' ? 'inactive' : 'active');
     }
     if (remote_work_allowed !== undefined) {
       sets.push(`remote_work_allowed = $${i++}`);

@@ -16,6 +16,7 @@ const MESSAGE_CODE = {
   'Could not resolve map link': 'MAP_LINK',
   'Could not parse coordinates from the Google Maps link.': 'MAP_PARSE',
   'Account is not linked to an employee profile.': 'NO_EMPLOYEE',
+  'Account is inactive.': 'ACCOUNT_INACTIVE',
   'Latitude and longitude are required.': 'GEO_REQUIRED',
   'GPS accuracy is required and must be positive.': 'GPS_ACCURACY_REQUIRED',
   'Device timestamp is required for clock events.': 'CLIENT_TS_REQUIRED',

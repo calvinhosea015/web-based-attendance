@@ -5,6 +5,12 @@ const { AppError } = require('../utils/errors');
 const config = require('../config/env');
 const { assertPasswordPolicy } = require('../utils/passwordPolicy');
 
+function assertEmployeeLoginAllowed(user) {
+  if (user?.employee_id != null && user.employee_status === 'inactive') {
+    throw new AppError('Account is inactive.', 403, 'ACCOUNT_INACTIVE');
+  }
+}
+
 class AuthService {
   constructor(userRepository, refreshTokenRepository, auditLogRepository) {
     this.userRepository = userRepository;
@@ -40,6 +46,7 @@ class AuthService {
         .catch(() => {});
       throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
+    assertEmployeeLoginAllowed(user);
 
     const accessToken = this.issueAccessToken(user);
     const rawRefresh = crypto.randomBytes(48).toString('hex');
@@ -88,6 +95,7 @@ class AuthService {
     if (!user) {
       throw new AppError('User not found.', 401, 'USER_MISSING');
     }
+    assertEmployeeLoginAllowed(user);
     await this.refreshTokenRepository.revokeByRaw(refreshTokenRaw);
     const accessToken = this.issueAccessToken(user);
     const rawRefresh = crypto.randomBytes(48).toString('hex');
@@ -150,4 +158,4 @@ class AuthService {
   }
 }
 
-module.exports = { AuthService };
+module.exports = { AuthService, assertEmployeeLoginAllowed };

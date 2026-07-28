@@ -12,7 +12,8 @@ class UserRepository {
   async findByUsername(username) {
     const loginId = String(username || '').trim();
     const r = await query(
-      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
+      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.status AS employee_status,
+              e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end, e.ga_clock_mode,
               o.name AS assigned_office_name,
               o.lat AS assigned_office_lat,
@@ -42,7 +43,8 @@ class UserRepository {
 
   async findById(id) {
     const r = await query(
-      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.remote_work_allowed, e.daily_segments,
+      `SELECT u.*, e.id AS emp_pk, e.employee_id AS employee_code, e.full_name, e.status AS employee_status,
+              e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end, e.ga_clock_mode,
               o.name AS assigned_office_name,
               o.lat AS assigned_office_lat,
@@ -59,7 +61,7 @@ class UserRepository {
   async listSummary() {
     const r = await query(
       `SELECT u.id, u.username, u.role, u.office_id, u.employee_id, e.employee_id AS employee_code, e.full_name,
-              e.join_date, e.birthday,
+              e.status AS employee_status, e.join_date, e.birthday,
               e.remote_work_allowed, e.daily_segments,
               e.segment1_start, e.segment1_end, e.segment2_start, e.segment2_end,
               e.custom_work_start, e.custom_work_end, e.basic_salary, e.ga_clock_mode

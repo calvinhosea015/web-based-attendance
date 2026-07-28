@@ -691,7 +691,13 @@ export default function EmployeeDashboard() {
 
       <LoanPanel notify={notify} />
 
-      {canShowDeliveryRecap && <DeliveryRecap officeScope editable={false} />}
+      {canShowDeliveryRecap && (
+        <DeliveryRecap
+          officeScope
+          editable={false}
+          checklistEditable={(summary?.role || localStorage.getItem('role')) === ROLE_EMPLOYEE}
+        />
+      )}
 
       {!isFieldOfficer && (
       <EmployeeHistorySection

@@ -29,7 +29,8 @@ class EmployeePortalService {
     fieldDeliveryRepository = null,
     payrollService = null,
     employeeOfficeRepository = null,
-    employeePabrikRepository = null
+    employeePabrikRepository = null,
+    deliveryRecapReviewRepository = null
   ) {
     this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
@@ -40,6 +41,7 @@ class EmployeePortalService {
     this.payrollService = payrollService;
     this.employeeOfficeRepository = employeeOfficeRepository;
     this.employeePabrikRepository = employeePabrikRepository;
+    this.deliveryRecapReviewRepository = deliveryRecapReviewRepository;
   }
 
   async meSummary(auth) {
@@ -243,6 +245,73 @@ class EmployeePortalService {
       omset_amount: row.omset_amount ?? null,
       bonus_amount: row.bonus_amount ?? null,
     }));
+  }
+
+  formatDeliveryRecapReview(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      filter_date_from: row.filter_date_from ?? null,
+      filter_date_to: row.filter_date_to ?? null,
+      filter_pabrik: row.filter_pabrik ?? '',
+      filter_officer: row.filter_officer ?? '',
+      filter_kode_barang: row.filter_kode_barang ?? '',
+      checklist: Array.isArray(row.checklist) ? row.checklist : [],
+      reviewed_by: row.reviewed_by,
+      reviewed_at: row.reviewed_at ?? null,
+      reviewer_username: row.reviewer_username ?? null,
+      reviewer_full_name: row.reviewer_full_name ?? null,
+    };
+  }
+
+  async getDeliveryRecapReview(auth, scope) {
+    if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
+      throw new AppError(
+        'Only Staff Kantor and Accounting can view delivery recap reviews.',
+        403,
+        'FORBIDDEN'
+      );
+    }
+    if (!this.deliveryRecapReviewRepository) return null;
+    const row = await this.deliveryRecapReviewRepository.findLatestForScope(scope);
+    return this.formatDeliveryRecapReview(row);
+  }
+
+  async saveDeliveryRecapReview(auth, { scope, checklist }) {
+    if (!isStaffKantor(auth.role)) {
+      throw new AppError('Only Staff Kantor can save delivery recap reviews.', 403, 'FORBIDDEN');
+    }
+    if (!this.deliveryRecapReviewRepository) {
+      throw new AppError('Delivery recap reviews are not available.', 500, 'INTERNAL');
+    }
+    const items = Array.isArray(checklist) ? checklist : [];
+    if (!items.length) {
+      throw new AppError('Add at least one checklist item.', 400, 'CHECKLIST_EMPTY');
+    }
+    const normalized = items.map((item, index) => ({
+      id: String(item?.id || `item-${index + 1}`),
+      label: String(item?.label || '').trim(),
+      checked: Boolean(item?.checked),
+    }));
+    if (normalized.some((item) => !item.label)) {
+      throw new AppError('Each checklist item needs a label.', 400, 'CHECKLIST_LABEL');
+    }
+    const row = await this.deliveryRecapReviewRepository.create({
+      scope: scope || {},
+      checklist: normalized,
+      reviewedBy: auth.userId,
+    });
+    const withUser = await this.deliveryRecapReviewRepository.findLatestForScope(scope || {});
+    return this.formatDeliveryRecapReview(withUser || row);
+  }
+
+  async listDeliveryRecapReviews(auth, { limit = 50 } = {}) {
+    if (auth.role !== 'admin' && auth.role !== 'head_of_finance') {
+      throw new AppError('Forbidden.', 403, 'FORBIDDEN');
+    }
+    if (!this.deliveryRecapReviewRepository) return [];
+    const rows = await this.deliveryRecapReviewRepository.listRecent(limit);
+    return rows.map((row) => this.formatDeliveryRecapReview(row));
   }
 }
 

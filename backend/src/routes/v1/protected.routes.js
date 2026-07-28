@@ -22,6 +22,8 @@ const {
   departmentCreateValidators,
   attendanceCorrectionSubmitValidators,
   fieldDeliveryBackdateSubmitValidators,
+  deliveryRecapReviewQueryValidators,
+  deliveryRecapReviewSaveValidators,
   employeeUpdateValidators,
   payrollSettingsValidators,
   payrollPeriodParamValidator,
@@ -465,6 +467,27 @@ function buildProtectedRoutes(deps) {
     fieldDeliveryQueryValidators,
     validateRequest,
     dashboardController.employeeFieldDeliveries
+  );
+  r.get(
+    '/employee/delivery-recap-reviews',
+    requireRole('employee', 'accounting'),
+    deliveryRecapReviewQueryValidators,
+    validateRequest,
+    dashboardController.deliveryRecapReviewGet
+  );
+  r.post(
+    '/employee/delivery-recap-reviews',
+    requireRole('employee'),
+    deliveryRecapReviewSaveValidators,
+    validateRequest,
+    dashboardController.deliveryRecapReviewSave
+  );
+  r.get(
+    '/admin/delivery-recap-reviews',
+    requireRole('admin', 'head_of_finance'),
+    fieldDeliveryQueryValidators,
+    validateRequest,
+    dashboardController.adminDeliveryRecapReviews
   );
   r.get(
     '/employee/me/field-deliveries/today',

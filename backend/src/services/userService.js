@@ -35,12 +35,14 @@ class UserService {
     userRepository,
     employeeRepository,
     employeeOfficeRepository = null,
-    employeePabrikRepository = null
+    employeePabrikRepository = null,
+    refreshTokenRepository = null
   ) {
     this.userRepository = userRepository;
     this.employeeRepository = employeeRepository;
     this.employeeOfficeRepository = employeeOfficeRepository;
     this.employeePabrikRepository = employeePabrikRepository;
+    this.refreshTokenRepository = refreshTokenRepository;
     this.metaRepository = new MetaRepository();
   }
 
@@ -317,10 +319,11 @@ class UserService {
       'office_ids',
       'pabrik_ids',
       'ga_clock_mode',
+      'status',
     ];
     if (!allowedKeys.some((k) => has(k))) {
       throw new AppError(
-        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, birthday, custom work hours, basic_salary, or ga_clock_mode is required.',
+        'At least one of username, role, office_id, full_name, remote_work_allowed, join_date, birthday, custom work hours, basic_salary, ga_clock_mode, or status is required.',
         400,
         'NO_FIELDS'
       );
@@ -329,6 +332,25 @@ class UserService {
     const normalizeOptionalDate = (value) => {
       if (value === '' || value === null || value === undefined) return null;
       return String(value);
+    };
+
+    const syncEmployeeStatus = async () => {
+      if (!has('status')) return;
+      const latest = await this.userRepository.findById(userId);
+      if (!latest?.employee_id) {
+        throw new AppError(
+          'Status applies only to users linked to an employee profile.',
+          400,
+          'NO_EMPLOYEE'
+        );
+      }
+      const nextStatus = payload.status === 'inactive' ? 'inactive' : 'active';
+      await this.employeeRepository.updateEnterpriseFields(latest.employee_id, {
+        status: nextStatus,
+      });
+      if (nextStatus === 'inactive' && this.refreshTokenRepository) {
+        await this.refreshTokenRepository.revokeAllForUser(userId);
+      }
     };
 
     const syncEmployeePolicies = async () => {
@@ -541,6 +563,7 @@ class UserService {
       }
       await syncEmployeePolicies();
       await syncEmployeeHrFields();
+      await syncEmployeeStatus();
       const updated = stripUserSecrets(await this.userRepository.findById(userId));
       const pabrik_ids =
         usesMultipleOffices(effectiveRole) && this.employeePabrikRepository
@@ -577,6 +600,7 @@ class UserService {
 
     await syncEmployeePolicies();
     await syncEmployeeHrFields();
+    await syncEmployeeStatus();
 
     if (empFk) {
       if (usesMultipleOffices(prevRole) && !usesMultipleOffices(effectiveRole)) {

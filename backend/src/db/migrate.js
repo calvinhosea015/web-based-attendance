@@ -733,6 +733,26 @@ async function migrateFieldDeliveryBackdateRequests() {
   );
 }
 
+async function migrateDeliveryRecapReviews() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS delivery_recap_reviews (
+      id SERIAL PRIMARY KEY,
+      filter_date_from DATE,
+      filter_date_to DATE,
+      filter_pabrik VARCHAR(32) NOT NULL DEFAULT '',
+      filter_officer VARCHAR(64) NOT NULL DEFAULT '',
+      filter_kode_barang VARCHAR(64) NOT NULL DEFAULT '',
+      checklist JSONB NOT NULL DEFAULT '[]'::jsonb,
+      reviewed_by INTEGER NOT NULL REFERENCES users(id),
+      reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_delivery_recap_reviews_scope
+     ON delivery_recap_reviews(filter_date_from, filter_date_to, filter_pabrik, filter_officer, filter_kode_barang, reviewed_at DESC)`
+  );
+}
+
 async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
@@ -745,6 +765,7 @@ async function migrate() {
   await migratePabrikCatalog();
   await migrateEmployeePabriks();
   await migrateFieldDeliveryBackdateRequests();
+  await migrateDeliveryRecapReviews();
   await migrateLeaveFeatures();
   await migratePayrollColumns();
   await migrateLoanRequests();
