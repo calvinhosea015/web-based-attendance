@@ -182,6 +182,127 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
       }
     );
   });
+
+  it('auto-marks benar when admin edits a delivery flagged tidak benar', async () => {
+    let reviewCreateArgs = null;
+    let markedReadId = null;
+    const deliveryRecapReviewRepository = {
+      findLatestForDelivery: async (id) => {
+        if (reviewCreateArgs) {
+          return {
+            id: 99,
+            delivery_entry_id: id,
+            is_correct: true,
+            notes: null,
+            reviewed_by: 5,
+            reviewed_at: '2026-07-28T12:00:00Z',
+            reviewer_username: 'admin1',
+            reviewer_full_name: 'Admin One',
+          };
+        }
+        return { id: 10, delivery_entry_id: id, is_correct: false, notes: 'Wrong weight' };
+      },
+      create: async (args) => {
+        reviewCreateArgs = args;
+      },
+    };
+    const notificationRepository = {
+      markAdminDeliveryRecapRead: async (id) => {
+        markedReadId = id;
+      },
+    };
+    const service = new FieldCheckoutCodeService(
+      {
+        findById: async () => ({
+          id: 7,
+          pabrik_code: 'P1',
+          kode_barang: 'ITEM',
+          norek: '00000',
+          nomor_tanda_terima: 'A',
+          nomor_surat_jalan: 'B',
+          nopol: 'L 1 AB',
+          no_bs: '0',
+          kotor: 100,
+          berat_bersih: 90,
+          selisih: 10,
+          tonase_per_item: 0,
+          price_per_item: 1000,
+          omset_amount: 90000,
+          bonus_amount: 1800,
+        }),
+        updateEntry: async (id, fields) => ({ id, ...fields }),
+      },
+      { findByPabrikAndBarang: async () => ({ price_per_item: 1000 }) },
+      null,
+      null,
+      null,
+      { findByCode: async () => ({ bonus_omset_rate: 0.02 }) },
+      deliveryRecapReviewRepository,
+      notificationRepository
+    );
+
+    const res = await service.updateDeliveryAsAdmin(
+      { role: 'admin', userId: 5 },
+      7,
+      { berat_bersih: 85 }
+    );
+
+    assert.deepEqual(reviewCreateArgs, {
+      deliveryEntryId: 7,
+      isCorrect: true,
+      notes: null,
+      reviewedBy: 5,
+    });
+    assert.equal(markedReadId, 7);
+    assert.equal(res.recap_review?.is_correct, true);
+  });
+
+  it('skips auto-benar when latest review is already benar', async () => {
+    let createCalled = false;
+    const service = new FieldCheckoutCodeService(
+      {
+        findById: async () => ({
+          id: 7,
+          pabrik_code: 'P1',
+          kode_barang: 'ITEM',
+          norek: '00000',
+          nomor_tanda_terima: 'A',
+          nomor_surat_jalan: 'B',
+          nopol: 'L 1 AB',
+          no_bs: '0',
+          kotor: 100,
+          berat_bersih: 90,
+          selisih: 10,
+          tonase_per_item: 0,
+          price_per_item: 1000,
+          omset_amount: 90000,
+          bonus_amount: 1800,
+        }),
+        updateEntry: async (id, fields) => ({ id, ...fields }),
+      },
+      { findByPabrikAndBarang: async () => ({ price_per_item: 1000 }) },
+      null,
+      null,
+      null,
+      { findByCode: async () => ({ bonus_omset_rate: 0.02 }) },
+      {
+        findLatestForDelivery: async () => ({ is_correct: true }),
+        create: async () => {
+          createCalled = true;
+        },
+      },
+      { markAdminDeliveryRecapRead: async () => assert.fail('should not mark read') }
+    );
+
+    const res = await service.updateDeliveryAsAdmin(
+      { role: 'admin', userId: 5 },
+      7,
+      { berat_bersih: 85 }
+    );
+
+    assert.equal(createCalled, false);
+    assert.equal(res.recap_review, null);
+  });
 });
 
 describe('FieldCheckoutCodeService deleteDeliveryAsAdmin', () => {

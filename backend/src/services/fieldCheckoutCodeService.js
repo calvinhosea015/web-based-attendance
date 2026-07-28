@@ -8,6 +8,7 @@ const {
 } = require('../utils/fieldCheckoutPayload');
 const { computeLineBonus, computeLineOmset, FIELD_OFFICER_BONUS_RATE } = require('../utils/fieldOfficerBonus');
 const { payrollCycleBounds } = require('../utils/payrollPeriod');
+const { formatRecapReview } = require('../repositories/deliveryRecapReviewRepository');
 
 class FieldCheckoutCodeService {
   constructor(
@@ -16,7 +17,9 @@ class FieldCheckoutCodeService {
     fieldCodeEntryRepository = null,
     employeePabrikRepository = null,
     attendanceRepository = null,
-    pabrikRepository = null
+    pabrikRepository = null,
+    deliveryRecapReviewRepository = null,
+    notificationRepository = null
   ) {
     this.fieldDeliveryRepository = fieldDeliveryRepository;
     this.pabrikItemRateRepository = pabrikItemRateRepository;
@@ -24,6 +27,8 @@ class FieldCheckoutCodeService {
     this.employeePabrikRepository = employeePabrikRepository;
     this.attendanceRepository = attendanceRepository;
     this.pabrikRepository = pabrikRepository;
+    this.deliveryRecapReviewRepository = deliveryRecapReviewRepository;
+    this.notificationRepository = notificationRepository;
   }
 
   async assertCheckedInToday(employeeId, validOn) {
@@ -234,7 +239,31 @@ class FieldCheckoutCodeService {
       omset_amount,
       bonus_amount,
     });
-    return { message: 'Delivery entry updated.', code: 'DELIVERY_UPDATED', entry };
+
+    // ponytail: only resolves flagged rows; upgrade path = explicit admin resolve endpoint
+    let recapReview = null;
+    if (this.deliveryRecapReviewRepository && auth.userId) {
+      const latest = await this.deliveryRecapReviewRepository.findLatestForDelivery(id);
+      if (latest?.is_correct === false) {
+        await this.deliveryRecapReviewRepository.create({
+          deliveryEntryId: id,
+          isCorrect: true,
+          notes: null,
+          reviewedBy: auth.userId,
+        });
+        recapReview = await this.deliveryRecapReviewRepository.findLatestForDelivery(id);
+        if (this.notificationRepository) {
+          await this.notificationRepository.markAdminDeliveryRecapRead(id).catch(() => {});
+        }
+      }
+    }
+
+    return {
+      message: 'Delivery entry updated.',
+      code: 'DELIVERY_UPDATED',
+      entry,
+      recap_review: formatRecapReview(recapReview),
+    };
   }
 
   async deleteDeliveryAsAdmin(auth, id) {

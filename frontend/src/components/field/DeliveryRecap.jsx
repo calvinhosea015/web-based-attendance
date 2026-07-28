@@ -199,9 +199,18 @@ export default function DeliveryRecap({
       const { data } = await api.put(paths.adminFieldDeliveryUpdate(id), editForm);
       const updated = data?.entry;
       setAllDeliveries((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, ...(updated || {}) } : r))
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                ...(updated || {}),
+                ...(data.recap_review != null ? { recap_review: data.recap_review } : {}),
+              }
+            : r
+        )
       );
       cancelEditDelivery();
+      window.dispatchEvent(new Event('admin-pending-refresh'));
       notify(t('fieldDeliveryEditSaved'), 'success');
     } catch (err) {
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');

@@ -86,7 +86,9 @@ function buildV1Router() {
     fieldCodeEntryRepository,
     employeePabrikRepository,
     attendanceRepository,
-    pabrikRepository
+    pabrikRepository,
+    deliveryRecapReviewRepository,
+    notificationRepository
   );
   const pabrikItemRateService = new PabrikItemRateService(
     pabrikItemRateRepository,

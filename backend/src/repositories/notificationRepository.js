@@ -31,6 +31,16 @@ class NotificationRepository {
   async markRead(id) {
     await query(`UPDATE notifications SET read_at = NOW() WHERE id = $1`, [id]);
   }
+
+  async markAdminDeliveryRecapRead(deliveryEntryId) {
+    await query(
+      `UPDATE notifications SET read_at = NOW()
+       WHERE scope = 'admin' AND type = 'delivery_recap_review'
+         AND read_at IS NULL
+         AND (payload->>'deliveryEntryId')::int = $1`,
+      [deliveryEntryId]
+    );
+  }
 }
 
 module.exports = { NotificationRepository };
