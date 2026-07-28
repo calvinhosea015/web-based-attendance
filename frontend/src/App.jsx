@@ -77,8 +77,11 @@ function NotFound() {
 export default function App() {
   const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
-  const isAdminRoute =
-    pathname.startsWith('/admin') || pathname.startsWith('/finance');
+  const usesPortalNav =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/employee') ||
+    pathname.startsWith('/finance') ||
+    pathname.startsWith('/user');
   const isLoginRoute = pathname === '/login';
 
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function App() {
 
   return (
     <div className="page-canvas font-sans">
-      {!isAdminRoute && (
+      {!usesPortalNav && (
         <PublicHeader showName={!isLoginRoute} showLogo={!isLoginRoute} />
       )}
       <main className="relative z-10">

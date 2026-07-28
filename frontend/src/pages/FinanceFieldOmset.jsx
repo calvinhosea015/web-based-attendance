@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, PageHero } from '../components/ui.jsx';
+import { PageHero } from '../components/ui.jsx';
 import { Reveal } from '../components/Reveal.jsx';
+import EmployeeLayout from '../components/EmployeeLayout.jsx';
 import OmsetReport from '../components/field/OmsetReport.jsx';
 import FinancePayrollSummary from '../components/payroll/FinancePayrollSummary.jsx';
 import FactoryItemBonusReport from '../components/field/FactoryItemBonusReport.jsx';
@@ -48,28 +49,21 @@ export default function FinanceFieldOmset() {
   }
 
   return (
-    <div className="page-shell relative z-10 mx-auto max-w-7xl">
-      <Reveal>
-        <Link to="/employee" className="apple-link text-[14px]">
-          ← {t('payrollEmployeeTitle')}
-        </Link>
-        <PageHero
-          eyebrow={t('fieldOpsTabOmset')}
-          title={t('fieldOmsetReportTitle')}
-          subtitle={t('fieldOmsetReportSubtitle')}
-          className="!mt-3"
-          action={
-            <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
-              {t('logout')}
-            </Button>
-          }
-        />
-      </Reveal>
-      <div className="layout-stack">
-        <FinancePayrollSummary period={period} />
-        <OmsetReport period={period} onPeriodChange={onPeriodChange} />
-        <FactoryItemBonusReport />
+    <EmployeeLayout>
+      <div className="page-shell relative z-10 mx-auto max-w-7xl">
+        <Reveal>
+          <PageHero
+            eyebrow={t('fieldOpsTabOmset')}
+            title={t('fieldOmsetReportTitle')}
+            subtitle={t('fieldOmsetReportSubtitle')}
+          />
+        </Reveal>
+        <div className="layout-stack">
+          <FinancePayrollSummary period={period} />
+          <OmsetReport period={period} onPeriodChange={onPeriodChange} />
+          <FactoryItemBonusReport />
+        </div>
       </div>
-    </div>
+    </EmployeeLayout>
   );
 }

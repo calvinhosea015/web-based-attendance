@@ -8,7 +8,8 @@ import {
   PageHero,
   panelClass,
 } from '../components/ui.jsx';
-import { api, paths, ensureCsrf, rawApi } from '../api/client.js';
+import EmployeeLayout from '../components/EmployeeLayout.jsx';
+import { api, paths, ensureCsrf } from '../api/client.js';
 import i18n from '../i18n.js';
 import { translateAttendanceStatus, translateRole } from '../translateApi.js';
 import {
@@ -240,22 +241,6 @@ export default function EmployeeDashboard() {
     else if (action === 'check_in') await handleCheckIn();
   };
 
-  const handleLogout = async () => {
-    try {
-      const rt = localStorage.getItem('refreshToken');
-      if (rt) {
-        await ensureCsrf();
-        await rawApi.post(paths.logout, { refreshToken: rt });
-      }
-    } catch {
-      /* ignore */
-    }
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('role');
-    navigate('/login');
-  };
-
   const today = summary?.today;
   const assignedOffice = summary?.assigned_office;
   const assignedOffices =
@@ -337,8 +322,8 @@ export default function EmployeeDashboard() {
 
   if (payrollOnly) {
     return (
-      <div className="page-shell layout-stack mx-auto max-w-4xl">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      <EmployeeLayout>
+        <div className="page-shell layout-stack mx-auto max-w-4xl">
           <div>
             <span className="apple-eyebrow">{t('headOfFinanceHubTitle')}</span>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-apple-text">
@@ -346,43 +331,36 @@ export default function EmployeeDashboard() {
             </h1>
             <p className="mt-1 text-sm text-apple-label">{t('headOfFinanceNoAttendance')}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            {t('logout')}
-          </Button>
+          {message && <Alert tone="error">{message}</Alert>}
+          <Card
+            title={t('headOfFinanceReviewOmset')}
+            description={t('headOfFinanceReviewOmsetHint')}
+            action={
+              <Button variant="primary" onClick={() => navigate('/finance/field-omset')}>
+                {t('headOfFinanceReviewOmset')}
+              </Button>
+            }
+          >
+            <p className="text-sm text-apple-label">{t('fieldOmsetReportSubtitle')}</p>
+          </Card>
+          <PayrollCard payroll={payroll} />
         </div>
-        {message && <Alert tone="error">{message}</Alert>}
-        <Card
-          title={t('headOfFinanceReviewOmset')}
-          description={t('headOfFinanceReviewOmsetHint')}
-          action={
-            <Button variant="primary" onClick={() => navigate('/finance/field-omset')}>
-              {t('headOfFinanceReviewOmset')}
-            </Button>
-          }
-        >
-          <p className="text-sm text-apple-label">{t('fieldOmsetReportSubtitle')}</p>
-        </Card>
-        <PayrollCard payroll={payroll} />
-      </div>
+      </EmployeeLayout>
     );
   }
 
   return (
-    <div className="page-shell layout-stack mx-auto max-w-5xl">
-      <PageHero
-        eyebrow={translateRole(localStorage.getItem('role'))}
-        title={t('employeeDashboard')}
-        subtitle={
-          summary?.employee?.full_name
-            ? `${summary.employee.full_name}${summary?.employee?.employee_id ? ` · ${summary.employee.employee_id}` : ''}`
-            : undefined
-        }
-        action={
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            {t('logout')}
-          </Button>
-        }
-      />
+    <EmployeeLayout>
+      <div className="page-shell layout-stack mx-auto max-w-5xl">
+        <PageHero
+          eyebrow={translateRole(localStorage.getItem('role'))}
+          title={t('employeeDashboard')}
+          subtitle={
+            summary?.employee?.full_name
+              ? `${summary.employee.full_name}${summary?.employee?.employee_id ? ` · ${summary.employee.employee_id}` : ''}`
+              : undefined
+          }
+        />
 
       {message && <Alert tone={messageTone}>{message}</Alert>}
 
@@ -708,6 +686,7 @@ export default function EmployeeDashboard() {
       )}
 
       {isDailyWageSchedule && <PayrollCard payroll={payroll} />}
-    </div>
+      </div>
+    </EmployeeLayout>
   );
 }
