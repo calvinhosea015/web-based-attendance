@@ -23,7 +23,7 @@ function PublicHeader({ showName = true, showLogo = true }) {
         <div className="nav-island-inner">
           <span className="flex items-center gap-3 font-display text-[15px] font-semibold tracking-tight text-apple-text">
             {showLogo ? (
-              <img src="/company-logo.png" alt={t('appName')} className="h-8 w-auto rounded-xl" />
+              <img src="/company-logo.png" alt={t('appName')} className="h-8 w-auto" />
             ) : null}
             {showName ? t('appName') : null}
           </span>

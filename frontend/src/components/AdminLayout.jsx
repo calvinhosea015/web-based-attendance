@@ -192,7 +192,7 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
                 <img
                   src="/company-logo.png"
                   alt={t('appName')}
-                  className="h-8 w-auto rounded-xl sm:h-9"
+                  className="h-8 w-auto sm:h-9"
                 />
                 <span className="hidden font-display text-[15px] font-semibold tracking-tight text-apple-text md:inline">
                   {t('appName')}
