@@ -12,21 +12,6 @@ import {
 import { formatDisplayDate } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
-function ymd(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function defaultMonthRange() {
-  const now = new Date();
-  return {
-    from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)),
-    to: ymd(now),
-  };
-}
-
 /**
  * @param {{ editable?: boolean, officeScope?: boolean }} props
  */
@@ -41,11 +26,10 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
   const [savingDelivery, setSavingDelivery] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const initialRange = defaultMonthRange();
-  const [filterDateFrom, setFilterDateFrom] = useState(officeScope ? initialRange.from : '');
-  const [filterDateTo, setFilterDateTo] = useState(officeScope ? initialRange.to : '');
-  const [appliedDateFrom, setAppliedDateFrom] = useState(officeScope ? initialRange.from : '');
-  const [appliedDateTo, setAppliedDateTo] = useState(officeScope ? initialRange.to : '');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [appliedDateFrom, setAppliedDateFrom] = useState('');
+  const [appliedDateTo, setAppliedDateTo] = useState('');
 
   const [filterPabrik, setFilterPabrik] = useState('');
   const [filterOfficer, setFilterOfficer] = useState('');
@@ -60,7 +44,7 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
             limit: 2000,
             ...(appliedDateFrom ? { date_from: appliedDateFrom } : {}),
             ...(appliedDateTo ? { date_to: appliedDateTo } : {}),
-            ...(!appliedDateFrom && !appliedDateTo ? { days: 60 } : {}),
+            ...(!appliedDateFrom && !appliedDateTo ? { days: 365 } : {}),
           }
         : { limit: 5000 };
       const { data } = await api.get(path, { params });
@@ -147,11 +131,10 @@ export default function DeliveryRecap({ editable = false, officeScope = false })
     setFilterOfficer('');
     setFilterKodeBarang('');
     if (officeScope) {
-      const range = defaultMonthRange();
-      setFilterDateFrom(range.from);
-      setFilterDateTo(range.to);
-      setAppliedDateFrom(range.from);
-      setAppliedDateTo(range.to);
+      setFilterDateFrom('');
+      setFilterDateTo('');
+      setAppliedDateFrom('');
+      setAppliedDateTo('');
     } else {
       setFilterDateFrom('');
       setFilterDateTo('');

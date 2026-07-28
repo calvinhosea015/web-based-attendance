@@ -338,14 +338,7 @@ class FieldDeliveryRepository {
        LEFT JOIN offices o ON o.id = COALESCE(p.office_id, u.office_id)
        LEFT JOIN attendance a ON a.id = fde.attendance_id
        WHERE ${dateClause}
-         AND (
-           u.office_id = $1
-           OR EXISTS (
-             SELECT 1 FROM employee_pabriks ep
-             JOIN pabriks pb ON pb.id = ep.pabrik_id
-             WHERE ep.employee_id = fde.employee_id AND pb.office_id = $1
-           )
-         )
+         AND COALESCE(p.office_id, u.office_id) = $1
        ORDER BY fde.valid_on DESC, fde.created_at DESC
        LIMIT $2`,
       params
