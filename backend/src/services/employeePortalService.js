@@ -30,7 +30,8 @@ class EmployeePortalService {
     payrollService = null,
     employeeOfficeRepository = null,
     employeePabrikRepository = null,
-    deliveryRecapReviewRepository = null
+    deliveryRecapReviewRepository = null,
+    notificationRepository = null
   ) {
     this.userRepository = userRepository;
     this.attendanceRepository = attendanceRepository;
@@ -42,6 +43,7 @@ class EmployeePortalService {
     this.employeeOfficeRepository = employeeOfficeRepository;
     this.employeePabrikRepository = employeePabrikRepository;
     this.deliveryRecapReviewRepository = deliveryRecapReviewRepository;
+    this.notificationRepository = notificationRepository;
   }
 
   async meSummary(auth) {
@@ -272,6 +274,31 @@ class EmployeePortalService {
     };
   }
 
+  async notifyAdminIncorrectDeliveryRecap({ reviewer, entry, reviewRow, notes }) {
+    if (!this.notificationRepository || !entry || !reviewRow) return;
+    const fieldOfficer = entry.employee_id
+      ? await this.employeeRepository.findById(entry.employee_id)
+      : null;
+    const reviewerName = reviewer?.full_name || reviewer?.username || 'Staff Kantor';
+    const officerLabel = fieldOfficer
+      ? `${fieldOfficer.full_name} (${fieldOfficer.employee_id})`
+      : `delivery #${entry.id}`;
+    const date =
+      entry.valid_on != null ? String(entry.valid_on).slice(0, 10) : '—';
+    const pabrik = entry.pabrik_code || '—';
+    const noteText = notes ? String(notes).trim().slice(0, 280) : '';
+    await this.notificationRepository.insertAdminAlert({
+      type: 'delivery_recap_review',
+      title: 'Delivery recap flagged incorrect',
+      body: `${reviewerName} marked a delivery line as not correct — ${officerLabel}, ${date}, pabrik ${pabrik}.${noteText ? ` Note: ${noteText}` : ''}`,
+      payload: {
+        reviewId: reviewRow.id,
+        deliveryEntryId: entry.id,
+        employeeId: entry.employee_id ?? null,
+      },
+    });
+  }
+
   async saveDeliveryRecapReview(auth, { delivery_entry_id: deliveryEntryId, is_correct: isCorrect, notes }) {
     if (!isStaffKantor(auth.role)) {
       throw new AppError('Only Staff Kantor can save delivery recap reviews.', 403, 'FORBIDDEN');
@@ -301,6 +328,15 @@ class EmployeePortalService {
       reviewedBy: auth.userId,
     });
     const withUser = await this.deliveryRecapReviewRepository.findLatestForDelivery(entryId);
+    if (!isCorrect && withUser) {
+      const reviewer = await this.userRepository.findById(auth.userId);
+      await this.notifyAdminIncorrectDeliveryRecap({
+        reviewer,
+        entry,
+        reviewRow: withUser,
+        notes: noteText,
+      }).catch(() => {});
+    }
     return this.formatDeliveryRecapReview(withUser);
   }
 }

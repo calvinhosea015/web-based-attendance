@@ -136,7 +136,8 @@ function buildV1Router() {
     payrollService,
     employeeOfficeRepository,
     employeePabrikRepository,
-    deliveryRecapReviewRepository
+    deliveryRecapReviewRepository,
+    notificationRepository
   );
   const enterpriseAdminService = new EnterpriseAdminService(
     notificationRepository,

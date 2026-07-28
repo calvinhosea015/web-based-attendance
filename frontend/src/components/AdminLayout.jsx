@@ -17,7 +17,7 @@ const NAV = [
     to: '/admin/field',
     labelKey: 'fieldOpsDashboardTitle',
     match: (p) => p.startsWith('/admin/field'),
-    pendingKey: null,
+    pendingKey: 'field',
   },
   {
     to: '/admin/loans',
@@ -85,21 +85,27 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
   const [pendingLoans, setPendingLoans] = useState(0);
   const [pendingLeave, setPendingLeave] = useState(0);
   const [pendingCorrections, setPendingCorrections] = useState(0);
+  const [pendingFieldReviews, setPendingFieldReviews] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const refreshPending = useCallback(async () => {
     try {
-      const [loansRes, leaveRes, correctionsRes, backdatesRes] = await Promise.all([
+      const [loansRes, leaveRes, correctionsRes, backdatesRes, notifRes] = await Promise.all([
         api.get(paths.adminLoanRequestsPending),
         api.get(paths.adminLeaveRequestsPending),
         api.get(paths.adminAttendanceCorrectionsPending),
         api.get(paths.adminFieldDeliveryBackdatesPending),
+        api.get(paths.adminNotifications).catch(() => ({ data: [] })),
       ]);
       setPendingLoans(Array.isArray(loansRes.data) ? loansRes.data.length : 0);
       setPendingLeave(Array.isArray(leaveRes.data) ? leaveRes.data.length : 0);
       const correctionCount = Array.isArray(correctionsRes.data) ? correctionsRes.data.length : 0;
       const backdateCount = Array.isArray(backdatesRes.data) ? backdatesRes.data.length : 0;
       setPendingCorrections(correctionCount + backdateCount);
+      const notifs = Array.isArray(notifRes.data) ? notifRes.data : [];
+      setPendingFieldReviews(
+        notifs.filter((n) => n.type === 'delivery_recap_review' && !n.read_at).length
+      );
     } catch {
       /* ignore poll errors */
     }
@@ -137,7 +143,12 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
     navigate('/login');
   };
 
-  const pendingByKey = { loans: pendingLoans, leave: pendingLeave, corrections: pendingCorrections };
+  const pendingByKey = {
+    loans: pendingLoans,
+    leave: pendingLeave,
+    corrections: pendingCorrections,
+    field: pendingFieldReviews,
+  };
 
   const renderNavLink = ({ to, labelKey, match, pendingKey }, mobile = false) => {
     const active = match(pathname);
