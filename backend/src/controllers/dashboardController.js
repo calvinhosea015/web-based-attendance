@@ -27,10 +27,6 @@ function makeDashboardController(dashboardService, employeePortalService) {
         })
       );
     }),
-    adminDeliveryRecapReviews: asyncHandler(async (req, res) => {
-      const limit = req.query.limit != null ? Number(req.query.limit) : 50;
-      res.json(await employeePortalService.listDeliveryRecapReviews(req.auth, { limit }));
-    }),
   };
 }
 

@@ -149,7 +149,6 @@ export const paths = {
   adminFieldDeliveriesSummary: '/v1/admin/field-deliveries/summary',
   adminFieldDeliveries: '/v1/admin/field-deliveries',
   adminFieldDeliveryUpdate: (id) => `/v1/admin/field-deliveries/${id}`,
-  adminDeliveryRecapReviews: '/v1/admin/delivery-recap-reviews',
   adminFieldDeliveryBackdatesPending: '/v1/admin/field-delivery-backdates/pending',
   adminFieldDeliveryBackdate: (id) => `/v1/admin/field-delivery-backdates/${id}`,
   employeeFieldDeliveries: '/v1/employee/field-deliveries',

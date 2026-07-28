@@ -1,5 +1,19 @@
 const { query } = require('../db/pool');
 
+function formatRecapReview(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    delivery_entry_id: row.delivery_entry_id ?? null,
+    is_correct: row.is_correct ?? null,
+    notes: row.notes ?? null,
+    reviewed_by: row.reviewed_by,
+    reviewed_at: row.reviewed_at ?? null,
+    reviewer_username: row.reviewer_username ?? null,
+    reviewer_full_name: row.reviewer_full_name ?? null,
+  };
+}
+
 class DeliveryRecapReviewRepository {
   async findLatestForDelivery(deliveryEntryId) {
     const r = await query(
@@ -65,4 +79,4 @@ class DeliveryRecapReviewRepository {
   }
 }
 
-module.exports = { DeliveryRecapReviewRepository };
+module.exports = { DeliveryRecapReviewRepository, formatRecapReview };

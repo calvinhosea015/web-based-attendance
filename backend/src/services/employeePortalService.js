@@ -303,15 +303,6 @@ class EmployeePortalService {
     const withUser = await this.deliveryRecapReviewRepository.findLatestForDelivery(entryId);
     return this.formatDeliveryRecapReview(withUser);
   }
-
-  async listDeliveryRecapReviews(auth, { limit = 50 } = {}) {
-    if (auth.role !== 'admin' && auth.role !== 'head_of_finance') {
-      throw new AppError('Forbidden.', 403, 'FORBIDDEN');
-    }
-    if (!this.deliveryRecapReviewRepository) return [];
-    const rows = await this.deliveryRecapReviewRepository.listRecent(limit);
-    return rows.map((row) => this.formatDeliveryRecapReview(row));
-  }
 }
 
 module.exports = { EmployeePortalService };

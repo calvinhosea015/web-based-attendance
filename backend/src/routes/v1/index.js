@@ -123,7 +123,8 @@ function buildV1Router() {
     loanRequestRepository,
     leaveRequestRepository,
     attendanceRepository,
-    fieldDeliveryRepository
+    fieldDeliveryRepository,
+    deliveryRecapReviewRepository
   );
   const employeePortalService = new EmployeePortalService(
     userRepository,

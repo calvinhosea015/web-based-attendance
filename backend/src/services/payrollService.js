@@ -1,4 +1,5 @@
 const { AppError } = require('../utils/errors');
+const { formatRecapReview } = require('../repositories/deliveryRecapReviewRepository');
 const {
   buildEmployeeSlipWorkbook,
   employeeSlipExportFilename,
@@ -259,7 +260,8 @@ class PayrollService {
     loanRequestRepository,
     leaveRequestRepository,
     attendanceRepository,
-    fieldDeliveryRepository = null
+    fieldDeliveryRepository = null,
+    deliveryRecapReviewRepository = null
   ) {
     this.payrollRepository = payrollRepository;
     this.employeeRepository = employeeRepository;
@@ -267,6 +269,7 @@ class PayrollService {
     this.leaveRequestRepository = leaveRequestRepository;
     this.attendanceRepository = attendanceRepository;
     this.fieldDeliveryRepository = fieldDeliveryRepository;
+    this.deliveryRecapReviewRepository = deliveryRecapReviewRepository;
   }
 
   async sumFieldOfficerBonusForPeriod(employeeId, periodStart, periodEnd) {
@@ -391,6 +394,9 @@ class PayrollService {
     if (!this.fieldDeliveryRepository) return [];
     const safeLimit = Math.min(10000, Math.max(1, Number(limit) || 5000));
     const rows = await this.fieldDeliveryRepository.listAll({ limit: safeLimit });
+    const reviewMap = this.deliveryRecapReviewRepository
+      ? await this.deliveryRecapReviewRepository.mapLatestByDeliveryIds(rows.map((r) => r.id))
+      : new Map();
     return rows.map((row) => ({
       id: row.id,
       full_name: row.full_name,
@@ -415,6 +421,7 @@ class PayrollService {
       price_per_item: row.price_per_item,
       omset_amount: row.omset_amount,
       bonus_amount: row.bonus_amount,
+      recap_review: formatRecapReview(reviewMap.get(Number(row.id))),
     }));
   }
 

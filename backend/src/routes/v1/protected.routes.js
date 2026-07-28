@@ -475,13 +475,6 @@ function buildProtectedRoutes(deps) {
     dashboardController.deliveryRecapReviewSave
   );
   r.get(
-    '/admin/delivery-recap-reviews',
-    requireRole('admin', 'head_of_finance'),
-    fieldDeliveryQueryValidators,
-    validateRequest,
-    dashboardController.adminDeliveryRecapReviews
-  );
-  r.get(
     '/employee/me/field-deliveries/today',
     requireAttendanceRole,
     fieldCheckoutCodeController.listToday

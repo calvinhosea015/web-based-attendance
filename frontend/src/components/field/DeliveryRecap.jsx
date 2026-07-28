@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Badge, Button, Card, Field, inputClass } from '../ui.jsx';
+import { Alert, Button, Card, Field, inputClass } from '../ui.jsx';
 import { api, paths, ensureCsrf } from '../../api/client.js';
 import { translateApiMessage } from '../../translateApi.js';
 import { useNotify } from '../../hooks/useNotify.js';
@@ -342,6 +342,11 @@ export default function DeliveryRecap({
                   const parsed = fieldDeliveryDisplayFields(row);
                   const reviewDraft = getRowReviewDraft(row);
                   const reviewSaving = reviewSavingId === row.id;
+                  const showRowReview =
+                    editingId !== row.id &&
+                    (reviewEditable ||
+                      (row.recap_review?.reviewed_at &&
+                        typeof row.recap_review.is_correct === 'boolean'));
                   return (
                     <li
                       key={row.id}
@@ -442,7 +447,7 @@ export default function DeliveryRecap({
                               ) : null}
                             </p>
                           ) : null}
-                          {officeScope && editingId !== row.id ? (
+                          {showRowReview ? (
                             <div className="mt-3 border-t border-black/[0.06] pt-3">
                               <p className="text-xs font-medium text-apple-label">
                                 {t('fieldDeliveryRecapReviewTitle')}
@@ -507,15 +512,6 @@ export default function DeliveryRecap({
                                   >
                                     {reviewSaving ? t('loading') : t('fieldDeliveryRecapReviewSave')}
                                   </Button>
-                                </div>
-                              ) : row.recap_review &&
-                                typeof row.recap_review.is_correct === 'boolean' ? (
-                                <div className="mt-2">
-                                  <Badge variant={row.recap_review.is_correct ? 'success' : 'muted'}>
-                                  {row.recap_review.is_correct
-                                    ? t('fieldDeliveryRecapReviewCorrect')
-                                    : t('fieldDeliveryRecapReviewIncorrect')}
-                                </Badge>
                                 </div>
                               ) : null}
                             </div>
