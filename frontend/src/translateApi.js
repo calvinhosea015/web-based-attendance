@@ -17,6 +17,8 @@ const MESSAGE_CODE = {
   'Could not parse coordinates from the Google Maps link.': 'MAP_PARSE',
   'Account is not linked to an employee profile.': 'NO_EMPLOYEE',
   'Account is inactive.': 'ACCOUNT_INACTIVE',
+  'Mark the delivery recap as correct or not correct.': 'REVIEW_VERDICT',
+  'Add a note when the recap is not correct.': 'REVIEW_NOTES',
   'Latitude and longitude are required.': 'GEO_REQUIRED',
   'GPS accuracy is required and must be positive.': 'GPS_ACCURACY_REQUIRED',
   'Device timestamp is required for clock events.': 'CLIENT_TS_REQUIRED',

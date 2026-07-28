@@ -33,7 +33,8 @@ function makeDashboardController(dashboardService, employeePortalService) {
       res.status(201).json(
         await employeePortalService.saveDeliveryRecapReview(req.auth, {
           scope: req.body.scope || {},
-          checklist: req.body.checklist,
+          is_correct: req.body.is_correct,
+          notes: req.body.notes,
         })
       );
     }),

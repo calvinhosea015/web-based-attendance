@@ -695,7 +695,7 @@ export default function EmployeeDashboard() {
         <DeliveryRecap
           officeScope
           editable={false}
-          checklistEditable={(summary?.role || localStorage.getItem('role')) === ROLE_EMPLOYEE}
+          reviewEditable={(summary?.role || localStorage.getItem('role')) === ROLE_EMPLOYEE}
         />
       )}
 

@@ -13,12 +13,12 @@ import { formatDisplayDate } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
 /**
- * @param {{ editable?: boolean, officeScope?: boolean, checklistEditable?: boolean }} props
+ * @param {{ editable?: boolean, officeScope?: boolean, reviewEditable?: boolean }} props
  */
 export default function DeliveryRecap({
   editable = false,
   officeScope = false,
-  checklistEditable = false,
+  reviewEditable = false,
 }) {
   const { t } = useTranslation();
   const [notification, notify, dismiss] = useNotify();
@@ -37,8 +37,8 @@ export default function DeliveryRecap({
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterKodeBarang, setFilterKodeBarang] = useState('');
 
-  const [checklistItems, setChecklistItems] = useState([]);
-  const [newChecklistLabel, setNewChecklistLabel] = useState('');
+  const [reviewVerdict, setReviewVerdict] = useState(null);
+  const [reviewNotes, setReviewNotes] = useState('');
   const [lastReview, setLastReview] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
@@ -59,16 +59,18 @@ export default function DeliveryRecap({
     setReviewLoading(true);
     try {
       const { data } = await api.get(paths.employeeDeliveryRecapReviews, { params: reviewScope });
-      if (data && Array.isArray(data.checklist) && data.checklist.length) {
-        setChecklistItems(data.checklist);
-        setLastReview(data);
+      setLastReview(data || null);
+      if (data && typeof data.is_correct === 'boolean') {
+        setReviewVerdict(data.is_correct);
+        setReviewNotes(data.notes || '');
       } else {
-        setChecklistItems([]);
-        setLastReview(data || null);
+        setReviewVerdict(null);
+        setReviewNotes('');
       }
     } catch {
-      setChecklistItems([]);
       setLastReview(null);
+      setReviewVerdict(null);
+      setReviewNotes('');
     } finally {
       setReviewLoading(false);
     }
@@ -78,19 +80,13 @@ export default function DeliveryRecap({
     loadDeliveryRecapReview();
   }, [loadDeliveryRecapReview]);
 
-  const addChecklistItem = () => {
-    const label = newChecklistLabel.trim();
-    if (!label) return;
-    setChecklistItems((prev) => [
-      ...prev,
-      { id: `item-${Date.now()}`, label, checked: false },
-    ]);
-    setNewChecklistLabel('');
-  };
-
   const saveDeliveryRecapReview = async () => {
-    if (!checklistItems.length) {
-      notify(t('fieldDeliveryRecapChecklistEmpty'), 'error');
+    if (typeof reviewVerdict !== 'boolean') {
+      notify(t('fieldDeliveryRecapReviewVerdictRequired'), 'error');
+      return;
+    }
+    if (!reviewVerdict && !reviewNotes.trim()) {
+      notify(t('fieldDeliveryRecapReviewNotesRequired'), 'error');
       return;
     }
     setReviewSaving(true);
@@ -99,11 +95,15 @@ export default function DeliveryRecap({
       await ensureCsrf();
       const { data } = await api.post(paths.employeeDeliveryRecapReviews, {
         scope: reviewScope,
-        checklist: checklistItems,
+        is_correct: reviewVerdict,
+        notes: reviewNotes.trim() || null,
       });
       setLastReview(data || null);
-      if (Array.isArray(data?.checklist)) setChecklistItems(data.checklist);
-      notify(t('fieldDeliveryRecapChecklistSaved'), 'success');
+      if (data && typeof data.is_correct === 'boolean') {
+        setReviewVerdict(data.is_correct);
+        setReviewNotes(data.notes || '');
+      }
+      notify(t('fieldDeliveryRecapReviewSaved'), 'success');
     } catch (err) {
       notify(translateApiMessage(err) || t('dashboardLoadFailed'), 'error');
     } finally {
@@ -339,89 +339,6 @@ export default function DeliveryRecap({
           ) : null}
         </div>
 
-        {officeScope ? (
-          <div className="mb-4 rounded-apple-lg border border-black/[0.06] bg-apple-fill/60 p-4">
-            <div className="mb-2">
-              <h3 className="text-sm font-medium text-apple-text">
-                {t('fieldDeliveryRecapChecklistTitle')}
-              </h3>
-              <p className="mt-1 text-xs text-apple-label">
-                {t('fieldDeliveryRecapChecklistHint')}
-              </p>
-            </div>
-            {lastReview?.reviewed_at ? (
-              <p className="mb-3 text-xs text-apple-label">
-                {t('fieldDeliveryRecapChecklistLastReview', {
-                  name:
-                    lastReview.reviewer_full_name ||
-                    lastReview.reviewer_username ||
-                    '—',
-                  date: formatDisplayDate(lastReview.reviewed_at),
-                })}
-              </p>
-            ) : null}
-            {reviewLoading ? (
-              <p className="text-xs text-apple-label">{t('loading')}</p>
-            ) : (
-              <>
-                {checklistItems.length ? (
-                  <ul className="mb-3 space-y-2">
-                    {checklistItems.map((item) => (
-                      <li key={item.id}>
-                        <label className="flex items-start gap-2 text-sm text-apple-text">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5"
-                            checked={Boolean(item.checked)}
-                            disabled={!checklistEditable}
-                            onChange={() =>
-                              setChecklistItems((prev) =>
-                                prev.map((row) =>
-                                  row.id === item.id ? { ...row, checked: !row.checked } : row
-                                )
-                              )
-                            }
-                          />
-                          <span>{item.label}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {checklistEditable ? (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <Field label={t('fieldDeliveryRecapChecklistAdd')} className="min-w-[12rem] flex-1">
-                      <input
-                        className={inputClass}
-                        placeholder={t('fieldDeliveryRecapChecklistPlaceholder')}
-                        value={newChecklistLabel}
-                        onChange={(e) => setNewChecklistLabel(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addChecklistItem();
-                          }
-                        }}
-                      />
-                    </Field>
-                    <Button type="button" variant="secondary" size="sm" onClick={addChecklistItem}>
-                      {t('fieldDeliveryRecapChecklistAdd')}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={reviewSaving}
-                      onClick={saveDeliveryRecapReview}
-                    >
-                      {reviewSaving ? t('loading') : t('fieldDeliveryRecapChecklistSave')}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
-          </div>
-        ) : null}
-
         {recapLoading && !allDeliveries.length ? (
           <p className="text-[15px] text-apple-label">{t('loading')}</p>
         ) : allDeliveries.length ? (
@@ -572,6 +489,81 @@ export default function DeliveryRecap({
         ) : (
           <p className="text-[15px] text-apple-label">{t('fieldDeliveryEmpty')}</p>
         )}
+
+        {officeScope ? (
+          <div className="mt-4 rounded-apple-lg border border-black/[0.06] bg-apple-fill/60 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-apple-text">
+                {t('fieldDeliveryRecapReviewTitle')}
+              </h3>
+              <p className="mt-1 text-xs text-apple-label">
+                {t('fieldDeliveryRecapReviewHint')}
+              </p>
+            </div>
+            {lastReview?.reviewed_at && typeof lastReview.is_correct === 'boolean' ? (
+              <p className="mb-3 text-xs text-apple-label">
+                {t('fieldDeliveryRecapReviewLastSaved', {
+                  name:
+                    lastReview.reviewer_full_name ||
+                    lastReview.reviewer_username ||
+                    '—',
+                  date: formatDisplayDate(lastReview.reviewed_at),
+                  verdict: lastReview.is_correct
+                    ? t('fieldDeliveryRecapReviewCorrect')
+                    : t('fieldDeliveryRecapReviewIncorrect'),
+                })}
+                {lastReview.notes ? (
+                  <span className="mt-1 block text-apple-text">“{lastReview.notes}”</span>
+                ) : null}
+              </p>
+            ) : null}
+            {reviewLoading ? (
+              <p className="text-xs text-apple-label">{t('loading')}</p>
+            ) : reviewEditable ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={reviewVerdict === true ? 'primary' : 'secondary'}
+                    onClick={() => setReviewVerdict(true)}
+                  >
+                    {t('fieldDeliveryRecapReviewCorrect')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={reviewVerdict === false ? 'danger' : 'secondary'}
+                    onClick={() => setReviewVerdict(false)}
+                  >
+                    {t('fieldDeliveryRecapReviewIncorrect')}
+                  </Button>
+                </div>
+                {reviewVerdict === false ? (
+                  <Field label={t('fieldDeliveryRecapReviewNotesLabel')}>
+                    <textarea
+                      className={`${inputClass} min-h-[4rem] resize-y`}
+                      placeholder={t('fieldDeliveryRecapReviewNotesPlaceholder')}
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      maxLength={500}
+                    />
+                  </Field>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={reviewSaving || typeof reviewVerdict !== 'boolean'}
+                  onClick={saveDeliveryRecapReview}
+                >
+                  {reviewSaving ? t('loading') : t('fieldDeliveryRecapReviewSave')}
+                </Button>
+              </div>
+            ) : lastReview?.reviewed_at && typeof lastReview.is_correct === 'boolean' ? null : (
+              <p className="text-xs text-apple-label">{t('fieldDeliveryRecapReviewReadOnly')}</p>
+            )}
+          </div>
+        ) : null}
       </Card>
     </>
   );

@@ -5,6 +5,7 @@ import OmsetReport from '../components/field/OmsetReport.jsx';
 import PabrikCatalog from '../components/field/PabrikCatalog.jsx';
 import LocationManager from '../components/field/LocationManager.jsx';
 import DeliveryRecap from '../components/field/DeliveryRecap.jsx';
+import DeliveryRecapReviewLog from '../components/field/DeliveryRecapReviewLog.jsx';
 import FactoryItemBonusReport from '../components/field/FactoryItemBonusReport.jsx';
 
 export default function AdminFieldDashboard() {
@@ -20,6 +21,7 @@ export default function AdminFieldDashboard() {
       <PabrikCatalog />
       <LocationManager />
       <DeliveryRecap editable />
+      <DeliveryRecapReviewLog />
     </AdminLayout>
   );
 }

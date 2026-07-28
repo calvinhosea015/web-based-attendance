@@ -743,6 +743,8 @@ async function migrateDeliveryRecapReviews() {
       filter_officer VARCHAR(64) NOT NULL DEFAULT '',
       filter_kode_barang VARCHAR(64) NOT NULL DEFAULT '',
       checklist JSONB NOT NULL DEFAULT '[]'::jsonb,
+      is_correct BOOLEAN,
+      notes TEXT,
       reviewed_by INTEGER NOT NULL REFERENCES users(id),
       reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -751,6 +753,10 @@ async function migrateDeliveryRecapReviews() {
     `CREATE INDEX IF NOT EXISTS idx_delivery_recap_reviews_scope
      ON delivery_recap_reviews(filter_date_from, filter_date_to, filter_pabrik, filter_officer, filter_kode_barang, reviewed_at DESC)`
   );
+  await query(
+    `ALTER TABLE delivery_recap_reviews ADD COLUMN IF NOT EXISTS is_correct BOOLEAN`
+  );
+  await query(`ALTER TABLE delivery_recap_reviews ADD COLUMN IF NOT EXISTS notes TEXT`);
 }
 
 async function migrate() {

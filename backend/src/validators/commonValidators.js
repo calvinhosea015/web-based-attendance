@@ -379,10 +379,8 @@ const deliveryRecapReviewSaveValidators = [
   body('scope.pabrik').optional().isString().isLength({ max: 32 }),
   body('scope.officer').optional().isString().isLength({ max: 64 }),
   body('scope.kode_barang').optional().isString().isLength({ max: 64 }),
-  body('checklist').isArray({ min: 1, max: 32 }),
-  body('checklist.*.id').optional().isString().isLength({ max: 64 }),
-  body('checklist.*.label').trim().notEmpty().isString().isLength({ max: 255 }),
-  body('checklist.*.checked').optional().isBoolean({ strict: true }),
+  body('is_correct').isBoolean({ strict: true }),
+  body('notes').optional({ values: 'null' }).trim().isLength({ max: 500 }),
 ];
 
 const adminFieldDeliveryQueryValidators = [

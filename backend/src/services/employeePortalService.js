@@ -256,7 +256,8 @@ class EmployeePortalService {
       filter_pabrik: row.filter_pabrik ?? '',
       filter_officer: row.filter_officer ?? '',
       filter_kode_barang: row.filter_kode_barang ?? '',
-      checklist: Array.isArray(row.checklist) ? row.checklist : [],
+      is_correct: row.is_correct ?? null,
+      notes: row.notes ?? null,
       reviewed_by: row.reviewed_by,
       reviewed_at: row.reviewed_at ?? null,
       reviewer_username: row.reviewer_username ?? null,
@@ -277,28 +278,24 @@ class EmployeePortalService {
     return this.formatDeliveryRecapReview(row);
   }
 
-  async saveDeliveryRecapReview(auth, { scope, checklist }) {
+  async saveDeliveryRecapReview(auth, { scope, is_correct: isCorrect, notes }) {
     if (!isStaffKantor(auth.role)) {
       throw new AppError('Only Staff Kantor can save delivery recap reviews.', 403, 'FORBIDDEN');
     }
     if (!this.deliveryRecapReviewRepository) {
       throw new AppError('Delivery recap reviews are not available.', 500, 'INTERNAL');
     }
-    const items = Array.isArray(checklist) ? checklist : [];
-    if (!items.length) {
-      throw new AppError('Add at least one checklist item.', 400, 'CHECKLIST_EMPTY');
+    if (typeof isCorrect !== 'boolean') {
+      throw new AppError('Mark the delivery recap as correct or not correct.', 400, 'REVIEW_VERDICT');
     }
-    const normalized = items.map((item, index) => ({
-      id: String(item?.id || `item-${index + 1}`),
-      label: String(item?.label || '').trim(),
-      checked: Boolean(item?.checked),
-    }));
-    if (normalized.some((item) => !item.label)) {
-      throw new AppError('Each checklist item needs a label.', 400, 'CHECKLIST_LABEL');
+    const noteText = notes != null ? String(notes).trim() : '';
+    if (!isCorrect && !noteText) {
+      throw new AppError('Add a note when the recap is not correct.', 400, 'REVIEW_NOTES');
     }
     const row = await this.deliveryRecapReviewRepository.create({
       scope: scope || {},
-      checklist: normalized,
+      isCorrect,
+      notes: noteText || null,
       reviewedBy: auth.userId,
     });
     const withUser = await this.deliveryRecapReviewRepository.findLatestForScope(scope || {});
