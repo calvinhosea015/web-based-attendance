@@ -13,9 +13,9 @@ import { formatDisplayDate } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
 /**
- * @param {{ editable?: boolean }} props
+ * @param {{ editable?: boolean, officeScope?: boolean }} props
  */
-export default function DeliveryRecap({ editable = false }) {
+export default function DeliveryRecap({ editable = false, officeScope = false }) {
   const { t } = useTranslation();
   const [notification, notify, dismiss] = useNotify();
 
@@ -33,7 +33,9 @@ export default function DeliveryRecap({ editable = false }) {
   const loadAllDeliveries = useCallback(async () => {
     setRecapLoading(true);
     try {
-      const { data } = await api.get(paths.adminFieldDeliveries);
+      const path = officeScope ? paths.employeeFieldDeliveries : paths.adminFieldDeliveries;
+      const params = officeScope ? { limit: 200, days: 365 } : { limit: 5000 };
+      const { data } = await api.get(path, { params });
       setAllDeliveries(Array.isArray(data) ? data : []);
     } catch (err) {
       setAllDeliveries([]);
@@ -41,7 +43,7 @@ export default function DeliveryRecap({ editable = false }) {
     } finally {
       setRecapLoading(false);
     }
-  }, [t, notify]);
+  }, [officeScope, t, notify]);
 
   useEffect(() => {
     loadAllDeliveries();
@@ -156,7 +158,7 @@ export default function DeliveryRecap({ editable = false }) {
       )}
       <Card
         title={t('fieldDeliveryRecapTitle')}
-        description={t('fieldDeliveryRecapHint')}
+        description={t(officeScope ? 'fieldDeliveryHint' : 'fieldDeliveryRecapHint')}
         action={
           <Button
             type="button"

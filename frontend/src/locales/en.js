@@ -555,7 +555,7 @@ export default {
   checkoutCodeRequired: 'Delivery data is required.',
   fieldDeliveryTitle: 'Petugas lapangan — delivery data',
   fieldDeliveryHint:
-    'Delivery data submitted by field officers at your office (last 60 days).',
+    'Delivery data submitted by field officers at your office (last 365 days).',
   fieldDeliveryDate: 'Date',
   fieldDeliveryEmpty: 'No delivery data recorded yet.',
   fieldDeliveryRecapTitle: 'Delivery recap',

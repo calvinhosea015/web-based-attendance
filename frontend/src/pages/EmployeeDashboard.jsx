@@ -5,7 +5,6 @@ import {
   Alert,
   Button,
   Card,
-  EmptyState,
   PageHero,
   panelClass,
 } from '../components/ui.jsx';
@@ -20,18 +19,17 @@ import {
   isAccountingRole,
   usesDailyWagePayrollRole,
 } from '../roles.js';
-import { fieldDeliveryDisplayFields } from '../utils/fieldCheckout.js';
 import { readPosition, haversineMeters, geoMessage as geoMessageKey } from '../utils/geolocation.js';
 import { payrollCycleLabel } from '../utils/payrollPeriod.js';
-import { formatDisplayDate, formatDisplayDateTime } from '../utils/formatDate.js';
+import { formatDisplayDateTime } from '../utils/formatDate.js';
 import EmployeeHistorySection from '../components/employee/EmployeeHistorySection.jsx';
 import PayrollCard from '../components/employee/PayrollCard.jsx';
 import LoanPanel from '../components/employee/LoanPanel.jsx';
 import LeavePanel from '../components/employee/LeavePanel.jsx';
 import FieldCodePanel from '../components/employee/FieldCodePanel.jsx';
 import FieldOfficerRecap from '../components/employee/FieldOfficerRecap.jsx';
+import DeliveryRecap from '../components/field/DeliveryRecap.jsx';
 import { formatApiError } from '../utils/employeeFormat.js';
-import { formatIdr } from '../utils/payrollDisplay.js';
 
 function geoMessage(err) {
   const key = geoMessageKey(err);
@@ -62,7 +60,6 @@ export default function EmployeeDashboard() {
   const [payroll, setPayroll] = useState([]);
   const [geoPreview, setGeoPreview] = useState(null);
   const [geoPreviewLoading, setGeoPreviewLoading] = useState(false);
-  const [fieldDeliveries, setFieldDeliveries] = useState([]);
 
   const notify = (text, tone = 'error') => {
     setMessageTone(tone);
@@ -106,19 +103,14 @@ export default function EmployeeDashboard() {
           setPayroll(pr.data || []);
           return;
         }
-        const allowDeliveryRecap = canViewOfficeDeliveryRecap(role);
-        const [s, h, pr, fd] = await Promise.all([
+        const [s, h, pr] = await Promise.all([
           api.get(paths.employeeSummary),
           api.get(paths.employeeAttendance),
           api.get(paths.employeePayroll).catch(() => ({ data: [] })),
-          allowDeliveryRecap
-            ? api.get(paths.employeeFieldDeliveries).catch(() => ({ data: [] }))
-            : Promise.resolve({ data: [] }),
         ]);
         setSummary(s.data);
         setHistory(h.data);
         setPayroll(pr.data || []);
-        setFieldDeliveries(fd.data || []);
       } catch (e) {
         console.error(e);
         setMessageTone('error');
@@ -699,76 +691,7 @@ export default function EmployeeDashboard() {
 
       <LoanPanel notify={notify} />
 
-      {canShowDeliveryRecap && (
-        <Card title={t('fieldDeliveryTitle')} description={t('fieldDeliveryHint')}>
-          {fieldDeliveries.length ? (
-            <ul className="space-y-4 text-sm">
-              {fieldDeliveries.map((row) => {
-                const parsed = fieldDeliveryDisplayFields(row);
-                const dateLabel = row.valid_on
-                  ? formatDisplayDate(row.valid_on)
-                  : row.check_out
-                    ? formatDisplayDateTime(row.check_out)
-                    : t('emDash');
-                return (
-                  <li
-                    key={row.id}
-                    className="rounded-apple-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
-                  >
-                    <div className="font-medium text-apple-text">
-                      {row.full_name}
-                      {row.employee_code ? ` · ${row.employee_code}` : ''}
-                    </div>
-                    <div className="mt-1 text-apple-label">
-                      {t('fieldDeliveryDate')}: {dateLabel}
-                      {row.check_out ? (
-                        <>
-                          {' '}
-                          · {t('checkOut')}: {formatDisplayDateTime(row.check_out)}
-                        </>
-                      ) : null}
-                    </div>
-                    {row.checkout_code ? (
-                      <p className="mt-2 font-mono text-xs text-apple-text break-all">
-                        {row.checkout_code}
-                      </p>
-                    ) : null}
-                    {parsed ? (
-                      <dl className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                        {Object.entries(parsed).map(([key, value]) => (
-                          <div key={key}>
-                            <dt className="text-xs uppercase tracking-wide text-apple-label">
-                              {t(`fieldDelivery_${key}`, key)}
-                            </dt>
-                            <dd className="font-medium text-apple-text">{value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    ) : null}
-                    {row.bonus_amount != null || row.omset_amount != null ? (
-                      <p className="mt-2 text-xs text-apple-label">
-                        {row.omset_amount != null ? (
-                          <>
-                            {t('fieldOmsetTotal')}: Rp {formatIdr(row.omset_amount)}
-                          </>
-                        ) : null}
-                        {row.bonus_amount != null ? (
-                          <>
-                            {row.omset_amount != null ? ' · ' : ''}
-                            {t('fieldOmsetBonusTotal')}: Rp {formatIdr(row.bonus_amount)}
-                          </>
-                        ) : null}
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <EmptyState title={t('fieldDeliveryEmpty')} />
-          )}
-        </Card>
-      )}
+      {canShowDeliveryRecap && <DeliveryRecap officeScope />}
 
       {!isFieldOfficer && (
       <EmployeeHistorySection
