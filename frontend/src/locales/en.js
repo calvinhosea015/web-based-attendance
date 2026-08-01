@@ -321,9 +321,9 @@ export default {
   payrollAllSlipsExported: 'All salary slips downloaded (one sheet, one A5 page per slip).',
   payrollEmployeeTitle: 'My payroll',
   payrollEmployeeHint:
-    'Monthly salary records created by your administrator. Loan deductions appear after payroll is generated for that month.',
+    'Salary appears after your administrator processes the month, and only from the 25th onward for that period.',
   payrollEmployeeEmpty:
-    'No payroll records yet. Your administrator must generate payroll for a month before it appears here.',
+    'No payroll to show yet. Salary is visible once admin has processed the month and the date is on or after the 25th.',
   payrollOpenAdmin: 'Open payroll',
   payrollSummaryEmpty: 'No payroll periods yet. Open Payroll to generate monthly rows from attendance.',
   no: 'No',

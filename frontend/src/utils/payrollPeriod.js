@@ -99,3 +99,14 @@ export function currentPayrollPeriodKey(date = new Date()) {
   }
   return `${year}-${String(month).padStart(2, '0')}`;
 }
+
+/**
+ * Employees may see a payslip only after admin has processed that period
+ * and the date is on/after the 25th of the period month (cycle has moved on).
+ */
+export function isPayrollPeriodVisibleToEmployee(period, date = new Date()) {
+  const parsed = parsePayrollPeriodKey(period);
+  if (!parsed) return false;
+  const key = `${parsed.year}-${String(parsed.month).padStart(2, '0')}`;
+  return currentPayrollPeriodKey(date) > key;
+}

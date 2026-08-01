@@ -1,4 +1,5 @@
 const { isIndonesiaPayrollHoliday } = require('./indonesiaHolidays');
+const { attendanceCalendarDayStr } = require('./calendarDay');
 
 /** Payroll month YYYY-MM = cycle 25 (prev month) through 24 (that month). */
 
@@ -104,6 +105,52 @@ function cycleEndDate(period) {
   return new Date(bounds.endYear, bounds.endMonth - 1, 24);
 }
 
+/**
+ * Active payroll period for a calendar day (cycle switches on the 25th).
+ * Accepts a Date, or a YYYY-MM-DD string in the attendance timezone.
+ */
+function currentPayrollPeriodKey(dateOrDayStr = new Date()) {
+  let year;
+  let month;
+  let day;
+  if (typeof dateOrDayStr === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOrDayStr.trim());
+    if (!m) return null;
+    year = Number(m[1]);
+    month = Number(m[2]);
+    day = Number(m[3]);
+  } else {
+    const dayStr = attendanceCalendarDayStr(dateOrDayStr);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayStr);
+    if (!m) return null;
+    year = Number(m[1]);
+    month = Number(m[2]);
+    day = Number(m[3]);
+  }
+  if (day >= 25) {
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/**
+ * Employees may see a payslip only after admin has processed that period
+ * (row exists) and the calendar date is on/after the 25th of the period month
+ * — i.e. the active cycle has moved past this period.
+ */
+function isPayrollPeriodVisibleToEmployee(period, now = new Date()) {
+  const parsed = parsePayrollPeriodKey(period);
+  if (!parsed) return false;
+  const current = currentPayrollPeriodKey(now);
+  if (!current) return false;
+  const key = `${parsed.year}-${String(parsed.month).padStart(2, '0')}`;
+  return current > key;
+}
+
 module.exports = {
   ID_MONTHS,
   parsePayrollPeriodKey,
@@ -114,4 +161,6 @@ module.exports = {
   countWorkingDaysMonSatInCycle,
   listPayrollHolidaysInCycle,
   cycleEndDate,
+  currentPayrollPeriodKey,
+  isPayrollPeriodVisibleToEmployee,
 };

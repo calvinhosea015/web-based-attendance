@@ -5,6 +5,8 @@ const {
   payrollCycleBounds,
   payrollCycleLabel,
   countWorkingDaysMonSatInCycle,
+  currentPayrollPeriodKey,
+  isPayrollPeriodVisibleToEmployee,
 } = require('../src/utils/payrollPeriod');
 
 describe('payrollPeriod', () => {
@@ -36,5 +38,21 @@ describe('payrollPeriod', () => {
   it('counts Mon–Sat workdays in a cycle', () => {
     const days = countWorkingDaysMonSatInCycle('2026-05');
     assert.ok(days >= 20 && days <= 31);
+  });
+
+  it('switches current period key on the 25th', () => {
+    assert.equal(currentPayrollPeriodKey('2026-08-24'), '2026-08');
+    assert.equal(currentPayrollPeriodKey('2026-08-25'), '2026-09');
+    assert.equal(currentPayrollPeriodKey('2025-12-25'), '2026-01');
+  });
+
+  it('hides employee payslips until on/after the 25th of the period month', () => {
+    assert.equal(isPayrollPeriodVisibleToEmployee('2026-08', '2026-08-24'), false);
+    assert.equal(isPayrollPeriodVisibleToEmployee('2026-08', '2026-08-25'), true);
+    assert.equal(isPayrollPeriodVisibleToEmployee('2026-08', '2026-09-01'), true);
+    assert.equal(isPayrollPeriodVisibleToEmployee('2026-07', '2026-08-10'), true);
+    assert.equal(isPayrollPeriodVisibleToEmployee('2026-01', '2026-01-24'), false);
+    assert.equal(isPayrollPeriodVisibleToEmployee('2026-01', '2026-01-25'), true);
+    assert.equal(isPayrollPeriodVisibleToEmployee('bad', '2026-08-25'), false);
   });
 });

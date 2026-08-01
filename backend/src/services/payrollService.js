@@ -18,6 +18,7 @@ const {
   periodLabelCalendar,
   countWorkingDaysMonSatInCycle,
   listPayrollHolidaysInCycle,
+  isPayrollPeriodVisibleToEmployee,
 } = require('../utils/payrollPeriod');
 const {
   ROLES,
@@ -626,11 +627,15 @@ class PayrollService {
     };
   }
 
-  /** Read payroll as stored — do not reprocess from attendance (admin Save / Process this month only). */
+  /**
+   * Read payroll as stored — do not reprocess from attendance (admin Save / Process this month only).
+   * Employees only see periods that admin has processed and that are past the 25th release day.
+   */
   async listPayrollForEmployee(employeeId) {
     const rows = await this.payrollRepository.listForEmployee(employeeId);
+    const visible = rows.filter((row) => isPayrollPeriodVisibleToEmployee(row.payroll_period));
     const role = await this.payrollRepository.getRoleForEmployee(employeeId);
-    return this.enrichPayrollRows(rows.map((row) => ({ ...row, user_role: role })));
+    return this.enrichPayrollRows(visible.map((row) => ({ ...row, user_role: role })));
   }
 
   buildFieldsFromSources({

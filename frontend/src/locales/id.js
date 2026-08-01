@@ -323,9 +323,9 @@ export default {
   payrollAllSlipsExported: 'Semua slip gaji diunduh (satu lembar kerja, satu kertas A5 per slip).',
   payrollEmployeeTitle: 'Gaji saya',
   payrollEmployeeHint:
-    'Rekap gaji bulanan yang dibuat admin. Potongan pinjaman muncul setelah gaji untuk bulan tersebut dibuat.',
+    'Gaji muncul setelah admin memproses bulan tersebut, dan baru terlihat mulai tanggal 25 untuk periode itu.',
   payrollEmployeeEmpty:
-    'Belum ada rekap gaji. Admin harus membuat gaji untuk bulan tersebut agar muncul di sini.',
+    'Belum ada gaji yang ditampilkan. Gaji terlihat setelah admin memproses bulan tersebut dan tanggal sudah tanggal 25 atau setelahnya.',
   payrollOpenAdmin: 'Buka penggajian',
   payrollSummaryEmpty:
     'Belum ada periode gaji. Buka Penggajian untuk membuat baris bulanan dari kehadiran.',
