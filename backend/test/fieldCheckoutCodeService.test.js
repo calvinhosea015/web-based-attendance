@@ -43,31 +43,80 @@ describe('validateFieldCheckoutCode selisih', () => {
 });
 
 describe('FieldCheckoutCodeService submit', () => {
-  it('rejects delivery data when employee has not checked in today', async () => {
+  const validCode = '1*12345*1*1*NOPOL*0*ITEM*100*90';
+
+  it('accepts delivery data when attendance is already checked out (done)', async () => {
+    let saved = null;
     const attendanceRepository = {
-      countTodaySegments: async () => 0,
+      findOpenToday: async () => null,
+      findAnyToday: async () => ({ id: 42, check_out: new Date() }),
+    };
+    const fieldDeliveryRepository = {
+      createEntry: async (row) => {
+        saved = row;
+        return { id: 1, ...row };
+      },
+      sumBonusForEmployeeOnDate: async () => 1800,
+      sumOmsetForEmployeeOnDate: async () => 90000,
+    };
+    const pabrikItemRateRepository = {
+      findByPabrikAndBarang: async () => ({ price_per_item: 1000 }),
+    };
+    const employeePabrikRepository = {
+      listPabrikCodesByEmployee: async () => ['1'],
     };
     const service = new FieldCheckoutCodeService(
-      { createEntry: async () => ({}) },
-      {},
+      fieldDeliveryRepository,
+      pabrikItemRateRepository,
       null,
-      null,
+      employeePabrikRepository,
       attendanceRepository
     );
 
-    await assert.rejects(
-      () =>
-        service.submit(
-          { role: 'field_officer', employeeId: 1 },
-          { code: '1*12345*A*B*C*D*E*100*90' }
-        ),
-      (err) => {
-        assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 400);
-        assert.equal(err.code, 'CHECK_IN_REQUIRED');
-        return true;
-      }
+    const res = await service.submit(
+      { role: 'field_officer', employeeId: 1 },
+      { code: validCode }
     );
+
+    assert.equal(res.code, 'FIELD_CODE_ACCEPTED');
+    assert.equal(saved.attendance_id, 42);
+  });
+
+  it('accepts delivery data with no attendance today (links null)', async () => {
+    let saved = null;
+    const attendanceRepository = {
+      findOpenToday: async () => null,
+      findAnyToday: async () => null,
+    };
+    const fieldDeliveryRepository = {
+      createEntry: async (row) => {
+        saved = row;
+        return { id: 1, ...row };
+      },
+      sumBonusForEmployeeOnDate: async () => 0,
+      sumOmsetForEmployeeOnDate: async () => 0,
+    };
+    const pabrikItemRateRepository = {
+      findByPabrikAndBarang: async () => ({ price_per_item: 1000 }),
+    };
+    const employeePabrikRepository = {
+      listPabrikCodesByEmployee: async () => ['1'],
+    };
+    const service = new FieldCheckoutCodeService(
+      fieldDeliveryRepository,
+      pabrikItemRateRepository,
+      null,
+      employeePabrikRepository,
+      attendanceRepository
+    );
+
+    const res = await service.submit(
+      { role: 'field_officer', employeeId: 1 },
+      { code: validCode }
+    );
+
+    assert.equal(res.code, 'FIELD_CODE_ACCEPTED');
+    assert.equal(saved.attendance_id, null);
   });
 });
 

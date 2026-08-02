@@ -96,22 +96,46 @@ export function uniqueDeliveryFilterValues(rows, key) {
 }
 
 /**
+ * @param {object} row
+ * @returns {boolean}
+ */
+export function isDeliveryRecapChecked(row) {
+  return Boolean(row?.recap_review && typeof row.recap_review.is_correct === 'boolean');
+}
+
+/**
  * Client-side recap filters. Empty string = all for that dimension.
  * @param {object[]} rows
- * @param {{ pabrik?: string, officer?: string, kodeBarang?: string, dateFrom?: string, dateTo?: string }} filters
+ * @param {{
+ *   pabrik?: string,
+ *   officer?: string,
+ *   kodeBarang?: string,
+ *   dateFrom?: string,
+ *   dateTo?: string,
+ *   reviewStatus?: '' | 'unchecked' | 'checked' | 'incorrect'
+ * }} filters
  *   officer matches `employee_code` (preferred) or `full_name`.
  *   dateFrom/dateTo are YYYY-MM-DD against `valid_on`.
+ *   reviewStatus: Staff Kantor — unchecked / checked / incorrect.
  */
 export function filterDeliveryRecap(
   rows,
-  { pabrik = '', officer = '', kodeBarang = '', dateFrom = '', dateTo = '' } = {}
+  {
+    pabrik = '',
+    officer = '',
+    kodeBarang = '',
+    dateFrom = '',
+    dateTo = '',
+    reviewStatus = '',
+  } = {}
 ) {
   const p = String(pabrik || '').trim();
   const o = String(officer || '').trim();
   const k = String(kodeBarang || '').trim();
   const from = String(dateFrom || '').trim();
   const to = String(dateTo || '').trim();
-  if (!p && !o && !k && !from && !to) return rows || [];
+  const review = String(reviewStatus || '').trim();
+  if (!p && !o && !k && !from && !to && !review) return rows || [];
   return (rows || []).filter((row) => {
     if (p && String(row.pabrik_code ?? '').trim() !== p) return false;
     if (o) {
@@ -123,6 +147,13 @@ export function filterDeliveryRecap(
     const day = toCalendarYmd(row.valid_on);
     if (from && (!day || day < from)) return false;
     if (to && (!day || day > to)) return false;
+    if (review === 'unchecked') {
+      if (isDeliveryRecapChecked(row)) return false;
+    } else if (review === 'checked') {
+      if (!isDeliveryRecapChecked(row)) return false;
+    } else if (review === 'incorrect') {
+      if (row?.recap_review?.is_correct !== false) return false;
+    }
     return true;
   });
 }

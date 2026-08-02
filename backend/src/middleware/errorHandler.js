@@ -11,8 +11,9 @@ function errorHandler(err, req, res, next) {
   }
   logger.error(err.message, { stack: err.stack, path: req.path });
   const status = err.status && Number.isInteger(err.status) ? err.status : 500;
+  // Never leak stack traces or internal driver messages to clients.
   return res.status(status).json({
-    message: status === 500 ? 'Internal server error' : err.message,
+    message: status >= 500 ? 'Internal server error' : 'Request failed',
     code: 'INTERNAL',
   });
 }

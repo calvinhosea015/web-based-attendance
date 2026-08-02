@@ -90,22 +90,20 @@ export default function AdminLayout({ title, subtitle, actions, children }) {
 
   const refreshPending = useCallback(async () => {
     try {
-      const [loansRes, leaveRes, correctionsRes, backdatesRes, notifRes] = await Promise.all([
+      const [loansRes, leaveRes, correctionsRes, backdatesRes, incorrectRes] = await Promise.all([
         api.get(paths.adminLoanRequestsPending),
         api.get(paths.adminLeaveRequestsPending),
         api.get(paths.adminAttendanceCorrectionsPending),
         api.get(paths.adminFieldDeliveryBackdatesPending),
-        api.get(paths.adminNotifications).catch(() => ({ data: [] })),
+        // Field ops badge = currently incorrect delivery lines (not unread notifs / unchecked).
+        api.get(paths.adminFieldDeliveriesIncorrectCount).catch(() => ({ data: { count: 0 } })),
       ]);
       setPendingLoans(Array.isArray(loansRes.data) ? loansRes.data.length : 0);
       setPendingLeave(Array.isArray(leaveRes.data) ? leaveRes.data.length : 0);
       const correctionCount = Array.isArray(correctionsRes.data) ? correctionsRes.data.length : 0;
       const backdateCount = Array.isArray(backdatesRes.data) ? backdatesRes.data.length : 0;
       setPendingCorrections(correctionCount + backdateCount);
-      const notifs = Array.isArray(notifRes.data) ? notifRes.data : [];
-      setPendingFieldReviews(
-        notifs.filter((n) => n.type === 'delivery_recap_review' && !n.read_at).length
-      );
+      setPendingFieldReviews(Number(incorrectRes.data?.count) || 0);
     } catch {
       /* ignore poll errors */
     }

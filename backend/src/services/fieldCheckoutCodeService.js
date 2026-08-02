@@ -31,14 +31,7 @@ class FieldCheckoutCodeService {
     this.notificationRepository = notificationRepository;
   }
 
-  async assertCheckedInToday(employeeId, validOn) {
-    if (!this.attendanceRepository) return;
-    const count = await this.attendanceRepository.countTodaySegments(employeeId, validOn);
-    if (count < 1) {
-      throw new AppError('Check in before submitting delivery data.', 400, 'CHECK_IN_REQUIRED');
-    }
-  }
-
+  /** Link to today's attendance when present (open or already checked out). */
   async todayAttendanceId(employeeId, validOn) {
     if (!this.attendanceRepository) return null;
     const open = await this.attendanceRepository.findOpenToday(employeeId, validOn);
@@ -120,7 +113,8 @@ class FieldCheckoutCodeService {
     }
 
     const validOn = attendanceCalendarDayStr();
-    await this.assertCheckedInToday(auth.employeeId, validOn);
+    // Delivery data is independent of clock state: allowed before check-in,
+    // while on duty, and after check-out (next_clock_action === 'done').
     const attendanceId = await this.todayAttendanceId(auth.employeeId, validOn);
     const entries = [];
 

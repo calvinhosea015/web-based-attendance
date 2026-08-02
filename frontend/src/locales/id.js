@@ -525,17 +525,17 @@ export default {
     'Gaji cleaning = gaji bulanan × hari hadir ÷ hari wajib masuk.',
   fieldFlexibleSchedule: 'Jam fleksibel (tanpa jadwal tetap)',
   fieldOnceInOnceOut:
-    'Satu absen masuk per hari, lalu absen keluar dengan data pengiriman (9 field dengan *).',
+    'Satu absen masuk dan absen keluar per hari. Data pengiriman bisa dikirim kapan saja (termasuk setelah absen selesai).',
   fieldCodeRequiredToday:
-    'Masukkan data pengiriman (9 field dipisah *) sebelum absen keluar.',
+    'Data pengiriman bisa dikirim kapan saja — sebelum, saat, atau setelah absen keluar.',
   fieldCodeSubmittedToday: 'Data pengiriman sudah tercatat hari ini.',
   fieldCheckoutCode: 'Data pengiriman',
-  fieldCheckoutCodeForOut: 'Data pengiriman (wajib untuk absen keluar)',
+  fieldCheckoutCodeForOut: 'Data pengiriman (opsional saat absen keluar)',
   fieldCheckoutCodePlaceholder:
     'kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih',
   fieldCodeSubmitHint:
-    'Satu baris per kode, 9 field dipisah *. Norek = 5 digit. Bonus = tonase (pabrik+barang) × (kotor − berat bersih) × 2%. Bisa beberapa kode per hari.',
-  fieldCodeCheckInFirst: 'Absen masuk dulu, lalu kirim data pengiriman.',
+    'Satu baris per kode, 9 field dipisah *. Norek = 5 digit. Bonus = tonase (pabrik+barang) × (kotor − berat bersih) × 2%. Bisa beberapa kode per hari, termasuk setelah absen selesai.',
+  fieldCodeCheckInFirst: 'Data pengiriman bisa dikirim tanpa absen masuk.',
   fieldCodeAcceptedBonus: 'Kode diterima. Total bonus hari ini: Rp {{bonus}}.',
   fieldCodesAccepted: '{{count}} kode diterima. Total bonus hari ini: Rp {{bonus}}.',
   fieldDeliveryTodayTotal: '{{count}} pengiriman hari ini · bonus Rp {{bonus}}',
@@ -573,12 +573,22 @@ export default {
   fieldDeliveryRecapTitle: 'Rekap data pengiriman',
   fieldDeliveryRecapHint:
     'Seluruh data pengiriman dari petugas lapangan — tidak dibatasi periode gaji yang dipilih.',
+  fieldDeliveryRecapHintStaff:
+    'Cek setiap baris pengiriman. Lencana menunjukkan berapa baris yang belum dicek.',
+  fieldDeliveryRecapHintAdmin:
+    'Notifikasi field operations menghitung baris yang saat ini ditandai tidak benar. Edit baris tersebut untuk menyelesaikan.',
   fieldDeliveryRecapCount: '{{count}} baris pengiriman dimuat',
+  fieldDeliveryRecapUncheckedBadge: '{{count}} belum dicek',
+  fieldDeliveryRecapIncorrectBadge: '{{count}} tidak benar',
   fieldDeliveryRecapFilterPabrik: 'Pabrik',
   fieldDeliveryRecapFilterOfficer: 'Petugas lapangan',
   fieldDeliveryRecapFilterKodeBarang: 'Kode barang',
   fieldDeliveryRecapFilterDateFrom: 'Dari tanggal',
   fieldDeliveryRecapFilterDateTo: 'Sampai tanggal',
+  fieldDeliveryRecapFilterReview: 'Status cek',
+  fieldDeliveryRecapFilterUnchecked: 'Belum dicek',
+  fieldDeliveryRecapFilterChecked: 'Sudah dicek',
+  fieldDeliveryRecapFilterIncorrect: 'Tidak benar',
   fieldDeliveryRecapApplyDates: 'Terapkan tanggal',
   fieldDeliveryRecapDateOrderError: 'Tanggal mulai harus sebelum atau sama dengan tanggal akhir.',
   fieldDeliveryRecapFilterAll: 'Semua',

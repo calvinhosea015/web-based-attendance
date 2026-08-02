@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Card, Field, inputClass } from '../ui.jsx';
+import { Alert, Badge, Button, Card, Field, inputClass } from '../ui.jsx';
 import { api, paths, ensureCsrf } from '../../api/client.js';
 import { translateApiMessage } from '../../translateApi.js';
 import { useNotify } from '../../hooks/useNotify.js';
 import {
   fieldDeliveryDisplayFields,
   filterDeliveryRecap,
+  isDeliveryRecapChecked,
   uniqueDeliveryFilterValues,
 } from '../../utils/fieldCheckout.js';
 import { formatDisplayDate } from '../../utils/formatDate.js';
@@ -36,6 +37,7 @@ export default function DeliveryRecap({
   const [filterPabrik, setFilterPabrik] = useState('');
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterKodeBarang, setFilterKodeBarang] = useState('');
+  const [filterReviewStatus, setFilterReviewStatus] = useState('');
 
   const [rowReviewDraft, setRowReviewDraft] = useState({});
   const [reviewSavingId, setReviewSavingId] = useState(null);
@@ -141,7 +143,22 @@ export default function DeliveryRecap({
   );
 
   const filtersActive = Boolean(
-    filterPabrik || filterOfficer || filterKodeBarang || filterDateFrom || filterDateTo
+    filterPabrik ||
+      filterOfficer ||
+      filterKodeBarang ||
+      filterDateFrom ||
+      filterDateTo ||
+      ((reviewEditable || editable) && filterReviewStatus)
+  );
+
+  const uncheckedCount = useMemo(
+    () => allDeliveries.filter((row) => !isDeliveryRecapChecked(row)).length,
+    [allDeliveries]
+  );
+
+  const incorrectCount = useMemo(
+    () => allDeliveries.filter((row) => row?.recap_review?.is_correct === false).length,
+    [allDeliveries]
   );
 
   const filteredDeliveries = useMemo(
@@ -152,6 +169,7 @@ export default function DeliveryRecap({
         kodeBarang: filterKodeBarang,
         dateFrom: filterDateFrom,
         dateTo: filterDateTo,
+        reviewStatus: reviewEditable || editable ? filterReviewStatus : '',
       }),
     [
       allDeliveries,
@@ -160,6 +178,9 @@ export default function DeliveryRecap({
       filterKodeBarang,
       filterDateFrom,
       filterDateTo,
+      filterReviewStatus,
+      reviewEditable,
+      editable,
     ]
   );
 
@@ -169,6 +190,7 @@ export default function DeliveryRecap({
     setFilterKodeBarang('');
     setFilterDateFrom('');
     setFilterDateTo('');
+    setFilterReviewStatus('');
   };
 
   const startEditDelivery = (row) => {
@@ -244,8 +266,28 @@ export default function DeliveryRecap({
         </Alert>
       )}
       <Card
-        title={t('fieldDeliveryRecapTitle')}
-        description={t('fieldDeliveryRecapHint')}
+        title={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {t('fieldDeliveryRecapTitle')}
+            {reviewEditable && uncheckedCount > 0 ? (
+              <Badge variant="warning">
+                {t('fieldDeliveryRecapUncheckedBadge', { count: uncheckedCount })}
+              </Badge>
+            ) : null}
+            {editable && incorrectCount > 0 ? (
+              <Badge variant="danger">
+                {t('fieldDeliveryRecapIncorrectBadge', { count: incorrectCount })}
+              </Badge>
+            ) : null}
+          </span>
+        }
+        description={
+          reviewEditable
+            ? t('fieldDeliveryRecapHintStaff')
+            : editable
+              ? t('fieldDeliveryRecapHintAdmin')
+              : t('fieldDeliveryRecapHint')
+        }
         collapsible
         defaultOpen
         action={
@@ -322,6 +364,30 @@ export default function DeliveryRecap({
               ))}
             </select>
           </Field>
+          {(reviewEditable || editable) ? (
+            <Field label={t('fieldDeliveryRecapFilterReview')} className="min-w-[10rem]">
+              <select
+                className={inputClass}
+                value={filterReviewStatus}
+                onChange={(e) => setFilterReviewStatus(e.target.value)}
+              >
+                <option value="">{t('fieldDeliveryRecapFilterAll')}</option>
+                {reviewEditable ? (
+                  <>
+                    <option value="unchecked">{t('fieldDeliveryRecapFilterUnchecked')}</option>
+                    <option value="checked">{t('fieldDeliveryRecapFilterChecked')}</option>
+                    <option value="incorrect">{t('fieldDeliveryRecapFilterIncorrect')}</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="incorrect">{t('fieldDeliveryRecapFilterIncorrect')}</option>
+                    <option value="unchecked">{t('fieldDeliveryRecapFilterUnchecked')}</option>
+                    <option value="checked">{t('fieldDeliveryRecapFilterChecked')}</option>
+                  </>
+                )}
+              </select>
+            </Field>
+          ) : null}
           {filtersActive ? (
             <Button
               type="button"
@@ -346,6 +412,16 @@ export default function DeliveryRecap({
                     total: allDeliveries.length,
                   })
                 : t('fieldDeliveryRecapCount', { count: allDeliveries.length })}
+              {reviewEditable && uncheckedCount > 0 && !filtersActive ? (
+                <span className="ml-2 text-amber-800">
+                  · {t('fieldDeliveryRecapUncheckedBadge', { count: uncheckedCount })}
+                </span>
+              ) : null}
+              {editable && incorrectCount > 0 && !filtersActive ? (
+                <span className="ml-2 text-rose-800">
+                  · {t('fieldDeliveryRecapIncorrectBadge', { count: incorrectCount })}
+                </span>
+              ) : null}
             </p>
             {filteredDeliveries.length ? (
               <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-sm">
@@ -353,6 +429,8 @@ export default function DeliveryRecap({
                   const parsed = fieldDeliveryDisplayFields(row);
                   const reviewDraft = getRowReviewDraft(row);
                   const reviewSaving = reviewSavingId === row.id;
+                  const checked = isDeliveryRecapChecked(row);
+                  const incorrect = row?.recap_review?.is_correct === false;
                   const showRowReview =
                     editingId !== row.id &&
                     (reviewEditable ||
@@ -361,7 +439,13 @@ export default function DeliveryRecap({
                   return (
                     <li
                       key={row.id}
-                      className="rounded-apple-lg border border-black/[0.04] bg-apple-fill/80 px-3 py-3"
+                      className={`rounded-apple-lg border px-3 py-3 ${
+                        incorrect
+                          ? 'border-rose-200 bg-rose-50/80'
+                          : reviewEditable && !checked
+                            ? 'border-amber-200 bg-amber-50/70'
+                            : 'border-black/[0.04] bg-apple-fill/80'
+                      }`}
                     >
                       <div className="font-medium text-apple-text">
                         {row.full_name}

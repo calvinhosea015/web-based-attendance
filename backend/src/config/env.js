@@ -6,11 +6,28 @@ const parseList = (s) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
+const DEFAULT_SECRET = 'change-me-in-production';
+const nodeEnv = process.env.NODE_ENV || 'development';
+const jwtSecret = process.env.JWT_SECRET || DEFAULT_SECRET;
+const cookieSecret = process.env.COOKIE_SECRET || process.env.JWT_SECRET || DEFAULT_SECRET;
+
+if (nodeEnv === 'production') {
+  if (!process.env.JWT_SECRET || jwtSecret === DEFAULT_SECRET) {
+    throw new Error('JWT_SECRET must be set to a non-default value in production');
+  }
+  if (!process.env.COOKIE_SECRET && cookieSecret === DEFAULT_SECRET) {
+    throw new Error('COOKIE_SECRET (or JWT_SECRET) must be set in production');
+  }
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required in production');
+  }
+}
+
 module.exports = {
   port: parseInt(process.env.PORT || '5001', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
-  cookieSecret: process.env.COOKIE_SECRET || process.env.JWT_SECRET || 'change-me-in-production',
+  nodeEnv,
+  jwtSecret,
+  cookieSecret,
   databaseUrl: process.env.DATABASE_URL,
   officeRadiusMeters: parseInt(process.env.OFFICE_RADIUS_METERS || '500', 10),
   /** Extra meters allowed toward reported GPS uncertainty (capped so accuracy cannot be abused). */
@@ -18,9 +35,12 @@ module.exports = {
   maxGpsAccuracyMeters: parseFloat(process.env.MAX_GPS_ACCURACY_METERS || '400'),
   maxClientClockSkewMs: parseInt(process.env.MAX_CLIENT_CLOCK_SKEW_MS || String(5 * 60 * 1000), 10),
   maxImpossibleSpeedMps: parseFloat(process.env.MAX_IMPOSSIBLE_SPEED_MPS || '50'),
+  rateLimitEnabled: process.env.RATE_LIMIT_ENABLED !== 'false',
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '300', 10),
+  loginRateLimitMax: parseInt(process.env.LOGIN_RATE_LIMIT_MAX || '20', 10),
   logLevel: process.env.LOG_LEVEL || 'info',
+  enableApiDocs: process.env.ENABLE_API_DOCS === 'true' || nodeEnv !== 'production',
   accessTokenTtlSec: parseInt(process.env.ACCESS_TOKEN_TTL_SEC || '900', 10),
   refreshTokenTtlDays: parseInt(process.env.REFRESH_TOKEN_TTL_DAYS || '14', 10),
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),

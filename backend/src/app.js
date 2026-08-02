@@ -9,7 +9,7 @@ const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./config/swagger');
 const config = require('./config/env');
 const { errorHandler } = require('./middleware/errorHandler');
-const { apiLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter, healthLimiter } = require('./middleware/rateLimiter');
 const { requestContext } = require('./middleware/requestContext');
 const { buildV1Router } = require('./routes/v1');
 
@@ -71,7 +71,7 @@ function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(requestContext);
 
-  app.get('/health', (req, res) => {
+  app.get('/health', healthLimiter, (req, res) => {
     res.json({
       ok: true,
       version: process.env.npm_package_version || '2.0.0',
@@ -82,22 +82,25 @@ function createApp() {
     });
   });
 
-  app.get('/health/ready', async (req, res) => {
+  app.get('/health/ready', healthLimiter, async (req, res) => {
     try {
       const { pool } = require('./db/pool');
       await pool.query('SELECT 1');
       res.json({ ok: true, db: true });
-    } catch (err) {
+    } catch {
       res.status(503).json({
         ok: false,
         db: false,
-        message: err.message || 'Database unavailable',
+        message: 'Database unavailable',
       });
     }
   });
 
-  const spec = swaggerSpec();
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
+  // ponytail: Swagger is a debug surface — off in production unless ENABLE_API_DOCS=true.
+  if (config.enableApiDocs) {
+    const spec = swaggerSpec();
+    app.use('/api-docs', apiLimiter, swaggerUi.serve, swaggerUi.setup(spec));
+  }
 
   app.use('/api/v1', apiLimiter, buildV1Router());
 

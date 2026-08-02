@@ -98,7 +98,7 @@ Each non-admin login is tied to an **employee profile** (name, employee code, HR
 |------|------|------------|-------------------|
 | Administrator | `admin` | — | Full admin console |
 | Staff kantor | `employee` | 2 or 4 clocks/day; optional remote work | Monthly; absence rules |
-| Petugas lapangan | `field_officer` | One in/out per day; delivery data on checkout; multiple sites | Daily wage + delivery omset |
+| Petugas lapangan | `field_officer` | One in/out per day; delivery data anytime (incl. after checkout); multiple sites | Daily wage + delivery omset |
 | Urusan umum | `general_affairs` | Per employee: in/out **or** check-in only (auto-checkout) | Daily wage (no delivery omset) |
 | Cleaning | `umum` | One check-in per day (auto close) | Monthly with absence deductions |
 | Accounting | `accounting` | Custom work hours | Monthly (staff-kantor style) |

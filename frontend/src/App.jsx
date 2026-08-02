@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ensureCsrf } from './api/client.js';
-import { canAccessEmployeePayrollPortal } from './roles.js';
+import { canAccessEmployeePayrollPortal, canViewFieldOmsetReport } from './roles.js';
 import { EmptyState } from './components/ui.jsx';
 import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
@@ -53,10 +53,11 @@ function PublicHeader({ showName = true, showLogo = true }) {
   );
 }
 
-function ProtectedRoute({ roles, children }) {
+function ProtectedRoute({ roles, allow, children }) {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
   if (!token) return <Navigate to="/login" replace />;
+  if (typeof allow === 'function' && !allow(role)) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(role)) return <Navigate to="/login" replace />;
   return children;
 }
@@ -109,8 +110,8 @@ export default function App() {
           <Route path="/admin/leave" element={<ProtectedRoute roles={['admin']}><AdminLeave /></ProtectedRoute>} />
           <Route path="/admin/corrections" element={<ProtectedRoute roles={['admin']}><AdminCorrections /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute roles={['admin']}><AdminReports /></ProtectedRoute>} />
-          <Route path="/employee" element={<EmployeeDashboard />} />
-          <Route path="/finance/field-omset" element={<FinanceFieldOmset />} />
+          <Route path="/employee" element={<ProtectedRoute allow={canAccessEmployeePayrollPortal}><EmployeeDashboard /></ProtectedRoute>} />
+          <Route path="/finance/field-omset" element={<ProtectedRoute allow={canViewFieldOmsetReport}><FinanceFieldOmset /></ProtectedRoute>} />
           <Route path="/user" element={<Navigate to="/employee" replace />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFound />} />

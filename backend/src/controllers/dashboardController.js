@@ -18,6 +18,10 @@ function makeDashboardController(dashboardService, employeePortalService) {
       const limit = req.query.limit != null ? Number(req.query.limit) : 5000;
       res.json(await employeePortalService.listFieldOfficerDeliveries(req.auth, { limit }));
     }),
+    employeeFieldDeliveriesUncheckedCount: asyncHandler(async (req, res) => {
+      const count = await employeePortalService.countUncheckedDeliveryRecaps(req.auth);
+      res.json({ count });
+    }),
     deliveryRecapReviewSave: asyncHandler(async (req, res) => {
       res.status(201).json(
         await employeePortalService.saveDeliveryRecapReview(req.auth, {

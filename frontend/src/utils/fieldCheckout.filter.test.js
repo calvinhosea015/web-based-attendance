@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   filterDeliveryRecap,
   groupFieldDeliveriesByFactoryItem,
+  isDeliveryRecapChecked,
   uniqueDeliveryFilterValues,
 } from './fieldCheckout.js';
 
@@ -66,6 +67,17 @@ assert.equal(
   filterDeliveryRecap(tzShifted, { dateFrom: '2026-07-14', dateTo: '2026-07-14' }).length,
   0
 );
+
+const reviewRows = [
+  { id: 1, pabrik_code: 'PKA', recap_review: null },
+  { id: 2, pabrik_code: 'PKA', recap_review: { is_correct: true } },
+  { id: 3, pabrik_code: 'PKB', recap_review: { is_correct: false } },
+];
+assert.equal(filterDeliveryRecap(reviewRows, { reviewStatus: 'unchecked' }).length, 1);
+assert.equal(filterDeliveryRecap(reviewRows, { reviewStatus: 'checked' }).length, 2);
+assert.equal(filterDeliveryRecap(reviewRows, { reviewStatus: 'incorrect' }).length, 1);
+assert.equal(isDeliveryRecapChecked(reviewRows[0]), false);
+assert.equal(isDeliveryRecapChecked(reviewRows[1]), true);
 
 const grouped = groupFieldDeliveriesByFactoryItem([
   {

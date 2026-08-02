@@ -537,9 +537,6 @@ export default function EmployeeDashboard() {
                 <p className="apple-metric mt-1">
                   {today?.status ? translateAttendanceStatus(today.status) : t('notCheckedIn')}
                 </p>
-                {summary?.has_checkout_code_today === false && (
-                  <p className="mt-1 text-xs text-amber-700">{t('fieldCodeRequiredToday')}</p>
-                )}
                 {summary?.has_checkout_code_today === true && (
                   <p className="mt-1 text-xs text-emerald-700">{t('fieldCodeSubmittedToday')}</p>
                 )}
@@ -562,7 +559,7 @@ export default function EmployeeDashboard() {
                 </Button>
               </div>
 
-              <FieldCodePanel summary={summary} notify={notify} onRefresh={refreshEmployee} />
+              <FieldCodePanel notify={notify} onRefresh={refreshEmployee} />
             </div>
           </Card>
 

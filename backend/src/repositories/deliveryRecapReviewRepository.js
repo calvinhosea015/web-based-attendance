@@ -77,6 +77,36 @@ class DeliveryRecapReviewRepository {
     );
     return r.rows;
   }
+
+  /** Deliveries whose latest Staff Kantor check is incorrect (admin field-ops badge). */
+  async countIncorrectLatest() {
+    const r = await query(
+      `SELECT COUNT(*)::int AS cnt
+       FROM (
+         SELECT DISTINCT ON (r.delivery_entry_id) r.is_correct
+         FROM delivery_recap_reviews r
+         WHERE r.delivery_entry_id IS NOT NULL AND r.is_correct IS NOT NULL
+         ORDER BY r.delivery_entry_id, r.reviewed_at DESC
+       ) latest
+       WHERE latest.is_correct = false`
+    );
+    return Number(r.rows[0]?.cnt ?? 0);
+  }
+
+  /** Deliveries with no Staff Kantor check yet (staff kantor badge). */
+  async countUnchecked() {
+    const r = await query(
+      `SELECT COUNT(*)::int AS cnt
+       FROM field_delivery_entries fde
+       JOIN employees e ON e.id = fde.employee_id
+       JOIN users u ON u.employee_id = e.id AND u.role = 'field_officer'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM delivery_recap_reviews r
+         WHERE r.delivery_entry_id = fde.id AND r.is_correct IS NOT NULL
+       )`
+    );
+    return Number(r.rows[0]?.cnt ?? 0);
+  }
 }
 
 module.exports = { DeliveryRecapReviewRepository, formatRecapReview };

@@ -18,7 +18,7 @@ function ymdDaysAgo(days) {
   return `${y}-${m}-${day}`;
 }
 
-export default function FieldCodePanel({ summary, notify, onRefresh }) {
+export default function FieldCodePanel({ notify, onRefresh }) {
   const { t } = useTranslation();
   const [fieldCodeDraft, setFieldCodeDraft] = useState('');
   const [fieldCodeSubmitting, setFieldCodeSubmitting] = useState(false);
@@ -28,7 +28,6 @@ export default function FieldCodePanel({ summary, notify, onRefresh }) {
   const [backdateReason, setBackdateReason] = useState('');
   const [backdateSubmitting, setBackdateSubmitting] = useState(false);
 
-  const nextAction = summary?.next_clock_action ?? 'check_in';
   const minBackdate = ymdDaysAgo(7);
   const maxBackdate = ymdDaysAgo(1);
 
@@ -125,26 +124,19 @@ export default function FieldCodePanel({ summary, notify, onRefresh }) {
 
   return (
     <div className="border-t border-black/[0.06] pt-6">
-      <Field
-        label={t('fieldCheckoutCode')}
-        hint={
-          nextAction === 'check_in' ? t('fieldCodeCheckInFirst') : t('fieldCodeSubmitHint')
-        }
-      >
+      <Field label={t('fieldCheckoutCode')} hint={t('fieldCodeSubmitHint')}>
         <textarea
           className={`${inputClass} min-h-[4.5rem] font-mono text-xs`}
           value={fieldCodeDraft}
           onChange={(e) => setFieldCodeDraft(e.target.value)}
           autoComplete="off"
           placeholder={t('fieldCheckoutCodePlaceholder')}
-          disabled={nextAction === 'check_in'}
         />
         <Button
           type="button"
           variant="primary"
           className="mt-3 w-full sm:w-auto"
           disabled={
-            nextAction === 'check_in' ||
             fieldCodeSubmitting ||
             !splitFieldCheckoutLines(fieldCodeDraft).every((line) =>
               isFieldCheckoutFormatValid(line)

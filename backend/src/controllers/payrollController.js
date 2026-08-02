@@ -86,6 +86,10 @@ function makePayrollController(payrollService) {
       const limit = req.query.limit != null ? Number(req.query.limit) : 5000;
       res.json(await payrollService.listAllFieldDeliveries({ limit }));
     }),
+    countIncorrectFieldDeliveries: asyncHandler(async (req, res) => {
+      const count = await payrollService.countIncorrectDeliveryRecaps();
+      res.json({ count });
+    }),
     getFieldDeliveriesFactoryItemSummary: asyncHandler(async (req, res) => {
       res.json(
         await payrollService.getFieldDeliveriesFactoryItemSummary(

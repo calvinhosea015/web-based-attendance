@@ -426,6 +426,12 @@ class PayrollService {
     }));
   }
 
+  /** Admin field-ops badge: delivery lines currently flagged incorrect. */
+  async countIncorrectDeliveryRecaps() {
+    if (!this.deliveryRecapReviewRepository) return 0;
+    return this.deliveryRecapReviewRepository.countIncorrectLatest();
+  }
+
   async previewLoanDeduction(employeeId, payrollPeriod) {
     const activeLoan = await this.loanRequestRepository.findActiveForEmployee(employeeId);
     if (!activeLoan) {

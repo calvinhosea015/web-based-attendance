@@ -339,6 +339,19 @@ class EmployeePortalService {
     }
     return this.formatDeliveryRecapReview(withUser);
   }
+
+  /** Staff Kantor badge: delivery lines that have not been checked yet. */
+  async countUncheckedDeliveryRecaps(auth) {
+    if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
+      throw new AppError(
+        'Only Staff Kantor and Accounting can view field delivery data.',
+        403,
+        'FORBIDDEN'
+      );
+    }
+    if (!this.deliveryRecapReviewRepository) return 0;
+    return this.deliveryRecapReviewRepository.countUnchecked();
+  }
 }
 
 module.exports = { EmployeePortalService };

@@ -360,6 +360,11 @@ function buildProtectedRoutes(deps) {
     validateRequest,
     payrollController.listAllFieldDeliveries
   );
+  r.get(
+    '/admin/field-deliveries/incorrect-count',
+    requireRole('admin'),
+    payrollController.countIncorrectFieldDeliveries
+  );
   r.put(
     '/admin/field-deliveries/:id',
     requireRole('admin'),
@@ -460,6 +465,11 @@ function buildProtectedRoutes(deps) {
     attendanceCorrectionController.submitMine
   );
   r.get('/employee/me/payroll', requireEmployeePayrollAccess, dashboardController.employeePayroll);
+  r.get(
+    '/employee/field-deliveries/unchecked-count',
+    requireRole('employee', 'accounting'),
+    dashboardController.employeeFieldDeliveriesUncheckedCount
+  );
   r.get(
     '/employee/field-deliveries',
     requireRole('employee', 'accounting'),

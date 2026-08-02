@@ -766,6 +766,43 @@ async function migrateDeliveryRecapReviews() {
   );
 }
 
+/**
+ * Enable RLS + FORCE on every public table; revoke PUBLIC grants.
+ * App role keeps access via a single permissive policy.
+ * ponytail: ceiling = app-role-wide access (not per-user row filters). Upgrade: SET LOCAL
+ * app.user_id / app.role per request and replace app_all with ownership policies.
+ */
+async function migrateRowLevelSecurity() {
+  await query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC`);
+  await query(`REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC`);
+  await query(`REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC`);
+  await query(`
+    DO $$
+    DECLARE
+      r name := current_user;
+      t record;
+    BEGIN
+      FOR t IN
+        SELECT c.relname AS name
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+      LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t.name);
+        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t.name);
+        EXECUTE format('DROP POLICY IF EXISTS app_all ON %I', t.name);
+        EXECUTE format(
+          'CREATE POLICY app_all ON %I FOR ALL TO %I USING (true) WITH CHECK (true)',
+          t.name,
+          r
+        );
+      END LOOP;
+    END
+    $$
+  `);
+}
+
 async function migrate() {
   for (const sql of SCHEMA_STATEMENTS) {
     await query(sql);
@@ -789,6 +826,7 @@ async function migrate() {
   await seed();
   await syncEmployeeCodeSequence();
   await ensureDefaultShift();
+  await migrateRowLevelSecurity();
 }
 
-module.exports = { migrate };
+module.exports = { migrate, migrateRowLevelSecurity };

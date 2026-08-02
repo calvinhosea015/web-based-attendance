@@ -519,17 +519,17 @@ export default {
     'Cleaning salary = monthly salary × days attended ÷ required work days.',
   fieldFlexibleSchedule: 'Flexible hours (no fixed schedule)',
   fieldOnceInOnceOut:
-    'One check-in per day, then check-out with delivery data (9 fields with *).',
+    'One check-in and check-out per day. Delivery data can be submitted anytime (including after attendance is finished).',
   fieldCodeRequiredToday:
-    'Enter delivery data (9 fields separated by *) before you can check out.',
+    'Delivery data can be submitted anytime — before, during, or after check-out.',
   fieldCodeSubmittedToday: 'Delivery data recorded for today.',
   fieldCheckoutCode: 'Delivery data',
-  fieldCheckoutCodeForOut: 'Delivery data (required to check out)',
+  fieldCheckoutCodeForOut: 'Delivery data (optional at check-out)',
   fieldCheckoutCodePlaceholder:
     'kode pabrik*norek*nomor tanda terima*nomor surat jalan*nopol*no bs*kode barang*kotor*berat bersih',
   fieldCodeSubmitHint:
-    'One line per code, 9 *-separated fields. Norek = 5 digits. Bonus = tonase (factory+item) × (gross − net) × 2%. Multiple codes per day allowed.',
-  fieldCodeCheckInFirst: 'Check in first, then submit delivery data.',
+    'One line per code, 9 *-separated fields. Norek = 5 digits. Bonus = tonase (factory+item) × (gross − net) × 2%. Multiple codes per day allowed, including after attendance is finished.',
+  fieldCodeCheckInFirst: 'Delivery data can be submitted without checking in first.',
   fieldCodeAcceptedBonus: 'Code accepted. Today\'s bonus total: Rp {{bonus}}.',
   fieldCodesAccepted: '{{count}} codes accepted. Today\'s bonus total: Rp {{bonus}}.',
   fieldDeliveryTodayTotal: '{{count}} deliveries today · bonus Rp {{bonus}}',
@@ -567,12 +567,22 @@ export default {
   fieldDeliveryRecapTitle: 'Delivery recap',
   fieldDeliveryRecapHint:
     'Full delivery data from all petugas lapangan — not limited to the selected payroll period.',
+  fieldDeliveryRecapHintStaff:
+    'Check each delivery line. Your badge shows how many lines have not been checked yet.',
+  fieldDeliveryRecapHintAdmin:
+    'Field operations alerts count delivery lines currently flagged incorrect. Edit a flagged line to resolve it.',
   fieldDeliveryRecapCount: '{{count}} delivery lines loaded',
+  fieldDeliveryRecapUncheckedBadge: '{{count}} not checked',
+  fieldDeliveryRecapIncorrectBadge: '{{count}} incorrect',
   fieldDeliveryRecapFilterPabrik: 'Factory',
   fieldDeliveryRecapFilterOfficer: 'Field officer',
   fieldDeliveryRecapFilterKodeBarang: 'Item code',
   fieldDeliveryRecapFilterDateFrom: 'From date',
   fieldDeliveryRecapFilterDateTo: 'To date',
+  fieldDeliveryRecapFilterReview: 'Check status',
+  fieldDeliveryRecapFilterUnchecked: 'Not checked',
+  fieldDeliveryRecapFilterChecked: 'Checked',
+  fieldDeliveryRecapFilterIncorrect: 'Incorrect',
   fieldDeliveryRecapApplyDates: 'Apply dates',
   fieldDeliveryRecapDateOrderError: 'From date must be on or before to date.',
   fieldDeliveryRecapFilterAll: 'All',
