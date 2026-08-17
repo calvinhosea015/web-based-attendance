@@ -212,12 +212,8 @@ class EmployeePortalService {
   }
 
   async listFieldOfficerDeliveries(auth, { limit = 5000 } = {}) {
-    if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
-      throw new AppError(
-        'Only Staff Kantor and Accounting can view field delivery data.',
-        403,
-        'FORBIDDEN'
-      );
+    if (!isStaffKantor(auth.role)) {
+      throw new AppError('Only Staff Kantor can view field delivery data.', 403, 'FORBIDDEN');
     }
     if (!this.fieldDeliveryRepository) return [];
     const safeLimit = Math.min(5000, Math.max(1, Number(limit) || 5000));
@@ -342,12 +338,8 @@ class EmployeePortalService {
 
   /** Staff Kantor badge: delivery lines that have not been checked yet. */
   async countUncheckedDeliveryRecaps(auth) {
-    if (!isStaffKantor(auth.role) && !isAccounting(auth.role)) {
-      throw new AppError(
-        'Only Staff Kantor and Accounting can view field delivery data.',
-        403,
-        'FORBIDDEN'
-      );
+    if (!isStaffKantor(auth.role)) {
+      throw new AppError('Only Staff Kantor can view field delivery data.', 403, 'FORBIDDEN');
     }
     if (!this.deliveryRecapReviewRepository) return 0;
     return this.deliveryRecapReviewRepository.countUnchecked();

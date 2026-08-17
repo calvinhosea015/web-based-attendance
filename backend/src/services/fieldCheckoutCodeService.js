@@ -201,6 +201,21 @@ class FieldCheckoutCodeService {
     const kotor = numOr(payload.kotor, Number(existing.kotor) || 0);
     const berat_bersih = numOr(payload.berat_bersih, Number(existing.berat_bersih) || 0);
 
+    const currentValidOn =
+      existing.valid_on != null ? String(existing.valid_on).slice(0, 10) : '';
+    let valid_on = currentValidOn;
+    if (payload.valid_on != null && String(payload.valid_on).trim() !== '') {
+      valid_on = String(payload.valid_on).trim().slice(0, 10);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valid_on)) {
+      throw new AppError('valid_on must be YYYY-MM-DD.', 400, 'INVALID_VALID_ON');
+    }
+    const dateChanged = valid_on !== currentValidOn;
+    let attendance_id = existing.attendance_id ?? null;
+    if (dateChanged) {
+      attendance_id = await this.todayAttendanceId(existing.employee_id, valid_on);
+    }
+
     // Money stays server-authoritative: re-resolve the catalog rate for the (possibly
     // changed) pabrik+item, falling back to the rate already stored on the line.
     let price_per_item = Number(existing.price_per_item) || 0;
@@ -218,6 +233,8 @@ class FieldCheckoutCodeService {
     const bonus_amount = computeLineBonus(0, berat_bersih, price_per_item, bonus_omset_rate);
 
     const entry = await this.fieldDeliveryRepository.updateEntry(id, {
+      valid_on,
+      attendance_id,
       pabrik_code,
       norek,
       nomor_tanda_terima,
@@ -233,6 +250,26 @@ class FieldCheckoutCodeService {
       omset_amount,
       bonus_amount,
     });
+
+    if (dateChanged && this.fieldCodeEntryRepository && existing.employee_id) {
+      const existingCode = await this.fieldCodeEntryRepository.findForEmployeeOnDate(
+        existing.employee_id,
+        valid_on
+      );
+      if (!existingCode) {
+        await this.fieldCodeEntryRepository.createForEmployeeOnDate(
+          existing.employee_id,
+          valid_on
+        );
+      }
+      if (attendance_id) {
+        await this.fieldCodeEntryRepository.linkAttendance(
+          existing.employee_id,
+          valid_on,
+          attendance_id
+        );
+      }
+    }
 
     // ponytail: only resolves flagged rows; upgrade path = explicit admin resolve endpoint
     let recapReview = null;

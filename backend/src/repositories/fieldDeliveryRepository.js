@@ -170,24 +170,28 @@ class FieldDeliveryRepository {
   async updateEntry(id, fields) {
     const r = await query(
       `UPDATE field_delivery_entries SET
-        pabrik_code = $2,
-        norek = $3,
-        nomor_tanda_terima = $4,
-        nomor_surat_jalan = $5,
-        nopol = $6,
-        no_bs = $7,
-        kode_barang = $8,
-        kotor = $9,
-        berat_bersih = $10,
-        selisih = $11,
-        tonase_per_item = $12,
-        price_per_item = $13,
-        omset_amount = $14,
-        bonus_amount = $15
+        valid_on = $2::date,
+        attendance_id = $3,
+        pabrik_code = $4,
+        norek = $5,
+        nomor_tanda_terima = $6,
+        nomor_surat_jalan = $7,
+        nopol = $8,
+        no_bs = $9,
+        kode_barang = $10,
+        kotor = $11,
+        berat_bersih = $12,
+        selisih = $13,
+        tonase_per_item = $14,
+        price_per_item = $15,
+        omset_amount = $16,
+        bonus_amount = $17
        WHERE id = $1
        RETURNING *`,
       [
         id,
+        fields.valid_on,
+        fields.attendance_id ?? null,
         fields.pabrik_code,
         fields.norek,
         fields.nomor_tanda_terima,

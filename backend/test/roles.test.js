@@ -11,6 +11,7 @@ const {
   isFieldOfficer,
   isGeneralAffairs,
   normalizeGaClockMode,
+  canAccessEmployeePayrollPortal,
 } = require('../src/constants/roles');
 
 describe('general_affairs role', () => {
@@ -46,5 +47,11 @@ describe('general_affairs role', () => {
     assert.equal(usesCheckInOnlyClock('umum'), true);
     assert.equal(normalizeGaClockMode('check_in_only'), 'check_in_only');
     assert.equal(normalizeGaClockMode(null), 'in_out');
+  });
+});
+
+describe('accounting portal access', () => {
+  it('retains access to its own employee payroll', () => {
+    assert.equal(canAccessEmployeePayrollPortal(ROLES.ACCOUNTING), true);
   });
 });

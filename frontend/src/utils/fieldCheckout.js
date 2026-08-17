@@ -33,10 +33,6 @@ export function parseFieldCheckoutDisplay(code) {
     .trim()
     .split('*')
     .map((p) => p.trim());
-  const kotorN = Number(kotor);
-  const bersihN = Number(beratBersih);
-  const selisih =
-    Number.isFinite(kotorN) && Number.isFinite(bersihN) ? Math.abs(kotorN - bersihN) : '';
   return {
     pabrik,
     norek,
@@ -51,7 +47,6 @@ export function parseFieldCheckoutDisplay(code) {
     kotor,
     berat_bersih: beratBersih,
     berat: beratBersih,
-    selisih: selisih === '' ? '' : String(selisih),
   };
 }
 
@@ -71,7 +66,6 @@ export function fieldDeliveryDisplayFields(row) {
       kode_barang: row.kode_barang,
       kotor: row.kotor,
       berat_bersih: row.berat_bersih,
-      selisih: row.selisih,
     };
   }
   return parseFieldCheckoutDisplay(row?.checkout_code);

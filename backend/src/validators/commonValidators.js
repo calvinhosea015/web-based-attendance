@@ -376,6 +376,7 @@ const adminFieldDeliveryQueryValidators = [
 
 const adminFieldDeliveryUpdateValidators = [
   param('id').isInt({ min: 1 }),
+  optionalDateBody('valid_on'),
   body('pabrik_code').optional().trim().notEmpty().isString().isLength({ max: 32 }),
   body('kode_barang').optional().trim().notEmpty().isString().isLength({ max: 64 }),
   body('norek').optional({ nullable: true }).trim().isLength({ max: 64 }),

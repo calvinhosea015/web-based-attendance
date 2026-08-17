@@ -45,7 +45,7 @@ function formatTimePart(t) {
 }
 
 function canViewOfficeDeliveryRecap(role) {
-  return role === ROLE_EMPLOYEE || isAccountingRole(role);
+  return role === ROLE_EMPLOYEE;
 }
 
 export default function EmployeeDashboard() {

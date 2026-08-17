@@ -121,26 +121,31 @@ describe('FieldCheckoutCodeService submit', () => {
 });
 
 describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
+  const baseEntry = {
+    id: 7,
+    employee_id: 42,
+    valid_on: '2026-08-05',
+    attendance_id: 9,
+    pabrik_code: 'P1',
+    kode_barang: 'ITEM',
+    norek: '00000',
+    nomor_tanda_terima: 'A',
+    nomor_surat_jalan: 'B',
+    nopol: 'L 1 AB',
+    no_bs: '0',
+    kotor: 100,
+    berat_bersih: 90,
+    selisih: 10,
+    tonase_per_item: 0,
+    price_per_item: 0,
+    omset_amount: 0,
+    bonus_amount: 0,
+  };
+
   it('recomputes selisih/omset/bonus from the edited net weight and catalog rate', async () => {
     let saved = null;
     const fieldDeliveryRepository = {
-      findById: async () => ({
-        id: 7,
-        pabrik_code: 'P1',
-        kode_barang: 'ITEM',
-        norek: '00000',
-        nomor_tanda_terima: 'A',
-        nomor_surat_jalan: 'B',
-        nopol: 'L 1 AB',
-        no_bs: '0',
-        kotor: 100,
-        berat_bersih: 90,
-        selisih: 10,
-        tonase_per_item: 0,
-        price_per_item: 0,
-        omset_amount: 0,
-        bonus_amount: 0,
-      }),
+      findById: async () => ({ ...baseEntry }),
       updateEntry: async (id, fields) => {
         saved = { id, ...fields };
         return saved;
@@ -174,7 +179,56 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     assert.equal(saved.tonase_per_item, 0);
     assert.equal(saved.omset_amount, 80000); // 1000 × 80
     assert.equal(saved.bonus_amount, 1600); // 2% of 80000
+    assert.equal(saved.valid_on, '2026-08-05');
+    assert.equal(saved.attendance_id, 9);
     assert.equal(res.code, 'DELIVERY_UPDATED');
+  });
+
+  it('updates valid_on and re-links attendance for the new date', async () => {
+    let saved = null;
+    let createdCodeFor = null;
+    let linkedAttendance = null;
+    const service = new FieldCheckoutCodeService(
+      {
+        findById: async () => ({ ...baseEntry }),
+        updateEntry: async (id, fields) => {
+          saved = { id, ...fields };
+          return saved;
+        },
+      },
+      { findByPabrikAndBarang: async () => ({ price_per_item: 1000 }) },
+      {
+        findForEmployeeOnDate: async () => null,
+        createForEmployeeOnDate: async (employeeId, validOn) => {
+          createdCodeFor = { employeeId, validOn };
+          return { id: 1 };
+        },
+        linkAttendance: async (employeeId, validOn, attendanceId) => {
+          linkedAttendance = { employeeId, validOn, attendanceId };
+        },
+      },
+      null,
+      {
+        findOpenToday: async () => null,
+        findAnyToday: async () => ({ id: 55 }),
+      },
+      { findByCode: async () => ({ bonus_omset_rate: 0.02 }) }
+    );
+
+    await service.updateDeliveryAsAdmin(
+      { role: 'admin' },
+      7,
+      { valid_on: '2026-08-01' }
+    );
+
+    assert.equal(saved.valid_on, '2026-08-01');
+    assert.equal(saved.attendance_id, 55);
+    assert.deepEqual(createdCodeFor, { employeeId: 42, validOn: '2026-08-01' });
+    assert.deepEqual(linkedAttendance, {
+      employeeId: 42,
+      validOn: '2026-08-01',
+      attendanceId: 55,
+    });
   });
 
   it('uses the factory bonus_omset_rate when recomputing bonus', async () => {
@@ -182,18 +236,9 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     const service = new FieldCheckoutCodeService(
       {
         findById: async () => ({
+          ...baseEntry,
           id: 8,
           pabrik_code: '3',
-          kode_barang: 'ITEM',
-          norek: '00000',
-          nomor_tanda_terima: 'A',
-          nomor_surat_jalan: 'B',
-          nopol: 'L 1 AB',
-          no_bs: '0',
-          kotor: 100,
-          berat_bersih: 90,
-          selisih: 10,
-          tonase_per_item: 0,
           price_per_item: 1000,
           omset_amount: 90000,
           bonus_amount: 1800,
@@ -263,18 +308,7 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     const service = new FieldCheckoutCodeService(
       {
         findById: async () => ({
-          id: 7,
-          pabrik_code: 'P1',
-          kode_barang: 'ITEM',
-          norek: '00000',
-          nomor_tanda_terima: 'A',
-          nomor_surat_jalan: 'B',
-          nopol: 'L 1 AB',
-          no_bs: '0',
-          kotor: 100,
-          berat_bersih: 90,
-          selisih: 10,
-          tonase_per_item: 0,
+          ...baseEntry,
           price_per_item: 1000,
           omset_amount: 90000,
           bonus_amount: 1800,
@@ -311,18 +345,7 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     const service = new FieldCheckoutCodeService(
       {
         findById: async () => ({
-          id: 7,
-          pabrik_code: 'P1',
-          kode_barang: 'ITEM',
-          norek: '00000',
-          nomor_tanda_terima: 'A',
-          nomor_surat_jalan: 'B',
-          nopol: 'L 1 AB',
-          no_bs: '0',
-          kotor: 100,
-          berat_bersih: 90,
-          selisih: 10,
-          tonase_per_item: 0,
+          ...baseEntry,
           price_per_item: 1000,
           omset_amount: 90000,
           bonus_amount: 1800,

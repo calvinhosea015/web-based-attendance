@@ -627,7 +627,6 @@ export default {
   fieldDelivery_kotor: 'Berat kotor',
   fieldDelivery_berat_bersih: 'Berat bersih',
   fieldDelivery_berat: 'Berat bersih',
-  fieldDelivery_selisih: 'Selisih',
   fieldDelivery_nomor_surat_jalan: 'Nomor surat jalan',
   fieldDeliveryEdit: 'Ubah',
   fieldDeliveryDelete: 'Hapus',

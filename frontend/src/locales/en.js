@@ -621,7 +621,6 @@ export default {
   fieldDelivery_kotor: 'Gross weight',
   fieldDelivery_berat_bersih: 'Net weight',
   fieldDelivery_berat: 'Net weight',
-  fieldDelivery_selisih: 'Selisih',
   fieldDelivery_nomor_surat_jalan: 'Delivery note no.',
   fieldDelivery_nopol: 'Plate (nopol)',
   fieldDeliveryEdit: 'Edit',

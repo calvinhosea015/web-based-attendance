@@ -10,7 +10,7 @@ import {
   isDeliveryRecapChecked,
   uniqueDeliveryFilterValues,
 } from '../../utils/fieldCheckout.js';
-import { formatDisplayDate } from '../../utils/formatDate.js';
+import { formatDisplayDate, toCalendarYmd } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
 /**
@@ -196,6 +196,7 @@ export default function DeliveryRecap({
   const startEditDelivery = (row) => {
     setEditingId(row.id);
     setEditForm({
+      valid_on: toCalendarYmd(row.valid_on),
       pabrik_code: row.pabrik_code ?? '',
       kode_barang: row.kode_barang ?? '',
       norek: row.norek ?? '',
@@ -452,9 +453,11 @@ export default function DeliveryRecap({
                         {row.employee_code ? ` · ${row.employee_code}` : ''}
                         {row.office_name ? ` · ${row.office_name}` : ''}
                       </div>
-                      <div className="mt-1 text-apple-label">
-                        {t('fieldDeliveryDate')}: {formatDisplayDate(row.valid_on)}
-                      </div>
+                      {!(editable && editingId === row.id) ? (
+                        <div className="mt-1 text-apple-label">
+                          {t('fieldDeliveryDate')}: {formatDisplayDate(row.valid_on)}
+                        </div>
+                      ) : null}
                       {row.checkout_code ? (
                         <p className="mt-2 font-mono text-xs text-apple-text break-all">
                           {row.checkout_code}
@@ -462,6 +465,19 @@ export default function DeliveryRecap({
                       ) : null}
                       {editable && editingId === row.id ? (
                         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <label className="block">
+                            <span className="text-xs uppercase tracking-wide text-apple-label">
+                              {t('fieldDeliveryDate')}
+                            </span>
+                            <input
+                              type="date"
+                              className={`${inputClass} mt-1`}
+                              value={editForm.valid_on ?? ''}
+                              onChange={(e) =>
+                                setEditForm((f) => ({ ...f, valid_on: e.target.value }))
+                              }
+                            />
+                          </label>
                           {[
                             ['pabrik_code', 'pabrik', 'text'],
                             ['kode_barang', 'kode_barang', 'text'],
