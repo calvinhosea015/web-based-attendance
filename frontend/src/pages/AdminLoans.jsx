@@ -111,6 +111,7 @@ export default function AdminLoans() {
                   <th>{t('employee')}</th>
                   <th className="text-right">{t('loanAmount')}</th>
                   <th className="text-right">{t('loanMonthlyDeduction')}</th>
+                  <th>{t('loanStartMonth')}</th>
                   <th className="text-right">{t('loanEstMonths')}</th>
                   <th>{t('status')}</th>
                   <th>{t('loanSubmittedAt')}</th>
@@ -120,7 +121,7 @@ export default function AdminLoans() {
               <tbody>
                 {rows.length === 0 && (
                   <tr className="apple-table-row">
-                    <td colSpan={7} className="!py-12 text-center text-apple-label">
+                    <td colSpan={8} className="!py-12 text-center text-apple-label">
                       {loading ? t('loading') : t('loanNoRequests')}
                     </td>
                   </tr>
@@ -139,6 +140,9 @@ export default function AdminLoans() {
                     </td>
                     <td className="text-right tabular-nums">
                       Rp {formatIdr(row.monthly_deduction)}
+                    </td>
+                    <td className="tabular-nums text-apple-label">
+                      {row.repayment_start_period || t('loanStartImmediately')}
                     </td>
                     <td className="text-right tabular-nums text-apple-label">
                       {estimateMonths(row.loan_amount, row.monthly_deduction)}

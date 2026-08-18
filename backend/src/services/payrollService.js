@@ -433,50 +433,47 @@ class PayrollService {
   }
 
   async previewLoanDeduction(employeeId, payrollPeriod) {
-    const activeLoan = await this.loanRequestRepository.findActiveForEmployee(employeeId);
-    if (!activeLoan) {
-      return { amount: 0, loan: null, alreadyRecorded: false };
-    }
-
-    const recorded = await this.loanRequestRepository.findDeductionForPeriod(
-      activeLoan.id,
-      payrollPeriod
-    );
-    if (recorded) {
+    const loans = await this.loanRequestRepository.listEligibleForPayroll(employeeId, payrollPeriod);
+    const items = (Array.isArray(loans) ? loans : []).map((loan) => {
+      const alreadyRecorded = loan.recorded_deduction != null;
+      const remaining = Math.max(0, num(loan.remaining_balance ?? loan.loan_amount));
+      const monthly = Math.max(0, num(loan.monthly_deduction));
       return {
-        amount: num(recorded.amount),
-        loan: activeLoan,
-        alreadyRecorded: true,
+        loan,
+        amount: alreadyRecorded ? num(loan.recorded_deduction) : Math.min(monthly, remaining),
+        alreadyRecorded,
       };
-    }
-
-    const remaining = num(activeLoan.remaining_balance ?? activeLoan.loan_amount);
-    if (remaining <= 0) {
-      return { amount: 0, loan: activeLoan, alreadyRecorded: false };
-    }
-
-    const monthly = num(activeLoan.monthly_deduction);
-    const amount = Math.min(monthly, remaining);
-    return { amount, loan: activeLoan, alreadyRecorded: false };
+    });
+    return {
+      amount: items.reduce((total, item) => total + item.amount, 0),
+      items,
+    };
   }
 
   async resolveLoanDeduction(employeeId, payrollPeriod) {
     const preview = await this.previewLoanDeduction(employeeId, payrollPeriod);
-    if (!preview.loan || preview.amount <= 0 || preview.alreadyRecorded) {
-      return preview.amount;
-    }
-    await this.loanRequestRepository.recordPayrollDeduction({
-      loanRequestId: preview.loan.id,
-      payrollPeriod,
-      amount: preview.amount,
-    });
-    return preview.amount;
+    const amounts = await Promise.all(
+      preview.items.map(async (item) => {
+        if (item.alreadyRecorded || item.amount <= 0) return item.amount;
+        const recorded = await this.loanRequestRepository.recordPayrollDeduction({
+          loanRequestId: item.loan.id,
+          payrollPeriod,
+          amount: item.amount,
+        });
+        return num(recorded?.amount);
+      })
+    );
+    return amounts.reduce((total, amount) => total + amount, 0);
   }
 
   loanContextFromPreview(preview) {
-    if (!preview.loan) {
+    const activeItems = preview.items.filter(
+      (item) => num(item.loan.remaining_balance ?? item.loan.loan_amount) > 0
+    );
+    if (!activeItems.length) {
       return {
         has_active_loan: false,
+        active_loan_count: 0,
         loan_monthly_deduction: null,
         loan_remaining_balance: null,
         loan_amount: null,
@@ -484,9 +481,16 @@ class PayrollService {
     }
     return {
       has_active_loan: true,
-      loan_monthly_deduction: num(preview.loan.monthly_deduction),
-      loan_remaining_balance: num(preview.loan.remaining_balance ?? preview.loan.loan_amount),
-      loan_amount: num(preview.loan.loan_amount),
+      active_loan_count: activeItems.length,
+      loan_monthly_deduction: activeItems.reduce(
+        (total, item) => total + num(item.loan.monthly_deduction),
+        0
+      ),
+      loan_remaining_balance: activeItems.reduce(
+        (total, item) => total + num(item.loan.remaining_balance ?? item.loan.loan_amount),
+        0
+      ),
+      loan_amount: activeItems.reduce((total, item) => total + num(item.loan.loan_amount), 0),
     };
   }
 
@@ -630,6 +634,7 @@ class PayrollService {
       loan_monthly_deduction: enriched.loan_monthly_deduction,
       loan_amount: enriched.loan_amount,
       has_active_loan: enriched.has_active_loan,
+      active_loan_count: enriched.active_loan_count,
     };
   }
 

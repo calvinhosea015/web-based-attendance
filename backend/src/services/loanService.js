@@ -1,8 +1,21 @@
 const { AppError } = require('../utils/errors');
+const { parsePayrollPeriodKey } = require('../utils/payrollPeriod');
 
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeRepaymentStartPeriod(value) {
+  const parsed = parsePayrollPeriodKey(value);
+  if (!parsed) {
+    throw new AppError(
+      'Repayment start period must be YYYY-MM.',
+      400,
+      'LOAN_START_PERIOD'
+    );
+  }
+  return `${parsed.year}-${String(parsed.month).padStart(2, '0')}`;
 }
 
 function enrichLoanProgress(row, deductions = []) {
@@ -51,10 +64,13 @@ class LoanService {
   async notifyAdminNewLoan(employee, row) {
     if (!this.notificationRepository || !employee || !row) return;
     const amount = num(row.loan_amount).toLocaleString('id-ID');
+    const repaymentStart = row.repayment_start_period
+      ? ` Repayment starts in ${row.repayment_start_period}.`
+      : '';
     await this.notificationRepository.insertAdminAlert({
       type: 'loan_request',
       title: 'New loan request',
-      body: `${employee.full_name} (${employee.employee_id}) submitted a loan for Rp ${amount}.`,
+      body: `${employee.full_name} (${employee.employee_id}) submitted a loan for Rp ${amount}.${repaymentStart}`,
       payload: { requestId: row.id, employeeId: row.employee_id },
     });
   }
@@ -65,6 +81,7 @@ class LoanService {
     }
     const loanAmount = num(payload.loan_amount);
     const monthlyDeduction = num(payload.monthly_deduction);
+    const repaymentStartPeriod = normalizeRepaymentStartPeriod(payload.repayment_start_period);
     if (loanAmount <= 0) {
       throw new AppError('Loan amount must be greater than zero.', 400, 'LOAN_AMOUNT');
     }
@@ -75,15 +92,11 @@ class LoanService {
       throw new AppError('Monthly deduction cannot exceed loan amount.', 400, 'LOAN_DEDUCTION');
     }
 
-    const pending = await this.loanRequestRepository.countPendingForEmployee(auth.employeeId);
-    if (pending > 0) {
-      throw new AppError('You already have a pending loan request.', 400, 'LOAN_PENDING');
-    }
-
     const row = await this.loanRequestRepository.create({
       employeeId: auth.employeeId,
       loanAmount,
       monthlyDeduction,
+      repaymentStartPeriod,
       notes: payload.notes ? String(payload.notes).trim().slice(0, 2000) : null,
     });
     const employee = this.employeeRepository
@@ -123,18 +136,6 @@ class LoanService {
   async decide(id, auth, { status, rejection_reason }) {
     if (!['approved', 'rejected'].includes(status)) {
       throw new AppError('Invalid status.', 400, 'STATUS');
-    }
-    if (status === 'approved') {
-      const pending = await this.loanRequestRepository.findById(Number(id));
-      if (!pending) throw new AppError('Request not found or already decided.', 404, 'NOT_FOUND');
-      const active = await this.loanRequestRepository.countActiveForEmployee(pending.employee_id);
-      if (active > 0) {
-        throw new AppError(
-          'Employee already has an active loan being repaid.',
-          400,
-          'LOAN_ACTIVE'
-        );
-      }
     }
     const row = await this.loanRequestRepository.setDecision(Number(id), {
       status,

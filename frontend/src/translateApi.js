@@ -101,6 +101,7 @@ const MESSAGE_CODE = {
   'Loan amount must be greater than zero.': 'LOAN_AMOUNT',
   'Monthly deduction must be greater than zero.': 'LOAN_DEDUCTION',
   'Monthly deduction cannot exceed loan amount.': 'LOAN_DEDUCTION',
+  'Repayment start period must be YYYY-MM.': 'LOAN_START_PERIOD',
   'You already have a pending loan request.': 'LOAN_PENDING',
   'Leave requests are only available for Staff Kantor.': 'FORBIDDEN',
   'Invalid leave type.': 'LEAVE_TYPE',
@@ -164,6 +165,14 @@ function paramsFromMessage(message) {
   return {};
 }
 
+function validationCodeFromErrors(errors) {
+  if (!Array.isArray(errors)) return null;
+  if (errors.some((error) => error?.msg === 'Repayment start period must be YYYY-MM.')) {
+    return 'LOAN_START_PERIOD';
+  }
+  return null;
+}
+
 function resolveCode(data) {
   if (data?.code) return data.code;
   const msg = data?.message;
@@ -191,7 +200,8 @@ export function translateApiMessage(input) {
   const { message, code: rawCode, errors } = data && typeof data === 'object' && !(data instanceof Blob)
     ? data
     : {};
-  let code = rawCode || (message ? MESSAGE_CODE[message] : null);
+  const validationCode = rawCode === 'VALIDATION' ? validationCodeFromErrors(errors) : null;
+  let code = validationCode || rawCode || (message ? MESSAGE_CODE[message] : null);
   if (code === 'PASSWORD_POLICY' && message) {
     if (/must be at least \d+ characters/.test(message)) code = 'PASSWORD_MIN_LENGTH';
     else if (/only letters and numbers|uppercase, lowercase/.test(message))
@@ -204,6 +214,7 @@ export function translateApiMessage(input) {
       ...paramsFromResponse(data),
     });
     if (translated) {
+      if (validationCode) return translated;
       if (Array.isArray(errors) && errors.length) {
         const details = errors
           .map((e) => e.msg || `${e.path || ''} ${e.msg || ''}`.trim())

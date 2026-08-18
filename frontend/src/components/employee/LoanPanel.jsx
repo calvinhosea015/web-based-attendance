@@ -5,18 +5,22 @@ import LoanProgress from '../LoanProgress.jsx';
 import { api, paths, ensureCsrf } from '../../api/client.js';
 import { formatDisplayDateTime } from '../../utils/formatDate.js';
 import { formatApiError } from '../../utils/employeeFormat.js';
+import { currentPayrollPeriodKey } from '../../utils/payrollPeriod.js';
+
+function createLoanForm() {
+  return {
+    loan_amount: '',
+    monthly_deduction: '',
+    repayment_start_period: currentPayrollPeriodKey(),
+    notes: '',
+  };
+}
 
 export default function LoanPanel({ notify }) {
   const { t } = useTranslation();
   const [loans, setLoans] = useState([]);
-  const [loanForm, setLoanForm] = useState({
-    loan_amount: '',
-    monthly_deduction: '',
-    notes: '',
-  });
+  const [loanForm, setLoanForm] = useState(createLoanForm);
   const [loanSubmitting, setLoanSubmitting] = useState(false);
-
-  const hasPendingLoan = loans.some((l) => l.approval_status === 'pending');
 
   const refreshLoans = async () => {
     try {
@@ -49,9 +53,10 @@ export default function LoanPanel({ notify }) {
       await api.post(paths.employeeLoans, {
         loan_amount: Number(loanForm.loan_amount),
         monthly_deduction: Number(loanForm.monthly_deduction),
+        repayment_start_period: loanForm.repayment_start_period,
         notes: loanForm.notes || undefined,
       });
-      setLoanForm({ loan_amount: '', monthly_deduction: '', notes: '' });
+      setLoanForm(createLoanForm());
       notify(t('loanSubmitted'), 'success');
       await refreshLoans();
     } catch (err) {
@@ -72,7 +77,7 @@ export default function LoanPanel({ notify }) {
             className={inputClass}
             value={loanForm.loan_amount}
             onChange={(e) => setLoanForm((f) => ({ ...f, loan_amount: e.target.value }))}
-            disabled={hasPendingLoan}
+            disabled={loanSubmitting}
           />
         </Field>
         <Field label={t('loanMonthlyDeduction')} hint={t('loanPotongGajiHint')}>
@@ -83,7 +88,19 @@ export default function LoanPanel({ notify }) {
             className={inputClass}
             value={loanForm.monthly_deduction}
             onChange={(e) => setLoanForm((f) => ({ ...f, monthly_deduction: e.target.value }))}
-            disabled={hasPendingLoan}
+            disabled={loanSubmitting}
+          />
+        </Field>
+        <Field label={t('loanStartMonth')} hint={t('loanStartMonthHint')}>
+          <input
+            type="month"
+            required
+            className={inputClass}
+            value={loanForm.repayment_start_period}
+            onChange={(e) =>
+              setLoanForm((f) => ({ ...f, repayment_start_period: e.target.value }))
+            }
+            disabled={loanSubmitting}
           />
         </Field>
         <Field label={t('loanNotes')} className="sm:col-span-2">
@@ -91,15 +108,12 @@ export default function LoanPanel({ notify }) {
             className={`${inputClass} min-h-[72px]`}
             value={loanForm.notes}
             onChange={(e) => setLoanForm((f) => ({ ...f, notes: e.target.value }))}
-            disabled={hasPendingLoan}
+            disabled={loanSubmitting}
             maxLength={2000}
           />
         </Field>
         <div className="sm:col-span-2">
-          {hasPendingLoan && (
-            <p className="mb-3 text-sm text-amber-800">{t('loanPendingExists')}</p>
-          )}
-          <Button type="submit" variant="primary" disabled={loanSubmitting || hasPendingLoan}>
+          <Button type="submit" variant="primary" disabled={loanSubmitting}>
             {loanSubmitting ? t('loading') : t('loanSubmit')}
           </Button>
         </div>
@@ -144,6 +158,9 @@ export default function LoanPanel({ notify }) {
                     · {t('loanDecidedAt')}: {formatDisplayDateTime(loan.decided_at)}
                   </>
                 )}
+              </p>
+              <p className="mt-1 text-xs text-apple-label">
+                {t('loanRepaymentStarts')}: {loan.repayment_start_period || t('loanStartImmediately')}
               </p>
               <LoanProgress loan={loan} />
             </li>

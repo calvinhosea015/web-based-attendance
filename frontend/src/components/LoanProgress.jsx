@@ -7,11 +7,12 @@ import { formatIdr } from '../utils/payrollDisplay.js';
 export default function LoanProgress({ loan }) {
   const { t } = useTranslation();
   const status = loan.approval_status;
+  const repaymentStart = loan.repayment_start_period || t('loanStartImmediately');
 
   if (status === 'pending') {
     return (
       <div className="mt-3 rounded-apple-lg bg-amber-50/80 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200/60">
-        {t('loanProgressPending')}
+        {t('loanProgressPending', { month: repaymentStart })}
       </div>
     );
   }
@@ -71,6 +72,9 @@ export default function LoanProgress({ loan }) {
           </p>
         </div>
       </div>
+      <p className="text-xs text-apple-label">
+        {t('loanRepaymentStarts')}: {repaymentStart}
+      </p>
       {paidOff && (
         <Badge variant="success">{t('loanProgressPaidOff')}</Badge>
       )}

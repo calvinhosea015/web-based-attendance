@@ -231,6 +231,7 @@ async function migrateLoanRequests() {
       employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
       loan_amount NUMERIC(14,2) NOT NULL,
       monthly_deduction NUMERIC(14,2) NOT NULL,
+      repayment_start_period VARCHAR(7),
       notes TEXT,
       approval_status VARCHAR(32) NOT NULL DEFAULT 'pending',
       decided_by INTEGER REFERENCES users(id),
@@ -244,6 +245,23 @@ async function migrateLoanRequests() {
   );
   await query(
     `CREATE INDEX IF NOT EXISTS idx_loan_requests_pending ON loan_requests(approval_status) WHERE approval_status = 'pending'`
+  );
+}
+
+/**
+ * New loan requests must choose a payroll period for their first deduction.
+ * Keep this nullable for records that existed before the feature: those loans
+ * retain their original behavior and remain immediately eligible for payroll.
+ */
+async function migrateLoanRepaymentStartPeriod() {
+  await query(
+    `ALTER TABLE loan_requests
+     ADD COLUMN IF NOT EXISTS repayment_start_period VARCHAR(7)`
+  );
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_loan_requests_active_repayment_period
+     ON loan_requests(employee_id, repayment_start_period)
+     WHERE approval_status = 'approved' AND COALESCE(remaining_balance, 0) > 0`
   );
 }
 
@@ -820,6 +838,7 @@ async function migrate() {
   await migratePayrollColumns();
   await migrateLoanRequests();
   await migratePayrollLoanColumns();
+  await migrateLoanRepaymentStartPeriod();
   await migratePayrollKeteranganColumn();
   await migratePayrollTunjanganPphAndEarlyLeave();
   await migratePayrollOtherDeductionsCleanup();

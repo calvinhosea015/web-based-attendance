@@ -48,7 +48,7 @@ async function main() {
     },
   };
   const loanRequestRepository = {
-    findActiveForEmployee: async () => null,
+    listEligibleForPayroll: async () => [],
   };
   const service = new PayrollService(
     payrollRepository,

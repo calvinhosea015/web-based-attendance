@@ -602,6 +602,7 @@ export default function AdminPayroll() {
                         {row.has_active_loan && (
                           <div className="mt-1 text-[12px] text-amber-700">
                             {t('payrollActiveLoanHint', {
+                              count: row.active_loan_count || 1,
                               monthly: formatIdr(row.loan_monthly_deduction),
                               remaining: formatIdr(row.loan_remaining_balance),
                             })}
@@ -1141,6 +1142,7 @@ export default function AdminPayroll() {
             {editingRow?.has_active_loan && (
               <p className="col-span-2 text-[10px] text-amber-700 md:col-span-4">
                 {t('payrollActiveLoanHint', {
+                  count: editingRow.active_loan_count || 1,
                   monthly: formatIdr(editingRow.loan_monthly_deduction),
                   remaining: formatIdr(editingRow.loan_remaining_balance),
                 })}

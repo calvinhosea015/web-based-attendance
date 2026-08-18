@@ -171,7 +171,7 @@ At least `PASSWORD_MIN_LENGTH` characters (default **6**), letters and numbers o
 
 Payroll months use a **25th–24th** window: pay month `YYYY-MM` covers **25th of the previous calendar month** through **24th** of the pay month (example: May 2026 → 25 Apr–24 May). **Days attended** come from check-ins in that range. Slips show the same range on the **Periode** line.
 
-Generate or refresh from **Payroll** → choose month → **Generate / refresh from attendance**. Loan deductions apply from approved active loans. Employees see finalized rows under **My payroll** after you generate that month.
+Generate or refresh from **Payroll** → choose month → **Generate / refresh from attendance**. Employees may have multiple loans; each approved loan starts deducting only in its selected repayment period. Employees see finalized rows under **My payroll** after you generate that month.
 
 ---
 

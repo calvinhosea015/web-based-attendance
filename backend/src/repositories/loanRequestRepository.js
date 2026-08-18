@@ -1,23 +1,15 @@
-const { query } = require('../db/pool');
+const { pool, query } = require('../db/pool');
 
 class LoanRequestRepository {
-  async create({ employeeId, loanAmount, monthlyDeduction, notes }) {
+  async create({ employeeId, loanAmount, monthlyDeduction, repaymentStartPeriod, notes }) {
     const r = await query(
-      `INSERT INTO loan_requests (employee_id, loan_amount, monthly_deduction, notes)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO loan_requests (
+        employee_id, loan_amount, monthly_deduction, repayment_start_period, notes
+      ) VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [employeeId, loanAmount, monthlyDeduction, notes || null]
+      [employeeId, loanAmount, monthlyDeduction, repaymentStartPeriod, notes || null]
     );
     return r.rows[0];
-  }
-
-  async countPendingForEmployee(employeeId) {
-    const r = await query(
-      `SELECT COUNT(*)::int AS c FROM loan_requests
-       WHERE employee_id = $1 AND approval_status = 'pending'`,
-      [employeeId]
-    );
-    return r.rows[0].c;
   }
 
   async listForEmployee(employeeId) {
@@ -96,26 +88,33 @@ class LoanRequestRepository {
     return r.rows[0] || null;
   }
 
-  async countActiveForEmployee(employeeId) {
+  /**
+   * Loans that contribute to one payroll period. A recorded final instalment
+   * is retained even after its balance reaches zero, so regenerating that
+   * payroll period cannot erase the deduction.
+   */
+  async listEligibleForPayroll(employeeId, payrollPeriod) {
     const r = await query(
-      `SELECT COUNT(*)::int AS c FROM loan_requests
-       WHERE employee_id = $1 AND approval_status = 'approved'
-         AND COALESCE(remaining_balance, 0) > 0`,
-      [employeeId]
+      `SELECT l.*, d.amount AS recorded_deduction
+       FROM loan_requests l
+       LEFT JOIN loan_payroll_deductions d
+         ON d.loan_request_id = l.id AND d.payroll_period = $2
+       WHERE l.employee_id = $1
+         AND l.approval_status = 'approved'
+         AND (
+           d.id IS NOT NULL
+           OR (
+             COALESCE(l.remaining_balance, l.loan_amount, 0) > 0
+             AND (
+               l.repayment_start_period IS NULL
+               OR l.repayment_start_period <= $2
+             )
+           )
+         )
+       ORDER BY l.decided_at ASC NULLS LAST, l.id ASC`,
+      [employeeId, payrollPeriod]
     );
-    return r.rows[0].c;
-  }
-
-  async findActiveForEmployee(employeeId) {
-    const r = await query(
-      `SELECT * FROM loan_requests
-       WHERE employee_id = $1 AND approval_status = 'approved'
-         AND COALESCE(remaining_balance, 0) > 0
-       ORDER BY decided_at ASC NULLS LAST, id ASC
-       LIMIT 1`,
-      [employeeId]
-    );
-    return r.rows[0] || null;
+    return r.rows;
   }
 
   async findDeductionForPeriod(loanRequestId, payrollPeriod) {
@@ -128,24 +127,89 @@ class LoanRequestRepository {
   }
 
   async recordPayrollDeduction({ loanRequestId, payrollPeriod, amount }) {
-    const amt = Number(amount) || 0;
-    if (amt <= 0) return null;
-    const existing = await this.findDeductionForPeriod(loanRequestId, payrollPeriod);
-    if (existing) return existing;
+    const requestedAmount = Number(amount);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) return null;
 
-    await query(
-      `INSERT INTO loan_payroll_deductions (loan_request_id, payroll_period, amount)
-       VALUES ($1, $2, $3)`,
-      [loanRequestId, payrollPeriod, amt]
-    );
-    const r = await query(
-      `UPDATE loan_requests SET
-        remaining_balance = GREATEST(0, COALESCE(remaining_balance, loan_amount) - $2)
-       WHERE id = $1
-       RETURNING *`,
-      [loanRequestId, amt]
-    );
-    return r.rows[0] || null;
+    // Keep the per-period ledger and loan balance in one transaction. The row
+    // lock also makes a repeated Generate request idempotent under concurrency.
+    const client = await pool.connect();
+    let began = false;
+    try {
+      await client.query('BEGIN');
+      began = true;
+
+      const locked = await client.query(
+        `SELECT id, loan_amount, remaining_balance
+         FROM loan_requests
+         WHERE id = $1
+         FOR UPDATE`,
+        [loanRequestId]
+      );
+      const loan = locked.rows[0];
+      if (!loan) {
+        await client.query('COMMIT');
+        began = false;
+        return null;
+      }
+
+      const existing = await client.query(
+        `SELECT amount FROM loan_payroll_deductions
+         WHERE loan_request_id = $1 AND payroll_period = $2`,
+        [loanRequestId, payrollPeriod]
+      );
+      if (existing.rows[0]) {
+        await client.query('COMMIT');
+        began = false;
+        return { amount: Number(existing.rows[0].amount) || 0, alreadyRecorded: true };
+      }
+
+      const rawRemaining = Number(loan.remaining_balance ?? loan.loan_amount);
+      const remaining = Number.isFinite(rawRemaining) ? Math.max(0, rawRemaining) : 0;
+      const deductionAmount = Math.min(requestedAmount, remaining);
+      if (deductionAmount <= 0) {
+        await client.query('COMMIT');
+        began = false;
+        return null;
+      }
+
+      const inserted = await client.query(
+        `INSERT INTO loan_payroll_deductions (loan_request_id, payroll_period, amount)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (loan_request_id, payroll_period) DO NOTHING
+         RETURNING amount`,
+        [loanRequestId, payrollPeriod, deductionAmount]
+      );
+      if (!inserted.rows[0]) {
+        const recorded = await client.query(
+          `SELECT amount FROM loan_payroll_deductions
+           WHERE loan_request_id = $1 AND payroll_period = $2`,
+          [loanRequestId, payrollPeriod]
+        );
+        await client.query('COMMIT');
+        began = false;
+        return recorded.rows[0]
+          ? { amount: Number(recorded.rows[0].amount) || 0, alreadyRecorded: true }
+          : null;
+      }
+
+      const updated = await client.query(
+        `UPDATE loan_requests SET
+          remaining_balance = GREATEST(0, COALESCE(remaining_balance, loan_amount) - $2)
+         WHERE id = $1
+         RETURNING *`,
+        [loanRequestId, deductionAmount]
+      );
+      await client.query('COMMIT');
+      began = false;
+      return updated.rows[0]
+        ? { amount: deductionAmount, loan: updated.rows[0], alreadyRecorded: false }
+        : null;
+    } catch (err) {
+      if (began) await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 }
 

@@ -58,7 +58,7 @@ async function main() {
   };
 
   const loanRequestRepository = {
-    findActiveForEmployee: async () => null,
+    listEligibleForPayroll: async () => [],
     recordPayrollDeduction: async () => {
       loanRecordCalls += 1;
     },

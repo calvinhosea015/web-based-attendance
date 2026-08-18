@@ -352,6 +352,10 @@ const payrollEmployeeDefaultsValidators = [
 const loanSubmitValidators = [
   body('loan_amount').isFloat({ gt: 0 }),
   body('monthly_deduction').isFloat({ gt: 0 }),
+  body('repayment_start_period')
+    .isString()
+    .matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .withMessage('Repayment start period must be YYYY-MM.'),
   body('notes').optional().trim().isLength({ max: 2000 }),
 ];
 
