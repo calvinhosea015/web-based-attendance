@@ -265,7 +265,30 @@ describe('FieldCheckoutCodeService updateDeliveryAsAdmin', () => {
     assert.equal(saved.bonus_amount, 900); // 1% of 90000
   });
 
-  it('rejects non-admin callers', async () => {
+  it('allows Staff Kantor to edit delivery recap entries', async () => {
+    let saved = null;
+    const service = new FieldCheckoutCodeService(
+      {
+        findById: async () => ({ ...baseEntry }),
+        updateEntry: async (id, fields) => {
+          saved = { id, ...fields };
+          return saved;
+        },
+      },
+      { findByPabrikAndBarang: async () => ({ price_per_item: 1000 }) }
+    );
+
+    const res = await service.updateDeliveryAsAdmin(
+      { role: 'employee', userId: 12 },
+      7,
+      { berat_bersih: 85 }
+    );
+
+    assert.equal(saved.berat_bersih, 85);
+    assert.equal(res.code, 'DELIVERY_UPDATED');
+  });
+
+  it('rejects callers who are neither admin nor Staff Kantor', async () => {
     const service = new FieldCheckoutCodeService({}, {});
     await assert.rejects(
       () => service.updateDeliveryAsAdmin({ role: 'field_officer' }, 1, {}),

@@ -153,6 +153,7 @@ export const paths = {
   adminFieldDeliveryBackdatesPending: '/v1/admin/field-delivery-backdates/pending',
   adminFieldDeliveryBackdate: (id) => `/v1/admin/field-delivery-backdates/${id}`,
   employeeFieldDeliveries: '/v1/employee/field-deliveries',
+  employeeFieldDeliveryUpdate: (id) => `/v1/employee/field-deliveries/${id}`,
   employeeFieldDeliveriesUncheckedCount: '/v1/employee/field-deliveries/unchecked-count',
   employeeDeliveryRecapReviews: '/v1/employee/delivery-recap-reviews',
   employeeFieldDeliveryBackdates: '/v1/employee/me/field-delivery-backdates',

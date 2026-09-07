@@ -1,6 +1,6 @@
 const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 const { AppError } = require('../utils/errors');
-const { isFieldOfficer } = require('../constants/roles');
+const { isFieldOfficer, isStaffKantor } = require('../constants/roles');
 const {
   validateFieldCheckoutCode,
   normalizeCode,
@@ -176,8 +176,12 @@ class FieldCheckoutCodeService {
   }
 
   async updateDeliveryAsAdmin(auth, id, payload) {
-    if (auth.role !== 'admin') {
-      throw new AppError('Only admins can edit delivery entries.', 403, 'NOT_ADMIN');
+    if (auth.role !== 'admin' && !isStaffKantor(auth.role)) {
+      throw new AppError(
+        'Only admins and Staff Kantor can edit delivery entries.',
+        403,
+        'FORBIDDEN'
+      );
     }
     const existing = await this.fieldDeliveryRepository.findById(id);
     if (!existing) {

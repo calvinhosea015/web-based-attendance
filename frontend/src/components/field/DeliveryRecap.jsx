@@ -14,10 +14,11 @@ import { formatDisplayDate, toCalendarYmd } from '../../utils/formatDate.js';
 import { formatIdr } from '../../utils/payrollDisplay.js';
 
 /**
- * @param {{ editable?: boolean, officeScope?: boolean, reviewEditable?: boolean }} props
+ * @param {{ editable?: boolean, deletable?: boolean, officeScope?: boolean, reviewEditable?: boolean }} props
  */
 export default function DeliveryRecap({
   editable = false,
+  deletable = editable,
   officeScope = false,
   reviewEditable = false,
 }) {
@@ -219,7 +220,10 @@ export default function DeliveryRecap({
     dismiss();
     try {
       await ensureCsrf();
-      const { data } = await api.put(paths.adminFieldDeliveryUpdate(id), editForm);
+      const updatePath = officeScope
+        ? paths.employeeFieldDeliveryUpdate(id)
+        : paths.adminFieldDeliveryUpdate(id);
+      const { data } = await api.put(updatePath, editForm);
       const updated = data?.entry;
       setAllDeliveries((prev) =>
         prev.map((r) =>
@@ -637,15 +641,19 @@ export default function DeliveryRecap({
                               >
                                 {t('fieldDeliveryEdit')}
                               </Button>
-                              <Button
-                                type="button"
-                                variant="danger"
-                                size="sm"
-                                disabled={deletingId === row.id}
-                                onClick={() => deleteDelivery(row.id)}
-                              >
-                                {deletingId === row.id ? t('loading') : t('fieldDeliveryDelete')}
-                              </Button>
+                              {deletable ? (
+                                <Button
+                                  type="button"
+                                  variant="danger"
+                                  size="sm"
+                                  disabled={deletingId === row.id}
+                                  onClick={() => deleteDelivery(row.id)}
+                                >
+                                  {deletingId === row.id
+                                    ? t('loading')
+                                    : t('fieldDeliveryDelete')}
+                                </Button>
+                              ) : null}
                             </div>
                           ) : null}
                         </>

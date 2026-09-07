@@ -669,7 +669,8 @@ export default function EmployeeDashboard() {
       {canShowDeliveryRecap && (
         <DeliveryRecap
           officeScope
-          editable={false}
+          editable
+          deletable={false}
           reviewEditable={(summary?.role || localStorage.getItem('role')) === ROLE_EMPLOYEE}
         />
       )}

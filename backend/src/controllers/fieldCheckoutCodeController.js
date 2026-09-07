@@ -32,6 +32,10 @@ function makeFieldCheckoutCodeController(
       const id = Number(req.params.id);
       res.json(await fieldCheckoutCodeService.updateDeliveryAsAdmin(req.auth, id, req.body));
     }),
+    employeeUpdateDelivery: asyncHandler(async (req, res) => {
+      const id = Number(req.params.id);
+      res.json(await fieldCheckoutCodeService.updateDeliveryAsAdmin(req.auth, id, req.body));
+    }),
     adminDeleteDelivery: asyncHandler(async (req, res) => {
       const id = Number(req.params.id);
       res.json(await fieldCheckoutCodeService.deleteDeliveryAsAdmin(req.auth, id));

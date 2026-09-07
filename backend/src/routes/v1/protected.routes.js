@@ -484,6 +484,13 @@ function buildProtectedRoutes(deps) {
     validateRequest,
     dashboardController.deliveryRecapReviewSave
   );
+  r.put(
+    '/employee/field-deliveries/:id',
+    requireRole('employee'),
+    adminFieldDeliveryUpdateValidators,
+    validateRequest,
+    fieldCheckoutCodeController.employeeUpdateDelivery
+  );
   r.get(
     '/employee/me/field-deliveries/today',
     requireAttendanceRole,
