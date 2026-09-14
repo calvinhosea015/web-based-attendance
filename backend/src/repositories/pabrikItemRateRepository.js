@@ -11,11 +11,18 @@ class PabrikItemRateRepository {
   }
 
   async findByPabrikAndBarang(pabrikCode, kodeBarang) {
+    const normalizedPabrikCode = String(pabrikCode).trim();
+    const normalizedKodeBarang = String(kodeBarang)
+      .trim()
+      .replace(/\s+/g, ' ');
     const r = await query(
       `SELECT id, pabrik_code, kode_barang, nama_barang, tonase_per_item, price_per_item
        FROM pabrik_item_rates
-       WHERE pabrik_code = $1 AND kode_barang = $2`,
-      [String(pabrikCode).trim(), String(kodeBarang).trim()]
+       WHERE UPPER(TRIM(pabrik_code)) = UPPER($1)
+         AND UPPER(REGEXP_REPLACE(TRIM(kode_barang), '\\s+', ' ', 'g')) = UPPER($2)
+       ORDER BY (pabrik_code = $1 AND kode_barang = $2) DESC, id ASC
+       LIMIT 1`,
+      [normalizedPabrikCode, normalizedKodeBarang]
     );
     return r.rows[0] || null;
   }
