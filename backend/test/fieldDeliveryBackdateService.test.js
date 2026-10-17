@@ -90,6 +90,27 @@ describe('FieldDeliveryBackdateService submit', () => {
       (err) => err instanceof AppError && err.code === 'DATE_NOT_PAST'
     );
   });
+
+  it('rejects field-officer requests older than seven days', async () => {
+    const today = attendanceCalendarDayStr();
+    const oldYmd = shiftYmd(today, -(MAX_BACKDATE_DAYS + 1));
+    const service = new FieldDeliveryBackdateService(
+      { hasPendingForDelivery: async () => false },
+      {
+        findById: async () => ({ id: 3, employee_id: 1, valid_on: today }),
+      }
+    );
+
+    await assert.rejects(
+      () =>
+        service.submit(
+          { role: 'field_officer', employeeId: 1 },
+          3,
+          { requested_valid_on: oldYmd, reason: 'Late paperwork' }
+        ),
+      (err) => err instanceof AppError && err.code === 'DATE_TOO_OLD'
+    );
+  });
 });
 
 describe('FieldDeliveryBackdateService decide', () => {
@@ -156,5 +177,44 @@ describe('FieldDeliveryBackdateService decide', () => {
       () => service.decide(5, { userId: 1 }, { status: 'approved' }),
       (err) => err instanceof AppError && err.code === 'CHECK_IN_REQUIRED'
     );
+  });
+
+  it('allows an admin to approve a delivery backdate older than seven days', async () => {
+    let updated = null;
+    const today = attendanceCalendarDayStr();
+    const oldYmd = shiftYmd(today, -(MAX_BACKDATE_DAYS + 30));
+    const service = new FieldDeliveryBackdateService(
+      {
+        findById: async () => ({
+          id: 5,
+          employee_id: 1,
+          delivery_id: 3,
+          requested_valid_on: oldYmd,
+          approval_status: 'pending',
+        }),
+        setDecision: async (id, { status }) => ({ id, approval_status: status }),
+      },
+      {
+        updateValidOn: async (id, validOn, attendanceId) => {
+          updated = { id, validOn, attendanceId };
+          return { id, valid_on: validOn, attendance_id: attendanceId };
+        },
+      },
+      {
+        countTodaySegments: async () => 1,
+        findOpenToday: async () => null,
+        findAnyToday: async () => ({ id: 44 }),
+      }
+    );
+
+    const row = await service.decide(
+      5,
+      { role: 'admin', userId: 99 },
+      { status: 'approved' }
+    );
+
+    assert.equal(updated.validOn, oldYmd);
+    assert.equal(updated.attendanceId, 44);
+    assert.equal(row.approval_status, 'approved');
   });
 });

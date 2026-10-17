@@ -2,7 +2,7 @@ const { attendanceCalendarDayStr } = require('../utils/calendarDay');
 const { AppError } = require('../utils/errors');
 const { isFieldOfficer } = require('../constants/roles');
 
-/** ponytail: hard 7-day lookback; raise via config if ops need longer windows. */
+/** Field officers may only request dates within this lookback window. */
 const MAX_BACKDATE_DAYS = 7;
 
 function parseYmd(value) {
@@ -33,7 +33,7 @@ class FieldDeliveryBackdateService {
     this.fieldCodeEntryRepository = fieldCodeEntryRepository;
   }
 
-  assertRequestedDate(requestedValidOn, today) {
+  assertRequestedDate(requestedValidOn, today, { enforceMaxAge = true } = {}) {
     const ymd = parseYmd(requestedValidOn);
     if (!ymd) {
       throw new AppError('Invalid requested date.', 400, 'INVALID_DATE');
@@ -42,7 +42,7 @@ class FieldDeliveryBackdateService {
       throw new AppError('Requested date must be before today.', 400, 'DATE_NOT_PAST');
     }
     const lag = daysBetweenYmd(ymd, today);
-    if (lag > MAX_BACKDATE_DAYS) {
+    if (enforceMaxAge && lag > MAX_BACKDATE_DAYS) {
       throw new AppError(
         `Backdate cannot be more than ${MAX_BACKDATE_DAYS} days ago.`,
         400,
@@ -134,7 +134,9 @@ class FieldDeliveryBackdateService {
     if (status === 'approved') {
       const requestedValidOn = String(existing.requested_valid_on).slice(0, 10);
       const today = attendanceCalendarDayStr();
-      this.assertRequestedDate(requestedValidOn, today);
+      // The seven-day window limits new field-officer requests. An admin may
+      // still approve a request after that window has elapsed.
+      this.assertRequestedDate(requestedValidOn, today, { enforceMaxAge: false });
 
       if (this.attendanceRepository) {
         const count = await this.attendanceRepository.countTodaySegments(
