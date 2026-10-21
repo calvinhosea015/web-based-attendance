@@ -156,7 +156,8 @@ describe('FieldDeliveryBackdateService decide', () => {
     assert.equal(row.approval_status, 'approved');
   });
 
-  it('refuses approve when there is no check-in on the requested date', async () => {
+  it('allows an admin to approve when there is no check-in on the requested date', async () => {
+    let updated = null;
     const today = attendanceCalendarDayStr();
     const recentYmd = shiftYmd(today, -1);
     const service = new FieldDeliveryBackdateService(
@@ -168,15 +169,31 @@ describe('FieldDeliveryBackdateService decide', () => {
           requested_valid_on: recentYmd,
           approval_status: 'pending',
         }),
+        setDecision: async (id, { status }) => ({ id, approval_status: status }),
       },
-      { updateValidOn: async () => ({}) },
-      { countTodaySegments: async () => 0 }
+      {
+        updateValidOn: async (id, validOn, attendanceId) => {
+          updated = { id, validOn, attendanceId };
+          return { id, valid_on: validOn, attendance_id: attendanceId };
+        },
+      },
+      {
+        countTodaySegments: async () => {
+          throw new Error('Admin approval must not require an attendance count.');
+        },
+        findOpenToday: async () => null,
+        findAnyToday: async () => null,
+      }
     );
 
-    await assert.rejects(
-      () => service.decide(5, { userId: 1 }, { status: 'approved' }),
-      (err) => err instanceof AppError && err.code === 'CHECK_IN_REQUIRED'
+    const row = await service.decide(
+      5,
+      { role: 'admin', userId: 1 },
+      { status: 'approved' }
     );
+
+    assert.deepEqual(updated, { id: 3, validOn: recentYmd, attendanceId: null });
+    assert.equal(row.approval_status, 'approved');
   });
 
   it('allows an admin to approve a delivery backdate older than seven days', async () => {

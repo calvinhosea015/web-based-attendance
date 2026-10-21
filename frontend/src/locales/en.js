@@ -638,7 +638,7 @@ export default {
     'Omset and bonus are recalculated automatically from net weight and the factory item rate.',
   fieldBackdateRequest: 'Request backdate',
   fieldBackdateHint:
-    'Ask admin to move this delivery to a past day (max 7 days). You must have checked in on that day.',
+    'Ask admin to move this delivery to a past day (max 7 days).',
   fieldBackdateDate: 'Delivery date',
   fieldBackdateReason: 'Reason',
   fieldBackdateSubmit: 'Submit request',
@@ -647,10 +647,15 @@ export default {
   fieldBackdateNeedFields: 'Choose a date and enter a reason.',
   fieldBackdateAdminTitle: 'Delivery backdates',
   fieldBackdateAdminHint:
-    'Approve only when the officer checked in on the requested date. Bonus stays as recorded.',
+    'Review requested delivery dates before approval. Bonus stays as recorded.',
   fieldBackdateNoPending: 'No pending delivery backdate requests.',
   fieldBackdateApproved: 'Backdate approved.',
   fieldBackdateRejected: 'Backdate rejected.',
+  fieldBackdateApproveAll: 'Approve all',
+  fieldBackdateApprovingAll: 'Approving all…',
+  fieldBackdateAllApproved: 'All {{count}} backdate requests approved.',
+  fieldBackdateApproveAllPartial:
+    'Approved {{approved}} of {{total}} backdate requests. Review the remaining requests and try again.',
   fieldBackdateFrom: 'Current date',
   fieldBackdateTo: 'Requested date',
   splitShiftTimes: 'Four clocks per day — session times',

@@ -137,20 +137,6 @@ class FieldDeliveryBackdateService {
       // The seven-day window limits new field-officer requests. An admin may
       // still approve a request after that window has elapsed.
       this.assertRequestedDate(requestedValidOn, today, { enforceMaxAge: false });
-
-      if (this.attendanceRepository) {
-        const count = await this.attendanceRepository.countTodaySegments(
-          existing.employee_id,
-          requestedValidOn
-        );
-        if (count < 1) {
-          throw new AppError(
-            'Cannot approve: employee has no check-in on the requested date.',
-            400,
-            'CHECK_IN_REQUIRED'
-          );
-        }
-      }
     }
 
     // Decide first (same order as attendance corrections) so a concurrent reject

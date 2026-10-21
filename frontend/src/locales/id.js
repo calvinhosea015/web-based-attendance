@@ -643,7 +643,7 @@ export default {
     'Omset dan bonus dihitung ulang otomatis dari berat bersih dan tarif item pabrik.',
   fieldBackdateRequest: 'Ajukan ubah tanggal',
   fieldBackdateHint:
-    'Minta admin memindahkan pengiriman ke hari sebelumnya (maks. 7 hari). Anda harus sudah absen masuk pada tanggal tersebut.',
+    'Minta admin memindahkan pengiriman ke hari sebelumnya (maks. 7 hari).',
   fieldBackdateDate: 'Tanggal pengiriman',
   fieldBackdateReason: 'Alasan',
   fieldBackdateSubmit: 'Kirim pengajuan',
@@ -652,10 +652,15 @@ export default {
   fieldBackdateNeedFields: 'Pilih tanggal dan isi alasan.',
   fieldBackdateAdminTitle: 'Ubah tanggal pengiriman',
   fieldBackdateAdminHint:
-    'Setujui hanya jika petugas absen masuk pada tanggal yang diminta. Bonus tetap sesuai yang tercatat.',
+    'Periksa tanggal pengiriman yang diminta sebelum menyetujui. Bonus tetap sesuai yang tercatat.',
   fieldBackdateNoPending: 'Tidak ada pengajuan ubah tanggal yang menunggu.',
   fieldBackdateApproved: 'Ubah tanggal disetujui.',
   fieldBackdateRejected: 'Ubah tanggal ditolak.',
+  fieldBackdateApproveAll: 'Setujui semua',
+  fieldBackdateApprovingAll: 'Menyetujui semua…',
+  fieldBackdateAllApproved: 'Semua {{count}} pengajuan ubah tanggal disetujui.',
+  fieldBackdateApproveAllPartial:
+    '{{approved}} dari {{total}} pengajuan disetujui. Periksa pengajuan yang tersisa lalu coba lagi.',
   fieldBackdateFrom: 'Tanggal saat ini',
   fieldBackdateTo: 'Tanggal diminta',
   splitShiftTimes: 'Empat absen per hari — waktu sesi',

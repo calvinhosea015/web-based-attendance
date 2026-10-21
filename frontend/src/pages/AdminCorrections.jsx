@@ -16,15 +16,16 @@ export default function AdminCorrections() {
   const [loading, setLoading] = useState(false);
   const [decidingId, setDecidingId] = useState(null);
   const [decidingBackdateId, setDecidingBackdateId] = useState(null);
+  const [approvingAllBackdates, setApprovingAllBackdates] = useState(false);
 
   const notify = (text, tone = 'info') => {
     setMessage(text);
     setMessageTone(tone);
   };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ clearMessage = true } = {}) => {
     setLoading(true);
-    notify('');
+    if (clearMessage) notify('');
     try {
       await ensureCsrf();
       const [correctionsRes, backdatesRes] = await Promise.all([
@@ -56,7 +57,7 @@ export default function AdminCorrections() {
         status === 'approved' ? t('correctionApproved') : t('correctionRejected'),
         'success'
       );
-      await load();
+      await load({ clearMessage: false });
       window.dispatchEvent(new CustomEvent('admin-pending-refresh'));
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
@@ -75,12 +76,43 @@ export default function AdminCorrections() {
         status === 'approved' ? t('fieldBackdateApproved') : t('fieldBackdateRejected'),
         'success'
       );
-      await load();
+      await load({ clearMessage: false });
       window.dispatchEvent(new CustomEvent('admin-pending-refresh'));
     } catch (err) {
       notify(translateApiMessage(err) || String(err), 'error');
     } finally {
       setDecidingBackdateId(null);
+    }
+  };
+
+  const handleApproveAllBackdates = async () => {
+    if (backdates.length === 0) return;
+
+    setApprovingAllBackdates(true);
+    notify('');
+    const total = backdates.length;
+
+    try {
+      await ensureCsrf();
+      const results = await Promise.allSettled(
+        backdates.map((row) =>
+          api.put(paths.adminFieldDeliveryBackdate(row.id), { status: 'approved' })
+        )
+      );
+      const approved = results.filter((result) => result.status === 'fulfilled').length;
+
+      if (approved === total) {
+        notify(t('fieldBackdateAllApproved', { count: approved }), 'success');
+      } else {
+        notify(t('fieldBackdateApproveAllPartial', { approved, total }), 'error');
+      }
+
+      await load({ clearMessage: false });
+      window.dispatchEvent(new CustomEvent('admin-pending-refresh'));
+    } catch (err) {
+      notify(translateApiMessage(err) || String(err), 'error');
+    } finally {
+      setApprovingAllBackdates(false);
     }
   };
 
@@ -159,7 +191,24 @@ export default function AdminCorrections() {
           )}
         </Card>
 
-        <Card title={t('fieldBackdateAdminTitle')} description={t('fieldBackdateAdminHint')}>
+        <Card
+          title={t('fieldBackdateAdminTitle')}
+          description={t('fieldBackdateAdminHint')}
+          action={
+            backdates.length > 0 ? (
+              <Button
+                variant="success"
+                size="sm"
+                disabled={approvingAllBackdates || decidingBackdateId !== null}
+                onClick={handleApproveAllBackdates}
+              >
+                {approvingAllBackdates
+                  ? t('fieldBackdateApprovingAll')
+                  : t('fieldBackdateApproveAll')}
+              </Button>
+            ) : null
+          }
+        >
           {loading ? (
             <Spinner />
           ) : backdates.length === 0 ? (
@@ -199,7 +248,7 @@ export default function AdminCorrections() {
                     <Button
                       variant="success"
                       size="sm"
-                      disabled={decidingBackdateId === row.id}
+                      disabled={approvingAllBackdates || decidingBackdateId !== null}
                       onClick={() => handleBackdateDecide(row.id, 'approved')}
                     >
                       {t('leaveApprove')}
@@ -207,7 +256,7 @@ export default function AdminCorrections() {
                     <Button
                       variant="danger"
                       size="sm"
-                      disabled={decidingBackdateId === row.id}
+                      disabled={approvingAllBackdates || decidingBackdateId !== null}
                       onClick={() => handleBackdateDecide(row.id, 'rejected')}
                     >
                       {t('leaveReject')}
